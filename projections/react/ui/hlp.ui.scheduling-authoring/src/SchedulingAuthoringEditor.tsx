@@ -19,6 +19,8 @@ const pointerFields: Choices = [['/name', 'Name'], ['/on_type_id', 'Runs on reco
 const supply = 'Supply is read from the shared availability runtime, from each Resource\'s own availability source, set on the Resource in the Booking editor. It cannot be changed here.'
 const rejectedRevision = 'A host draft was not loaded because its revision is not a canonical decimal string.'
 const noDiagnostics: readonly SchedulingDiagnostic[] = []
+const notChecked = 'Not yet checked for refusals.'
+const staleRefusals = 'Refusals not current: they were checked against another draft, revision or edit.'
 const lifecycleKey = (value: SchedulingDraft) => `${value.identity}\u0000${value.versionId}\u0000${value.expectedRevision ?? ''}`
 const obj = (node: unknown): Json | undefined => typeof node === 'object' && node !== null && !Array.isArray(node) ? node as Json : undefined
 const text = (node: unknown) => typeof node === 'string' ? node : undefined
@@ -26,8 +28,14 @@ const list = (node: unknown): readonly unknown[] => Array.isArray(node) ? node :
 // Setting a member writes it; undefined removes it and writes nothing in its place. An object left with no members is removed.
 const put = (target: Json, member: string, next: unknown): Json => { const { [member]: _previous, ...rest } = target; return next === undefined ? rest : { ...rest, [member]: next } }
 const orNone = (target: Json) => Object.keys(target).length > 0 ? target : undefined
-// Numbers are read from the text by the JSON number grammar; anything else leaves the draft unchanged.
-const decimal = (raw: string) => /^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$/.test(raw.trim()) && Number.isFinite(Number(raw.trim())) ? Number(raw.trim()) : undefined
+// Numbers are read from the text by the JSON number grammar; anything else leaves the draft unchanged. A decimal is applied only
+// when the JSON number it becomes has the same decimal value, so a threshold is never rounded on its way into the draft.
+const numberGrammar = /^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$/
+// One spelling per decimal value (sign, significant digits, exponent), so 1.50, 15e-1 and 1.5 compare equal.
+const decimalValue = (text: string) => { const [, sign = '', whole = '', fraction = '', exponent = '0'] = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([-+]?\d+))?$/.exec(text) ?? []; const digits = `${whole}${fraction}`.replace(/^0+/, ''); const significant = digits.replace(/0+$/, ''); return significant === '' ? '0' : `${sign}${significant}e${Number(exponent) - fraction.length + digits.length - significant.length}` }
+const exact = (text: string) => { const number = Number(text); return Number.isFinite(number) && decimalValue(text) === decimalValue(String(number)) }
+const decimal = (raw: string) => numberGrammar.test(raw.trim()) && exact(raw.trim()) ? Number(raw.trim()) : undefined
+const inexact = (raw: string) => numberGrammar.test(raw.trim()) && !exact(raw.trim())
 const whole = (raw: string) => /^-?(0|[1-9]\d*)$/.test(raw.trim()) && Number.isSafeInteger(Number(raw.trim())) ? Number(raw.trim()) : undefined
 const jsonObject = (raw: string) => { try { return obj(JSON.parse(raw)) } catch { return undefined } }
 const at = (pointer: string) => pointer || 'the whole definition'
@@ -42,8 +50,9 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
   // Text a field cannot commit yet (a half-typed number or JSON object) stays in its input until the draft value under it changes, or a replacement draft is adopted.
   const [typed, setTyped] = useState<Readonly<Record<string, { readonly text: string; readonly under: string }>>>({})
   // A host echo of the same identity, version and revision is not a replacement; a different one replaces a clean draft and waits
-  // behind Keep or Discard on a dirty one, so a new identity or revision never silently overwrites local edits.
-  useEffect(() => { if (!hasAcceptableSchedulingRevision(props.value)) return; if (!adopted.current) { adopted.current = true; latest.current = props.value; setValue(props.value); setHasDraft(true); return } const key = lifecycleKey(props.value); if (key === lifecycleKey(latest.current)) { held.current = ''; setIncoming(undefined); return } if (key === held.current) return; if (dirty.current) { held.current = key; setIncoming(props.value) } else { counter.current++; latest.current = props.value; setValue(props.value); setGeneration(counter.current); setTyped({}) } }, [props.value])
+  // behind Keep or Discard on a dirty one, so a new identity or revision never silently overwrites local edits. Adopting a
+  // replacement moves the generation, so the host is told it, as for any change, and can send refusals for the replacement.
+  useEffect(() => { if (!hasAcceptableSchedulingRevision(props.value)) return; if (!adopted.current) { adopted.current = true; latest.current = props.value; setValue(props.value); setHasDraft(true); return } const key = lifecycleKey(props.value); if (key === lifecycleKey(latest.current)) { held.current = ''; setIncoming(undefined); return } if (key === held.current) return; if (dirty.current) { held.current = key; setIncoming(props.value) } else { counter.current++; latest.current = props.value; setValue(props.value); setGeneration(counter.current); setTyped({}); props.onDraftChange({ draft: props.value, generation: counter.current }) } }, [props.value])
   const change = (next: SchedulingDraft) => { if (props.readOnly || !adopted.current) return; dirty.current = true; counter.current++; latest.current = next; setValue(next); setGeneration(counter.current); props.onDraftChange({ draft: next, generation: counter.current }) }
   const discard = (next: SchedulingDraft) => { if (props.readOnly) return; dirty.current = false; held.current = ''; counter.current++; latest.current = next; setValue(next); setGeneration(counter.current); setIncoming(undefined); setTyped({}); props.onDraftChange({ draft: next, generation: counter.current }) }
   const keep = () => { if (props.readOnly) return; setIncoming(undefined) }
@@ -69,9 +78,12 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
   const setConstraints = (next: readonly unknown[]) => { const head = obj(modules()[0]) ?? {}; set('modules', [put(head, 'parameters', orNone(put(obj(head.parameters) ?? {}, 'constraints', next.length > 0 ? next : undefined))), ...modules().slice(1)]) }
   const setConstraint = (index: number, key: string, next: unknown) => setConstraints(constraints().map((constraint, position) => position === index ? put(obj(constraint) ?? {}, key, next) : constraint))
 
-  // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown.
-  const matched = hasDraft && props.diagnostics && hasAcceptableSchedulingRevision(props.diagnostics) && props.diagnostics.identity === value.identity && sameSchedulingRevision(props.diagnostics.expectedRevision, value.expectedRevision) && props.diagnostics.generation === generation ? props.diagnostics.diagnostics : noDiagnostics
-  const body = value.body; const basis = obj(body.basis); const basisKind = text(basis?.kind); const hasBasis = body.basis !== undefined; const chain = basisKind === 'event_anchored_chain'
+  // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown, and
+  // the draft is then not known to be free of refusals.
+  const checked = hasDraft && props.diagnostics !== undefined && hasAcceptableSchedulingRevision(props.diagnostics) && props.diagnostics.identity === value.identity && sameSchedulingRevision(props.diagnostics.expectedRevision, value.expectedRevision) && props.diagnostics.generation === generation
+  const matched = checked ? props.diagnostics!.diagnostics : noDiagnostics
+  // A null basis is the single due date form, as the producer reads it.
+  const body = value.body; const basis = obj(body.basis); const basisKind = text(basis?.kind); const hasBasis = body.basis !== undefined && body.basis !== null; const chain = basisKind === 'event_anchored_chain'
   const starts = obj(body.starts); const startsKind = text(starts?.kind); const problemClass = text(body.problem_class) === 'None' ? '' : text(body.problem_class); const solver = obj(body.solver)
   const solverShown = !!problemClass || body.solver !== undefined; const modulesShown = !!problemClass || body.modules !== undefined; const dueShown = !hasBasis || body.due_date !== undefined; const windowShown = !chain || body.window !== undefined
   const onScreen = new Set(['Name', 'Runs on record type', 'Starts', 'Basis', 'Tolerance', 'Missed behaviour', 'Problem class', 'Legality rule set'])
@@ -88,17 +100,18 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
   useEffect(() => { const fresh = refusalKeys.filter(key => !announced.current.has(key)); announced.current = new Set(refusalKeys); if (fresh.length > 0) setAnnouncement(`${fresh.length} new refusal${fresh.length === 1 ? '' : 's'}: ${fresh.join('; ')}`); else if (refusalKeys.length === 0) setAnnouncement('') }, [joined])
 
   const select = (field: string, selected: string | undefined, options: Choices, onChange: (next: string) => void, none = 'Not set', unknown = 'not offered') => <label>{field}<select aria-label={field} aria-invalid={invalid(field)} value={selected ?? ''} onChange={event => onChange(event.currentTarget.value)}><option value="">{none}</option>{selected !== undefined && selected !== '' && !options.some(([id]) => id === selected) && <option value={selected}>{`${selected} (${unknown})`}</option>}{options.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-  const input = (field: string, shownText: string, onChange: (raw: string) => void, inputMode?: 'decimal' | 'numeric') => <label>{field}<input aria-label={field} aria-invalid={invalid(field)} inputMode={inputMode} value={shownText} onChange={event => onChange(event.currentTarget.value)} /></label>
+  const input = (field: string, shownText: string, onChange: (raw: string) => void, inputMode?: 'decimal' | 'numeric', refused?: true) => <label>{field}<input aria-label={field} aria-invalid={refused ?? invalid(field)} inputMode={inputMode} value={shownText} onChange={event => onChange(event.currentTarget.value)} /></label>
   const pair = (legend: string, member: string, keys: readonly [string, string], labels: readonly [string, string], hint: string) => { const pairValue = obj(body[member]); return <fieldset className="hl-scheduling-authoring__group" aria-invalid={invalid(legend)}><legend>{legend}</legend><p className="hl-scheduling-authoring__note">{hint}</p><div className="hl-scheduling-authoring__row">{keys.map((key, index) => <span key={key}>{input(labels[index], text(pairValue?.[key]) ?? '', raw => setIn(member, key, raw || undefined))}</span>)}</div></fieldset> }
 
   const basisFields = (): ReactNode => {
     if (basisKind === 'fixed_calendar') return input('Recurrence rule', text(basis?.rrule) ?? '', raw => setIn('basis', 'rrule', raw || undefined))
     if (basisKind === 'completion_offset') return input('Completion offset', text(basis?.offset) ?? '', raw => setIn('basis', 'offset', raw || undefined))
-    if (basisKind === 'threshold') return <>
+    if (basisKind === 'threshold') { const valueText = shown('Threshold value', basis?.value, typeof basis?.value === 'number' ? String(basis.value) : ''); const refused = inexact(valueText); return <>
       {input('Threshold reading', text(basis?.reading) ?? '', raw => setIn('basis', 'reading', raw || undefined))}
       {select('Threshold crossing', text(basis?.crossing), crossings, next => setIn('basis', 'crossing', next || undefined), 'Not set', 'not a current spelling')}
-      {input('Threshold value', shown('Threshold value', basis?.value, typeof basis?.value === 'number' ? String(basis.value) : ''), raw => setDecimal('Threshold value', raw, obj(current().basis)?.value, next => setIn('basis', 'value', next)), 'decimal')}
-    </>
+      {input('Threshold value', valueText, raw => setDecimal('Threshold value', raw, obj(current().basis)?.value, next => setIn('basis', 'value', next)), 'decimal', refused || undefined)}
+      {refused && <p className="hl-scheduling-authoring__note">{`Threshold value ${valueText.trim()} cannot be kept exactly as a number, so it is not applied.`}</p>}
+    </> }
     return null
   }
 
@@ -177,7 +190,7 @@ export function SchedulingAuthoringEditor(props: SchedulingAuthoringEditorProps)
     {!hasAcceptableSchedulingRevision(props.value) && <p role="status" className="hl-scheduling-authoring__note">{rejectedRevision}</p>}
     {hasDraft && (matched.length > 0
       ? <ul className="hl-scheduling-authoring__refusals" aria-label="Refusal list">{matched.map((diagnostic, index) => { const field = fieldOf(diagnostic.pointer); return <li key={index} data-code={diagnostic.code} data-pointer={diagnostic.pointer}>{`${diagnostic.code} at ${at(diagnostic.pointer)}${field ? ` (${field})` : ''}`}</li> })}</ul>
-      : <p className="hl-scheduling-authoring__note">No refusals.</p>)}
+      : <p className="hl-scheduling-authoring__note">{checked ? 'No refusals.' : props.diagnostics ? staleRefusals : notChecked}</p>)}
     {hasDraft && (props.readOnly ? <fieldset className="hl-scheduling-authoring__read-only" disabled>{content}</fieldset> : content)}
     <div role="status" aria-live="polite" aria-label="Refusal announcements" className="hl-scheduling-authoring__announcer">{announcement}</div>
     {incoming && <aside role="alert" className="hl-scheduling-authoring__incoming">A different draft or revision arrived while you have local edits.<Button type="button" disabled={props.readOnly} onClick={keep}>Keep edits</Button><Button type="button" disabled={props.readOnly} onClick={() => discard(incoming)}>Discard edits</Button></aside>}

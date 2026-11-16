@@ -48,7 +48,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     private static void Same(JsonNode? expected, JsonNode? actual) => Assert.True(JsonNode.DeepEquals(expected, actual), actual?.ToJsonString() ?? "null");
     private static SchedulingDiagnosticSet Refused(SchedulingDraft draft, params (string Code, string Pointer)[] diagnostics) => new(draft.Identity, draft.ExpectedRevision, 0, [.. diagnostics.Select(item => new SchedulingDiagnostic(item.Code, item.Pointer))]);
 
-    [Fact(DisplayName = "scheduling-eng-19, scheduling-auth-1, -2, -3, -4, -5, -12, -13: a fixed-calendar Schedule authored from nothing is exactly the fixture body")]
+    [Fact(DisplayName = "scheduling-eng-19, scheduling-auth-1, scheduling-auth-2, scheduling-auth-3, scheduling-auth-4, scheduling-auth-5, scheduling-auth-12, scheduling-auth-13: a fixed-calendar Schedule authored from nothing is exactly the fixture body")]
     [Trait("Holds", "scheduling-eng-19"), Trait("Holds", "scheduling-auth-1"), Trait("Holds", "scheduling-auth-2"), Trait("Holds", "scheduling-auth-3"), Trait("Holds", "scheduling-auth-4"), Trait("Holds", "scheduling-auth-5"), Trait("Holds", "scheduling-auth-12"), Trait("Holds", "scheduling-auth-13")]
     public void ScheduleFromNothing()
     {
@@ -60,7 +60,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.Equal("", changes[^1].Draft.Identity);
     }
 
-    [Fact(DisplayName = "scheduling-eng-19, scheduling-auth-2, -5, -6, -12: an event-anchored chain authored from nothing is exactly the fixture body")]
+    [Fact(DisplayName = "scheduling-eng-19, scheduling-auth-2, scheduling-auth-5, scheduling-auth-6, scheduling-auth-12: an event-anchored chain authored from nothing is exactly the fixture body")]
     [Trait("Holds", "scheduling-eng-19"), Trait("Holds", "scheduling-auth-2"), Trait("Holds", "scheduling-auth-5"), Trait("Holds", "scheduling-auth-6"), Trait("Holds", "scheduling-auth-12")]
     public void ChainFromNothing()
     {
@@ -141,6 +141,42 @@ public sealed class SchedulingAuthoringTests : BunitContext
             Assert.Empty(Listed(cut));
             Assert.Null(Labelled(cut, "Name").GetAttribute("aria-invalid"));
         }
+    }
+
+    [Fact(DisplayName = "scheduling-auth-27: absent or stale refusals are shown as not checked, and only a current empty set says No refusals")]
+    [Trait("Holds", "scheduling-auth-27")]
+    public void AbsentOrStaleRefusalsAreNotChecked()
+    {
+        var cut = Editor(Draft("""{"name":""}"""), []);
+        Assert.Contains("Not yet checked for refusals.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("No refusals.", cut.Markup, StringComparison.Ordinal);
+
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, new SchedulingDiagnosticSet("schedule.inspection", "3", 1, [])));
+        Assert.Contains("Refusals not current: they were checked against another draft, revision or edit.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("No refusals.", cut.Markup, StringComparison.Ordinal);
+
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, new SchedulingDiagnosticSet("schedule.inspection", "3", 0, [])));
+        Assert.Contains("No refusals.", cut.Markup, StringComparison.Ordinal);
+
+        Type(cut, "Name", "Inspection");
+        Assert.Contains("Refusals not current: they were checked against another draft, revision or edit.", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("No refusals.", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "scheduling-eng-19, scheduling-auth-27: adopting a clean replacement tells the host its generation, so refusals for the replacement are shown")]
+    [Trait("Holds", "scheduling-eng-19"), Trait("Holds", "scheduling-auth-27")]
+    public void CleanReplacementTellsTheHost()
+    {
+        var changes = new List<SchedulingDraftChange>();
+        var cut = Editor(Draft("""{"name":"Inspection"}"""), changes);
+        cut.Render(parameters => parameters.Add(component => component.Value, Draft("""{"name":""}""", "7", "schedule.other")));
+        var change = Assert.Single(changes);
+        Assert.Equal(1, change.Generation);
+        Assert.Equal(("schedule.other", "1.0.0", "7"), (change.Draft.Identity, change.Draft.VersionId, change.Draft.ExpectedRevision));
+        Same(JsonNode.Parse("""{"name":""}"""), change.Draft.Body);
+
+        cut.Render(parameters => parameters.Add(component => component.Diagnostics, new SchedulingDiagnosticSet("schedule.other", "7", 1, [new("scheduling.definition.name_required", "/name")])));
+        Assert.Equal(["scheduling.definition.name_required at /name (Name)"], Listed(cut).Select(entry => entry.TextContent));
     }
 
     [Fact(DisplayName = "scheduling-auth-6: each chain node states its scope in text, so scope never rests on colour alone (WCAG 1.4.1)")]
@@ -249,6 +285,40 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Type(cut, "Threshold value", "not a number");
 
         Same(JsonNode.Parse("""{"basis":{"kind":"threshold","reading":"odometer","crossing":"above","value":10000.5}}"""), changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "scheduling-auth-2: a threshold value a JSON number cannot keep exactly is refused visibly and leaves the draft unchanged")]
+    [Trait("Holds", "scheduling-auth-2")]
+    public void InexactThresholdIsRefused()
+    {
+        var changes = new List<SchedulingDraftChange>();
+        var cut = Editor(Draft("""{"basis":{"kind":"threshold","value":1}}"""), changes);
+        foreach (var text in new[] { "9007199254740993", "0.1234567890123456789" })
+        {
+            var before = changes.Count;
+            Type(cut, "Threshold value", text);
+            Assert.Equal(before, changes.Count);
+            Assert.Equal("true", Labelled(cut, "Threshold value").GetAttribute("aria-invalid"));
+            Assert.Contains($"Threshold value {text} cannot be kept exactly as a number, so it is not applied.", cut.Markup, StringComparison.Ordinal);
+        }
+
+        Type(cut, "Threshold value", "0.1");
+        Same(JsonNode.Parse("""{"basis":{"kind":"threshold","value":0.1}}"""), changes[^1].Draft.Body);
+        Assert.Null(Labelled(cut, "Threshold value").GetAttribute("aria-invalid"));
+        Type(cut, "Threshold value", "9007199254740992");
+        Same(JsonNode.Parse("""{"basis":{"kind":"threshold","value":9007199254740992}}"""), changes[^1].Draft.Body);
+    }
+
+    [Fact(DisplayName = "scheduling-auth-2: a null basis is the single due date form, so the due date can be entered")]
+    [Trait("Holds", "scheduling-auth-2")]
+    public void NullBasisShowsTheDueDate()
+    {
+        var changes = new List<SchedulingDraftChange>();
+        var cut = Editor(Draft("""{"basis":null}"""), changes);
+        Assert.Equal("", Labelled(cut, "Basis").GetAttribute("value"));
+        Type(cut, "Due date", "2027-01-01T00:00:00Z");
+
+        Same(JsonNode.Parse("""{"basis":null,"due_date":"2027-01-01T00:00:00Z"}"""), changes[^1].Draft.Body);
     }
 
     [Fact(DisplayName = "scheduling-auth-3, scheduling-auth-4: emptying both bounds removes the window and the tolerance")]
@@ -414,7 +484,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.Equal(before, changes.Count);
     }
 
-    [Fact(DisplayName = "scheduling-eng-19: a new revision waits behind Keep or Discard while local edits exist, and replaces a clean draft silently")]
+    [Fact(DisplayName = "scheduling-eng-19: a new revision waits behind Keep or Discard while local edits exist, and replaces a clean draft, telling the host its generation")]
     [Trait("Holds", "scheduling-eng-19")]
     public void IncomingRevisionWaitsOnLocalEdits()
     {
@@ -430,7 +500,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Button(cut, "Discard edits").Click();
         Assert.Equal("5", changes[^1].Draft.ExpectedRevision);
         Same(JsonNode.Parse("""{"name":"Theirs"}"""), changes[^1].Draft.Body);
-        Assert.Equal([2, 3], changes.Select(change => change.Generation));
+        Assert.Equal([1, 2, 3], changes.Select(change => change.Generation));
     }
 
     [Fact(DisplayName = "scheduling-eng-19: a host draft whose revision is not canonical is refused, never repaired")]

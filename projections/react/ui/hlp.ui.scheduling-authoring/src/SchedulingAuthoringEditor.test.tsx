@@ -33,7 +33,7 @@ const announcement = () => screen.getByRole('status', { name: 'Refusal announcem
 const controlNames = () => [...document.querySelectorAll('input, select, textarea')].map(control => control.getAttribute('aria-label') ?? '')
 
 describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
-  it('scheduling-eng-19, scheduling-auth-1, -2, -3, -4, -5, -12, -13: a fixed-calendar Schedule authored from nothing is exactly the fixture body', () => {
+  it('scheduling-eng-19, scheduling-auth-1, scheduling-auth-2, scheduling-auth-3, scheduling-auth-4, scheduling-auth-5, scheduling-auth-12, scheduling-auth-13: a fixed-calendar Schedule authored from nothing is exactly the fixture body', () => {
     const item = fixtureCase('scheduling-authoring.schedule-from-nothing')
     const { last } = editor(item.input.draft)
     replay(item.input.steps!)
@@ -42,7 +42,7 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     expect(last().draft.identity).toBe('')
   })
 
-  it('scheduling-eng-19, scheduling-auth-2, -5, -6, -12: an event-anchored chain authored from nothing is exactly the fixture body', () => {
+  it('scheduling-eng-19, scheduling-auth-2, scheduling-auth-5, scheduling-auth-6, scheduling-auth-12: an event-anchored chain authored from nothing is exactly the fixture body', () => {
     const item = fixtureCase('scheduling-authoring.chain-from-nothing')
     const { last } = editor(item.input.draft)
     replay(item.input.steps!)
@@ -106,6 +106,34 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
       expect(screen.getByLabelText('Name')).not.toHaveAttribute('aria-invalid')
       view.unmount()
     }
+  })
+
+  it('scheduling-auth-27: absent or stale refusals are shown as not checked, and only a current empty set says No refusals', () => {
+    const value = draft({ name: '' })
+    const { view, onDraftChange } = editor(value)
+    expect(screen.getByText('Not yet checked for refusals.')).toBeInTheDocument()
+    expect(screen.queryByText('No refusals.')).toBeNull()
+
+    view.rerender(<SchedulingAuthoringEditor value={value} catalogue={catalogue} diagnostics={{ identity: 'schedule.inspection', expectedRevision: '3', generation: 1, diagnostics: [] }} onDraftChange={onDraftChange} />)
+    expect(screen.getByText('Refusals not current: they were checked against another draft, revision or edit.')).toBeInTheDocument()
+    expect(screen.queryByText('No refusals.')).toBeNull()
+
+    view.rerender(<SchedulingAuthoringEditor value={value} catalogue={catalogue} diagnostics={{ identity: 'schedule.inspection', expectedRevision: '3', generation: 0, diagnostics: [] }} onDraftChange={onDraftChange} />)
+    expect(screen.getByText('No refusals.')).toBeInTheDocument()
+
+    type('Name', 'Inspection')
+    expect(screen.getByText('Refusals not current: they were checked against another draft, revision or edit.')).toBeInTheDocument()
+    expect(screen.queryByText('No refusals.')).toBeNull()
+  })
+
+  it('scheduling-eng-19, scheduling-auth-27: adopting a clean replacement tells the host its generation, so refusals for the replacement are shown', () => {
+    const { view, changes, onDraftChange } = editor(draft({ name: 'Inspection' }))
+    const replacement = draft({ name: '' }, { identity: 'schedule.other', expectedRevision: '7' })
+    view.rerender(<SchedulingAuthoringEditor value={replacement} catalogue={catalogue} onDraftChange={onDraftChange} />)
+    expect(changes).toEqual([{ draft: { identity: 'schedule.other', versionId: '1.0.0', expectedRevision: '7', body: { name: '' } }, generation: 1 }])
+
+    view.rerender(<SchedulingAuthoringEditor value={replacement} catalogue={catalogue} diagnostics={{ identity: 'schedule.other', expectedRevision: '7', generation: 1, diagnostics: [{ code: 'scheduling.definition.name_required', pointer: '/name' }] }} onDraftChange={onDraftChange} />)
+    expect(listed().map(entry => entry.textContent)).toEqual(['scheduling.definition.name_required at /name (Name)'])
   })
 
   it('scheduling-auth-6: each chain node states its scope in text, so scope never rests on colour alone (WCAG 1.4.1)', () => {
@@ -185,6 +213,31 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     type('Threshold value', 'not a number')
 
     expect(last().draft.body).toEqual({ basis: { kind: 'threshold', reading: 'odometer', crossing: 'above', value: 10000.5 } })
+  })
+
+  it('scheduling-auth-2: a threshold value a JSON number cannot keep exactly is refused visibly and leaves the draft unchanged', () => {
+    const { last, changes } = editor(draft({ basis: { kind: 'threshold', value: 1 } }))
+    for (const text of ['9007199254740993', '0.1234567890123456789']) {
+      const before = changes.length
+      type('Threshold value', text)
+      expect(changes).toHaveLength(before)
+      expect(screen.getByLabelText('Threshold value')).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByText(`Threshold value ${text} cannot be kept exactly as a number, so it is not applied.`)).toBeInTheDocument()
+    }
+
+    type('Threshold value', '0.1')
+    expect(last().draft.body).toEqual({ basis: { kind: 'threshold', value: 0.1 } })
+    expect(screen.getByLabelText('Threshold value')).not.toHaveAttribute('aria-invalid')
+    type('Threshold value', '9007199254740992')
+    expect(last().draft.body).toEqual({ basis: { kind: 'threshold', value: 9007199254740992 } })
+  })
+
+  it('scheduling-auth-2: a null basis is the single due date form, so the due date can be entered', () => {
+    const { last } = editor(draft({ basis: null }))
+    expect(screen.getByLabelText('Basis')).toHaveValue('')
+    type('Due date', '2027-01-01T00:00:00Z')
+
+    expect(last().draft.body).toEqual({ basis: null, due_date: '2027-01-01T00:00:00Z' })
   })
 
   it('scheduling-auth-3, scheduling-auth-4: emptying both bounds removes the window and the tolerance', () => {
@@ -294,7 +347,7 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     expect(changes).toHaveLength(before)
   })
 
-  it('scheduling-eng-19: a new revision waits behind Keep or Discard while local edits exist, and replaces a clean draft silently', () => {
+  it('scheduling-eng-19: a new revision waits behind Keep or Discard while local edits exist, and replaces a clean draft, telling the host its generation', () => {
     const value = draft({ name: 'Inspection' })
     const { view, changes, onDraftChange, last } = editor(value)
     view.rerender(<SchedulingAuthoringEditor value={{ ...value, expectedRevision: '4', body: { name: 'Clean' } }} catalogue={catalogue} onDraftChange={onDraftChange} />)
@@ -306,7 +359,7 @@ describe('hlp.ui.scheduling-authoring (T-491/schedule-editor)', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Mine')
     click('Discard edits')
     expect(last().draft).toEqual({ ...value, expectedRevision: '5', body: { name: 'Theirs' } })
-    expect(changes.map(change => change.generation)).toEqual([2, 3])
+    expect(changes.map(change => change.generation)).toEqual([1, 2, 3])
   })
 
   it('scheduling-eng-19: adopting a clean replacement clears text a field could not commit, so the field shows the new draft', () => {

@@ -1,5 +1,6 @@
 @namespace Harborline.UIAdapters.Blazor.Components.SchedulingAuthoring
 @using System.Globalization
+@using System.Numerics
 @using System.Text.Encodings.Web
 @using System.Text.Json
 @using System.Text.Json.Nodes
@@ -28,7 +29,8 @@
         {
             @Input("Threshold reading", Str(basis?["reading"]) ?? "", raw => SetIn("basis", "reading", Txt(raw)))
             @Select("Threshold crossing", Str(basis?["crossing"]), Crossings, value => SetIn("basis", "crossing", Txt(value)), "Not set", "not a current spelling")
-            @Input("Threshold value", NumberText(basis?["value"]), SetThresholdValue, "decimal")
+            @Input("Threshold value", _refusedThreshold ?? NumberText(basis?["value"]), SetThresholdValue, "decimal")
+            @if (_refusedThreshold is { } refused) { <p class="hl-scheduling-authoring__note">@($"Threshold value {refused} cannot be kept exactly as a number, so it is not applied.")</p> }
         }
         @if (DueShown) { @Input("Due date", Str(body["due_date"]) ?? "", raw => SetText("due_date", raw)) }
         @Select("Missed behaviour", Str(body["missed_behaviour"]), MissedBehaviours, value => SetText("missed_behaviour", value), "Not set", "not a current spelling")
@@ -106,7 +108,7 @@
     @if (Adopted)
     {
         if (Matched.Count > 0) { <ul class="hl-scheduling-authoring__refusals" aria-label="Refusal list">@foreach (var diagnostic in Matched) { var field = FieldOf(diagnostic.Pointer); <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@($"{diagnostic.Code} at {At(diagnostic.Pointer)}{(field is null ? "" : $" ({field})")}")</li> }</ul> }
-        else { <p class="hl-scheduling-authoring__note">No refusals.</p> }
+        else { <p class="hl-scheduling-authoring__note">@(Checked ? "No refusals." : Diagnostics is null ? NotChecked : StaleRefusals)</p> }
         if (ReadOnly) { <fieldset class="hl-scheduling-authoring__read-only" disabled>@content</fieldset> } else { @content }
     }
     <div role="status" aria-live="polite" aria-label="Refusal announcements" class="hl-scheduling-authoring__announcer">@_announcement</div>
@@ -136,28 +138,35 @@
     // The field a refusal pointer belongs to: the first prefix that matches and whose field is on screen. Anything else is listed unplaced.
     private static readonly (string Prefix, string Field)[] PointerFields = [("/name", "Name"), ("/on_type_id", "Runs on record type"), ("/starts/target_id", "Starts target"), ("/starts", "Starts"), ("/basis/rrule", "Recurrence rule"), ("/basis/offset", "Completion offset"), ("/basis/reading", "Threshold reading"), ("/basis/crossing", "Threshold crossing"), ("/basis/value", "Threshold value"), ("/basis/anchor", "Chain anchor"), ("/basis/nodes", "Chain nodes"), ("/basis", "Basis"), ("/due_date", "Due date"), ("/window", "Window"), ("/tolerance", "Tolerance"), ("/missed_behaviour", "Missed behaviour"), ("/problem_class", "Problem class"), ("/solver/backend_id", "Solver backend"), ("/solver/guarantee", "Solver guarantee"), ("/solver/work_budget", "Work budget"), ("/solver/parameters", "Backend parameters"), ("/solver", "Solver backend"), ("/modules", "Constraint module"), ("/legality_ref", "Legality rule set")];
     private const string Supply = "Supply is read from the shared availability runtime, from each Resource's own availability source, set on the Resource in the Booking editor. It cannot be changed here.";
+    private const string NotChecked = "Not yet checked for refusals.";
+    private const string StaleRefusals = "Refusals not current: they were checked against another draft, revision or edit.";
     private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
     private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-    private SchedulingDraft Current = SchedulingDraft.Empty; private SchedulingDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation;
+    private SchedulingDraft Current = SchedulingDraft.Empty; private SchedulingDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation; private string? _refusedThreshold;
     private string _announcement = ""; private HashSet<string> _announced = [];
     // No draft exists until the first host value with an acceptable revision.
     private bool Adopted => _lifecycle is not null;
 
     // A host echo of the same identity, version and revision is not a replacement. A host value whose revision is present but not
     // canonical is rejected: never adopted, held, repaired or emitted. The generation is local and never reads the revision.
-    protected override void OnParametersSet()
+    // Adopting a replacement moves the generation, so the host is told it, as for any change, and can send refusals for it.
+    protected override Task OnParametersSetAsync()
     {
-        if (!SchedulingRevisionText.IsAcceptable(Value.ExpectedRevision)) return;
+        if (!SchedulingRevisionText.IsAcceptable(Value.ExpectedRevision)) return Task.CompletedTask;
         var key = LifecycleKey(Value);
-        if (_lifecycle is null) { Current = Value; _lifecycle = key; return; }
-        if (key == _lifecycle) { _incoming = null; _held = null; return; }
-        if (key == _held) return;
-        if (_dirty) { _held = key; _incoming = Value; } else { Current = Value; _lifecycle = key; _generation++; }
+        if (_lifecycle is null) { Current = Value; _lifecycle = key; return Task.CompletedTask; }
+        if (key == _lifecycle) { _incoming = null; _held = null; return Task.CompletedTask; }
+        if (key == _held) return Task.CompletedTask;
+        if (_dirty) { _held = key; _incoming = Value; return Task.CompletedTask; }
+        Current = Value; _lifecycle = key; _generation++; _refusedThreshold = null;
+        return DraftChanged.InvokeAsync(new SchedulingDraftChange(Value, _generation));
     }
 
     private static string LifecycleKey(SchedulingDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
-    // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown.
-    private IReadOnlyList<SchedulingDiagnostic> Matched => Adopted && Diagnostics is { } supplied && SchedulingRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation ? supplied.Diagnostics : [];
+    // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown, and
+    // the draft is then not known to be free of refusals.
+    private bool Checked => Adopted && Diagnostics is { } supplied && SchedulingRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation;
+    private IReadOnlyList<SchedulingDiagnostic> Matched => Checked ? Diagnostics!.Diagnostics : [];
     // The live region announces only refusals that were not in the previous set, so a screen reader hears each new one once.
     private void Announce()
     {
@@ -170,7 +179,8 @@
 
     private JsonObject? BasisNode => Current.Body["basis"] as JsonObject;
     private string? BasisKind => Str(BasisNode?["kind"]);
-    private bool HasBasis => Current.Body.ContainsKey("basis");
+    // A null basis is the single due date form, as the producer reads it.
+    private bool HasBasis => Current.Body["basis"] is not null;
     private string? StartsKind => Str((Current.Body["starts"] as JsonObject)?["kind"]);
     private string? ProblemClass => Str(Current.Body["problem_class"]) is { } named && named != "None" ? named : null;
     private bool SolverShown => !string.IsNullOrEmpty(ProblemClass) || Current.Body.ContainsKey("solver");
@@ -196,7 +206,7 @@
         foreach (var (prefix, field) in PointerFields) if ((pointer == prefix || pointer.StartsWith(prefix + "/", StringComparison.Ordinal)) && shown.Contains(field)) return field;
         return null;
     }
-    private string? Invalid(string field) => Matched.Any(diagnostic => FieldOf(diagnostic.Pointer) == field) ? "true" : null;
+    private string? Invalid(string field) => (field == "Threshold value" && _refusedThreshold is not null) || Matched.Any(diagnostic => FieldOf(diagnostic.Pointer) == field) ? "true" : null;
     private static string At(string pointer) => pointer == "" ? "the whole definition" : pointer;
     private static string NodeScope(int n, string? after, string? anchor) => string.IsNullOrEmpty(after) ? $"Node {n} scope: follows the chain anchor{(string.IsNullOrEmpty(anchor) ? "" : " " + anchor)}" : $"Node {n} scope: follows node {after}";
     private static List<(string Id, string Label)> EarlierNodes(JsonArray nodes, int index) => [.. nodes.Take(index).Select(other => Str((other as JsonObject)?["node_id"])).OfType<string>().Where(id => id != "").Distinct().Select(id => (id, id))];
@@ -217,8 +227,24 @@
     private static string NumberText(JsonNode? node) => node is JsonValue value && value.GetValueKind() == JsonValueKind.Number ? value.ToJsonString() : "";
     private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
     private static JsonNode? Txt(string raw) => raw == "" ? null : JsonValue.Create(raw);
-    // Numbers are read with the JSON number grammar, invariantly; anything else leaves the draft unchanged.
-    private static JsonNode? Decimal(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$") && double.TryParse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? JsonValue.Create(number) : null;
+    // Numbers are read with the JSON number grammar, invariantly; anything else leaves the draft unchanged. A decimal is applied only
+    // when the double it becomes has the same decimal value, so a threshold is never rounded on its way into the draft.
+    private const string NumberGrammar = @"^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$";
+    private static JsonNode? Decimal(string raw) => Regex.IsMatch(raw.Trim(), NumberGrammar) && Exact(raw.Trim()) ? JsonValue.Create(double.Parse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture)) : null;
+    private static bool Inexact(string raw) => Regex.IsMatch(raw.Trim(), NumberGrammar) && !Exact(raw.Trim());
+    private static bool Exact(string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) && DecimalValue(text) == DecimalValue(number.ToString("R", CultureInfo.InvariantCulture));
+    // One spelling per decimal value (sign, significant digits, exponent), so 1.50, 15e-1 and 1.5 compare equal.
+    private static string? DecimalValue(string text)
+    {
+        var match = Regex.Match(text, @"^(-?)(\d+)(?:\.(\d+))?(?:[eE]([-+]?\d+))?$");
+        if (!match.Success) return null;
+        var fraction = match.Groups[3].Value;
+        var digits = (match.Groups[2].Value + fraction).TrimStart('0');
+        var significant = digits.TrimEnd('0');
+        if (significant == "") return "0";
+        var exponent = BigInteger.Parse(match.Groups[4].Success ? match.Groups[4].Value : "0", CultureInfo.InvariantCulture) - fraction.Length + digits.Length - significant.Length;
+        return $"{match.Groups[1].Value}{significant}e{exponent}";
+    }
     private static JsonNode? Whole(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)$") && long.TryParse(raw.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) && number >= -9007199254740991 && number <= 9007199254740991 ? JsonValue.Create(number) : null;
 
     private Task Change(SchedulingDraft next) { if (ReadOnly || !Adopted) return Task.CompletedTask; Current = next; _dirty = true; _generation++; return DraftChanged.InvokeAsync(new SchedulingDraftChange(next, _generation)); }
@@ -240,7 +266,7 @@
         if (kind == "event_anchored_chain") body.Remove("window");
         body["basis"] = new JsonObject { ["kind"] = kind };
     });
-    private Task SetThresholdValue(string raw) => raw.Trim() == "" ? SetIn("basis", "value", null) : Decimal(raw) is { } number ? SetIn("basis", "value", number) : Task.CompletedTask;
+    private Task SetThresholdValue(string raw) { _refusedThreshold = Inexact(raw) ? raw.Trim() : null; return raw.Trim() == "" ? SetIn("basis", "value", null) : Decimal(raw) is { } number ? SetIn("basis", "value", number) : Task.CompletedTask; }
     private Task EditNodes(Action<JsonArray> mutate) => Edit(body =>
     {
         var basis = Child(body, "basis");
@@ -291,7 +317,7 @@
     private Task Discard()
     {
         if (ReadOnly || _incoming is not { } next) return Task.CompletedTask;
-        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next);
+        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next); _refusedThreshold = null;
         return DraftChanged.InvokeAsync(new SchedulingDraftChange(next, _generation));
     }
 }
