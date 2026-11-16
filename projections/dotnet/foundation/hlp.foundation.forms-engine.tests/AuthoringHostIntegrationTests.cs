@@ -310,6 +310,33 @@ public sealed class AuthoringHostIntegrationTests
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
 
+    [Theory]
+    [InlineData("create")]
+    [InlineData("save-next")]
+    public async Task Draft_save_refuses_a_non_Draft_definition_without_a_write(string entry)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var draft = Definition("non-draft-save", "true");
+        var seeded = entry == "save-next";
+        if (seeded) await store.CreateAsync(draft);
+        var published = draft with { Status = FormDefinitionStatus.Published };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (seeded ? publisher.SaveNextAsync(published) : publisher.CreateAsync(published)).AsTask());
+
+        Assert.Equal("author", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        var revisions = new List<FormDefinition>();
+        await foreach (var revision in store.ListByTenantAsync(draft.Tenant)) revisions.Add(revision);
+        Assert.Equal(seeded ? 1 : 0, revisions.Count);
+        Assert.Null(await store.GetCurrentPublishedAsync(draft.Tenant, draft.Id));
+    }
+
     [Fact]
     public async Task AuthoringHost_RejectsUnknownClassificationBeforeDefinitionPersistence()
     {
