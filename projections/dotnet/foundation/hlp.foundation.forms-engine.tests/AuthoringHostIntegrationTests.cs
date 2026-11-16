@@ -418,31 +418,51 @@ public sealed class AuthoringHostIntegrationTests
     }
 
     [Theory]
-    [InlineData("author", "rule", "form.rules.uncompilable", "/overlay/rules")]
-    [InlineData("publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
-    [InlineData("author", "policy", "aspect.policy_unresolved", "/overlay")]
-    [InlineData("publish", "policy", "aspect.policy_unresolved", "/overlay")]
-    [InlineData("author", "reference", "field.binding_unresolved", "")]
-    [InlineData("publish", "reference", "field.binding_unresolved", "")]
-    public async Task Every_validate_gate_refuses_before_write_with_its_boundary(string phase, string gate, string code, string pointer)
+    [InlineData("create", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("create", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("create", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("save-next", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("save-next", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("save-next", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("restore", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("restore", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("restore", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("register-publish", "publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("register-publish", "publish", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("register-publish", "publish", "reference", "field.binding_unresolved", "")]
+    [InlineData("publish-stored", "publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("publish-stored", "publish", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("publish-stored", "publish", "reference", "field.binding_unresolved", "")]
+    public async Task Every_validate_gate_refuses_before_write_with_its_boundary(string entry, string phase, string gate, string code, string pointer)
     {
         await using var provider = BuildHost();
         await using var scope = provider.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         var store = provider.GetRequiredService<IFormDefinitionStore>();
-        var definition = Definition("gate-test", gate == "rule" ? "{not-json" : "true");
+        var definition = Definition("gate-test", gate == "rule" ? "{not-json" : "true") with { Owner = new("user", "alice") };
         if (gate == "policy") definition = WithFieldAspect(definition,
             new AspectOverlay(new ClassificationAspect([new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "piii")])));
         if (gate == "reference") definition = definition with { SchemaRef = new("sha256:unknown") };
-        var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(phase == "author" ? "CreateAsync" : "RegisterAndPublishAsync");
-        Assert.NotNull(method);
-        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
-            await ((ValueTask<FormDefinition>)method.Invoke(publisher, [definition, CancellationToken.None])!).AsTask());
+        var seeded = entry is "restore" or "publish-stored";
+        if (seeded) await store.CreateAsync(definition);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            "register-publish" => publisher.RegisterAndPublishAsync(definition),
+            "publish-stored" => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+            _ => throw new InvalidOperationException("Unknown entry."),
+        }).AsTask());
         Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
         var refusal = Assert.Single(error.Refusals);
         Assert.Equal(code, refusal.Code);
         Assert.Equal(pointer, refusal.Pointer);
-        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+        if (seeded) Assert.Equal(definition, await store.GetAsync(definition.Tenant, definition.Id, definition.Version));
+        else await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+        var revisions = new List<FormDefinition>();
+        await foreach (var revision in store.ListByTenantAsync(definition.Tenant)) revisions.Add(revision);
+        Assert.Equal(seeded ? 1 : 0, revisions.Count);
         Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
     }
 

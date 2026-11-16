@@ -16,6 +16,7 @@ public sealed class AuthoringPipelineTests
         services.AddHarborlineFormsAuthoringPublisher();
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
-        Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>());
+        var exception = Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>());
+        Assert.Contains("IFormFieldBindingSource", exception.Message, StringComparison.Ordinal);
     }
 }
