@@ -128,6 +128,13 @@ describe('T-493 finite pinned coding reader', () => {
     expect(() => read({ ...pair, actual: 'not json' })).toThrow('coding answers is not valid JSON')
   })
 
+  it('preserves the JSON parser error as the cause of an invalid document', () => {
+    let thrown: unknown
+    try { read({ ...wire(), actual: 'not json' }) } catch (error) { thrown = error }
+    expect(thrown).toBeInstanceOf(TypeError)
+    expect((thrown as Error).cause).toBeInstanceOf(SyntaxError)
+  })
+
   it('compares every binding row of the expected manifest', () => {
     const second = ['t', 'vendor.domain.asset', '2.0.0', digest]
     const expected = JSON.stringify(['harborline-taxonomy-coding-bindings/1', 'tenant-a', [binding, second]])
