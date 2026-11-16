@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
   "purpose": "Register content-addressed JSON Schema draft 2020-12 documents and validate Dynamic Forms payloads with bounded, stable, field-addressable failures without importing schema migration, federation, blob, epoch, or compaction concerns.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
@@ -10,7 +10,8 @@
     "Schema": ["Id", "JsonSchemaText", "ParentSchemas", "Tags", "ContentAddress"],
     "SchemaValidationError": ["JsonPointer", "Message", "Code", "Params"],
     "ISchemaRegistry": ["GetAsync", "RegisterAsync", "ValidateAsync", "ListAsync"],
-    "IFieldKindRuntime": "optional injected shared-contract binding authority; required for executable field-kind schema metadata"
+    "IFieldKindRuntime": "optional injected shared-contract binding authority; required for executable field-kind schema metadata",
+    "FieldDefinition.RequiredCondition": "Optional JSON Rules expression under required_condition; absent, never false, by default."
   },
   "selectedDesign": {
     "choice": "caller-backed validation registry",
@@ -30,8 +31,7 @@
     "A schema declaring an executable field-kind binding refuses registration without its shared runtime or when the binding is malformed or unresolved.",
     "Field-kind limits execute through the injected shared contract, never a kernel copy of the limits, and retain field.* refusals and RFC 6901 pointers.",
     "Field-kind evaluation preserves original submitted numeric spelling, including significant trailing decimal zeroes.",
-    "The reference adapter is single-process and makes no persistence claim."
-  ],
+    "The reference adapter is single-process and makes no persistence claim.", "Records field identity carries an authored required_condition unchanged; non-object condition values refuse field.required_condition_invalid.", "The attachment read schema admits ordered arrays of references only, never staged entries, scalar references or a finite count cap."],
   "notScope": ["schema migration", "lenses or upcasters", "epoch coordination", "compaction", "blob storage", "federation transport", "Forms authorization or persistence"],
   "projectionPolicy": {"dotnet": "canonical implementation and in-memory reference adapter", "react": "consumer through Forms API", "blazor": "consumer through Forms Engine"},
   "fixture": "conformance/hlp.kernel.schema-validation/fixtures.yaml"

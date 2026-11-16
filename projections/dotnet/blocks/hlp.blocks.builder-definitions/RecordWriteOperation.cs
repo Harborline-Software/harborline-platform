@@ -6,6 +6,10 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Harborline.Contracts.Fields;
+using Harborline.Contracts.Rules;
+using Harborline.Foundation.ContentStore;
+using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.RuleEngine.Records;
 using Harborline.Foundation.RuleEngine.References;
@@ -185,7 +189,18 @@ public sealed record RecordWriteCommit(RecordWriteCommitDisposition Disposition,
 }
 
 /// <summary>A refused write: the ADR 0038 stage that refused, a stable code and RFC 6901 pointers. Never the body.</summary>
-public sealed record RecordWriteRefusal(string Stage, string Code, IReadOnlyList<string> Pointers);
+public sealed record RecordWriteRefusal(string Stage, string Code, IReadOnlyList<string> Pointers)
+{
+    /// <summary>The store's limit and observed bytes when a content refusal supplies them.</summary>
+    public IReadOnlyDictionary<string, long> Detail { get; init; } = new Dictionary<string, long>();
+}
+
+/// <summary>A Records host transaction exposes the content session enlisted in that same physical transaction.</summary>
+public interface IRecordContentTransaction
+{
+    /// <summary>The transaction's content bookkeeping participant; never an independently committed transaction.</summary>
+    IContentBookkeepingSession ContentSession { get; }
+}
 
 /// <summary>
 /// The outcome of one write: a receipt, or a refusal. A refusal persisted nothing, with one exception:
@@ -716,6 +731,9 @@ public sealed class RecordWriteOperation
     /// </summary>
     public PinnedClosure? Calculations { get; init; }
 
+    /// <summary>The field runtime over the same store and limits the schema compiler binds.</summary>
+    public AttachmentFieldRuntime? Attachments { get; init; }
+
     /// <summary>Creates a new logical record with an explicitly declared business interval.</summary>
     public ValueTask<RecordTemporalWriteOutcome> CreateEffectiveAsync(RecordWriteScope scope,
         RecordTemporalCreateRequest request, CancellationToken cancellationToken = default)
@@ -758,10 +776,7 @@ public sealed class RecordWriteOperation
             return TemporalStatus(RecordTemporalWriteStatus.TemporalStoreUnavailable);
         // Detach caller-owned values before the asynchronous gate can yield. Cloning is not validation:
         // even a clone failure is refused only after the gate allows, so a denial reveals no shape detail.
-        JsonObject? bodySnapshot;
-        try { bodySnapshot = (JsonObject)suppliedBody.DeepClone(); }
-        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
-        { bodySnapshot = null; }
+        var bodySnapshot = SnapshotBody(suppliedBody);
         var instant = _clock.GetUtcNow();
         var recordId = target ?? MintRecordId();
         // RW-1 and the owner's ruling of 2026-11-05 (T-616, "Option A"): an amend is decided before any read, on an untyped
@@ -842,13 +857,20 @@ public sealed class RecordWriteOperation
             var refusal = CreationRefusal(RecordCreationPolicy.Of(definition).Gate, false);
             if (refusal is not null) return TemporalRefused(refusal.Refusal!) with { Decision = evidence };
         }
-        if (Mutate(definition, body, instant, out var candidate) is { } mutateRefusal)
-            return TemporalRefused(mutateRefusal) with { Decision = evidence };
-        var submitted = Submitted(candidate);
+        var candidate = (JsonObject)body.DeepClone();
+        var contentPort = new ContentPreparedPort<RecordTemporalWrite, RecordTemporalCommit>(_temporalPort);
         try
         {
             var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             {
+                var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, recordId, operationId,
+                    digest, instant, evidence, contentPort.Session, basis, token).ConfigureAwait(false);
+                if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
+                    throw new RefusedWriteException(mutateRefusal);
+                candidate = derived;
+                ValidateDerivedAttachments(definition, candidate, lockedReferences);
+                ValidateRequiredConditions(definition, candidate, instant, token);
+                var submitted = Submitted(candidate);
                 SchemaValidationResult validation;
                 try { validation = await _registry.ValidateAsync(publication.Schema.Id, submitted, token).ConfigureAwait(false); }
                 catch (SchemaNotFoundException) { throw new RefusedWriteException(new(ValidateStage, SchemaUnknown, [])); }
@@ -880,12 +902,16 @@ public sealed class RecordWriteOperation
                     new(kind, row, basis, from, to, reason),
                     new(Guid.NewGuid().ToString("N"), scope.ActorId, instant, AuditPayload(row))
                         { AuthoritySnapshot = AuthoritySnapshotOf(evidence) });
-            }, _temporalPort, ct).ConfigureAwait(false);
+            }, contentPort, ct).ConfigureAwait(false);
             var commit = transaction.Value ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The temporal transaction did not return a result.");
             var outcome = SettleTemporalCommit(commit, key, type!, target, digest);
             return commit.Disposition == RecordTemporalCommitDisposition.Created ? outcome : outcome with { Decision = evidence };
         }
         catch (RefusedWriteException refusal) { return TemporalRefused(refusal.Refusal) with { Decision = evidence }; }
+        catch (ContentRefusedException refusal)
+        {
+            return await RecoverTemporalContentRefusalAsync(refusal, key, type!, target, digest, evidence, ct).ConfigureAwait(false);
+        }
     }
 
     private static RecordTemporalWriteOutcome SettleTemporalCommit(RecordTemporalCommit commit,
@@ -1002,6 +1028,7 @@ public sealed class RecordWriteOperation
         ArgumentNullException.ThrowIfNull(request.OperationId);
         if (request.Version is not null) ArgumentException.ThrowIfNullOrWhiteSpace(request.Version);
 
+        var bodySnapshot = SnapshotBody(request.Body);
         var instant = _clock.GetUtcNow();
         var recordId = MintRecordId();
 
@@ -1015,7 +1042,7 @@ public sealed class RecordWriteOperation
 
         var plan = new WritePlan(scope.Tenant, scope.ActorId, null, null, null,
             new RecordWriteOperationKey(scope.Tenant, scope.ActorId, request.OperationId), request);
-        var (outcome, evidenceCommitted) = await WriteAsync(plan, recordId, instant, evidence, cancellationToken)
+        var (outcome, evidenceCommitted) = await WriteAsync(plan, bodySnapshot, recordId, instant, evidence, cancellationToken)
             .ConfigureAwait(false);
         // A Created commit already committed the evidence with its record, even when its receipt is unreadable; anything else
         // returns it, persisted nowhere yet.
@@ -1074,6 +1101,7 @@ public sealed class RecordWriteOperation
         ArgumentNullException.ThrowIfNull(command.FormRevision);
         ArgumentNullException.ThrowIfNull(command.AcceptanceAuditId);
 
+        var bodySnapshot = SnapshotBody(command.Body);
         var instant = _clock.GetUtcNow();
         var recordId = MintRecordId();
 
@@ -1095,7 +1123,7 @@ public sealed class RecordWriteOperation
         // intent encoder before anything is looked up or materialized. A body that cannot be encoded is left to the write's
         // own body_invalid refusal.
         if (!StringComparer.Ordinal.Equals(command.BodyDigestEncoding, RecordWriteIntent.EncodingVersion)
-            || BodyDigestOf(command) is { } digest && !StringComparer.Ordinal.Equals(digest, command.BodyDigest))
+            || BodyDigestOf(command, bodySnapshot) is { } digest && !StringComparer.Ordinal.Equals(digest, command.BodyDigest))
             return Refused(BindStage, BindingMismatch, []) with { Decision = evidence };
 
         var plan = new WritePlan(command.Tenant, worker.WorkerId, command.SubmitterId, command.CommandId, command.AcceptanceAuditId,
@@ -1104,7 +1132,7 @@ public sealed class RecordWriteOperation
                 Origin = RecordWriteOperationKey.AcceptedCommandOrigin,
             },
             new RecordCreateRequest(command.RecordTypeId, command.OperationId, command.Body));
-        var (outcome, evidenceCommitted) = await WriteAsync(plan, recordId, instant, evidence, cancellationToken)
+        var (outcome, evidenceCommitted) = await WriteAsync(plan, bodySnapshot, recordId, instant, evidence, cancellationToken)
             .ConfigureAwait(false);
         return evidenceCommitted ? outcome : outcome with { Decision = evidence };
     }
@@ -1117,12 +1145,19 @@ public sealed class RecordWriteOperation
         public bool AcceptedCommand => AcceptedCommandId is not null;
     }
 
+    private static JsonObject? SnapshotBody(JsonObject body)
+    {
+        try { return (JsonObject)body.DeepClone(); }
+        catch (Exception error) when (error is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
+        { return null; }
+    }
+
     // The intent digest of the command's body under this producer's encoding, or null when the body has no intent.
-    private static string? BodyDigestOf(AcceptedRecordCreate command)
+    private static string? BodyDigestOf(AcceptedRecordCreate command, JsonObject? body)
     {
         try
         {
-            return RecordWriteIntent.Digest(RecordWriteIntent.Encode(command.RecordTypeId, null, command.Body));
+            return body is null ? null : RecordWriteIntent.Digest(RecordWriteIntent.Encode(command.RecordTypeId, null, body));
         }
         catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
         {
@@ -1131,16 +1166,17 @@ public sealed class RecordWriteOperation
     }
 
     // Everything after the gate allowed this call. EvidenceCommitted is true only when the host's commit created the record.
-    private async ValueTask<(RecordWriteOutcome Outcome, bool EvidenceCommitted)> WriteAsync(WritePlan plan, string recordId,
+    private async ValueTask<(RecordWriteOutcome Outcome, bool EvidenceCommitted)> WriteAsync(WritePlan plan, JsonObject? bodySnapshot, string recordId,
         DateTimeOffset instant, AuthorizationDecisionEvidence evidence, CancellationToken cancellationToken)
     {
         var request = plan.Request;
         if (!IsOperationId(request.OperationId)) return (Refused(ValidateStage, OperationIdInvalid, [OperationIdPointer]), false);
+        if (bodySnapshot is null) return (Refused(ValidateStage, BodyInvalid, []), false);
         var key = plan.Key;
         string intentDigest;
         try
         {
-            intentDigest = RecordWriteIntent.Digest(RecordWriteIntent.Encode(request.RecordTypeId, request.Version, request.Body));
+            intentDigest = RecordWriteIntent.Digest(RecordWriteIntent.Encode(request.RecordTypeId, request.Version, bodySnapshot));
         }
         catch (Exception unencodable) when (unencodable is EncoderFallbackException or InvalidOperationException or FormatException or ArgumentException)
         {
@@ -1170,15 +1206,22 @@ public sealed class RecordWriteOperation
         var gate = RecordCreationPolicy.Of(definition).Gate;
         if (CreationRefusal(gate, plan.AcceptedCommand) is { } creationRefusal) return (creationRefusal, false);
 
-        if (Mutate(definition, request.Body, instant, out var candidate) is { } mutateRefusal)
-            return (Refused(mutateRefusal.Stage, mutateRefusal.Code, mutateRefusal.Pointers), false);
-        var body = Submitted(candidate);
+        var candidate = (JsonObject)bodySnapshot.DeepClone();
+        var contentPort = new ContentPreparedPort<RecordWriteRow, RecordWriteCommit>(_port);
         KernelTransactionResult<RecordWriteCommit> transaction;
         try
         {
             transaction = await KernelTransactionBoundary.ExecutePreparedAsync(
                 async token =>
                 {
+                    var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, plan.OriginatorId, recordId, request.OperationId,
+                        intentDigest, instant, evidence, contentPort.Session, null, token).ConfigureAwait(false);
+                    if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
+                        throw new RefusedWriteException(mutateRefusal);
+                    candidate = derived;
+                    ValidateDerivedAttachments(definition, candidate, lockedReferences);
+                    ValidateRequiredConditions(definition, candidate, instant, token);
+                    var body = Submitted(candidate);
                     SchemaValidationResult validation;
                     try
                     {
@@ -1239,13 +1282,18 @@ public sealed class RecordWriteOperation
                             OriginatorId = plan.OriginatorId,
                         });
                 },
-                _port,
+                contentPort,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (RefusedWriteException refused)
         {
             return (new RecordWriteOutcome(null, false, refused.Refusal), false);
         }
+        catch (ContentRefusedException refused)
+        {
+            return (await RecoverContentRefusalAsync(refused, key, request.RecordTypeId, intentDigest, cancellationToken).ConfigureAwait(false), false);
+        }
+
 
         var commit = transaction.Value
             ?? throw new InvalidOperationException(transaction.Refusal?.Code ?? "The kernel transaction did not return a result.");
@@ -1331,6 +1379,184 @@ public sealed class RecordWriteOperation
         return derivation.Refusal is { } refusal
             ? new(MutateStage, refusal.Code, ["/" + refusal.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)])
             : null;
+    }
+
+    private static RecordWriteRefusal ContentRefusal(ContentRefusedException refused)
+        => new(ValidateStage, refused.Code, refused.JsonPointer is { } pointer ? [pointer] : []) { Detail = refused.Detail };
+
+    // These recoveries run only after the boundary has rolled back and disposed the losing transaction. A concurrent
+    // winner may consume the same stages before our host reaches operation settlement; reuse the exact scoped settlement.
+    private async ValueTask<RecordWriteOutcome> RecoverContentRefusalAsync(ContentRefusedException refused,
+        RecordWriteOperationKey key, string type, string digest, CancellationToken cancellationToken)
+    {
+        if (refused.Code == "content.staging-expired")
+        {
+            var raced = await _receipts.FindAsync(key, cancellationToken).ConfigureAwait(false);
+            if (raced is not null) return Settle(raced, key, type, digest);
+        }
+        return new(null, false, ContentRefusal(refused));
+    }
+
+    private async ValueTask<RecordTemporalWriteOutcome> RecoverTemporalContentRefusalAsync(ContentRefusedException refused,
+        RecordWriteOperationKey key, string type, string? target, string digest,
+        AuthorizationDecisionEvidence evidence, CancellationToken cancellationToken)
+    {
+        if (refused.Code == "content.staging-expired")
+        {
+            var raced = await _temporalReceipts!.FindTemporalOperationAsync(key, cancellationToken).ConfigureAwait(false);
+            if (raced is not null) return SettleTemporal(raced, key, type, target, digest) with { Decision = evidence };
+        }
+        return TemporalRefused(ContentRefusal(refused)) with { Decision = evidence };
+    }
+
+    private async ValueTask<HashSet<(string, long, string, string, string)>> ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
+        string tenant, string actor, string? originator, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
+        AuthorizationDecisionEvidence evidence, IContentBookkeepingSession? session, RecordTemporalBasis? priorBasis, CancellationToken cancellationToken)
+    {
+        var contentTenant = Harborline.Foundation.Assets.Common.TenantId.FromString(tenant);
+        var lockedReferences = new HashSet<(string, long, string, string, string)>();
+        var lists = new List<(string FieldKey, ICompiledAttachmentFieldKind Kind, JsonElement Entries, string Pointer)>();
+        foreach (var field in definition.Fields)
+        {
+            if (field.Calculation is not null || field.Binding is not { } binding) continue;
+            var pointer = PointerOf(field.FieldKey);
+            try
+            {
+                if (_fieldKinds.Bind(binding.Kind, pointer) is not ICompiledAttachmentFieldKind attachment) continue;
+                if (candidate.ContainsKey(field.FieldKey))
+                    lists.Add((field.FieldKey, attachment, JsonSerializer.SerializeToElement(candidate[field.FieldKey]), pointer));
+            }
+            catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+        }
+        if (lists.Count > 0)
+        {
+            if (Attachments is null || session is null)
+                throw new RefusedWriteException(new(BindStage, "content.transaction-required", [lists[0].Pointer]));
+            // ADR-0110 d4 / ADR-0142 d3: the worker acts; the command's server-bound submitter is provenance only.
+            ContentStoreWrite Write() => new(new(recordId, operationId, fingerprint),
+                new(Guid.NewGuid().ToString("N"), actor, instant, ReadOnlyMemory<byte>.Empty)
+                { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session) { Originator = originator };
+            // Read committed predecessor authority before taking content locks; commit still checks the basis atomically.
+            JsonElement priorBody = default;
+            if (priorBasis is not null && lists.Any(list => list.Entries.ValueKind == JsonValueKind.Array && list.Entries.EnumerateArray().Any(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("content_id", out _))))
+            {
+                var history = await _temporalRecords!.HistoryAsync(tenant, recordId, cancellationToken).ConfigureAwait(false);
+                var prior = history.Versions.SingleOrDefault(version => version.Temporal.Revision == priorBasis.Revision && version.BindingHash == priorBasis.Hash);
+                if (prior is not null)
+                {
+                    using var parsed = JsonDocument.Parse(prior.Row.Body);
+                    priorBody = parsed.RootElement.Clone();
+                }
+            }
+            // Every row this write promotes or keeps is locked first, across all its fields, in one canonical order, so two
+            // writes naming the same content in opposite orders cannot wait on each other (content-store-cc-2).
+            try
+            {
+                await Attachments.LockEntriesAsync([.. lists.Select(list => list.Entries)], contentTenant, Write(), cancellationToken).ConfigureAwait(false);
+            }
+            catch (FieldAdmissionException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [.. lists.Select(list => list.Pointer)])); }
+            foreach (var (fieldKey, attachment, entries, pointer) in lists)
+            {
+                try
+                {
+                    JsonElement priorEntries = default;
+                    if (priorBody.ValueKind == JsonValueKind.Object) priorBody.TryGetProperty(fieldKey, out priorEntries);
+                    candidate[fieldKey] = await Attachments.ResolveWriteAsync(attachment, entries, contentTenant, new(recordId, fieldKey), Write(),
+                        priorEntries, cancellationToken).ConfigureAwait(false);
+                    foreach (var reference in JsonSerializer.SerializeToElement(candidate[fieldKey]).EnumerateArray())
+                        lockedReferences.Add(ReferenceIdentity(reference));
+                }
+                catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
+                { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+            }
+        }
+
+        return lockedReferences;
+
+        static string PointerOf(string fieldKey) => "/" + fieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+    }
+
+    private static (string, long, string, string, string) ReferenceIdentity(JsonElement reference) =>
+        (reference.GetProperty("content_id").GetString()!, reference.GetProperty("length").GetInt64(),
+         reference.GetProperty("media_type").GetString()!, reference.GetProperty("owner").GetProperty("record").GetString()!,
+         reference.GetProperty("owner").GetProperty("element").GetString()!);
+
+    private void ValidateDerivedAttachments(RecordTypeDocument definition, JsonObject candidate,
+        IReadOnlySet<(string, long, string, string, string)> lockedReferences)
+    {
+        foreach (var field in definition.Fields)
+        {
+            if (field.Calculation is null || field.Binding is not { } binding) continue;
+            var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+            ICompiledAttachmentFieldKind? attachment;
+            try { attachment = _fieldKinds.Bind(binding.Kind, pointer) as ICompiledAttachmentFieldKind; }
+            catch (Exception invalid) when (invalid is FieldAdmissionException or ArgumentException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+            if (attachment is null) continue;
+            var entries = JsonSerializer.SerializeToElement(candidate[field.FieldKey]);
+            // M11 / ADR-0142 d1,d3: calculated stages are probes; only already-locked references are authority.
+            if (entries.ValueKind != JsonValueKind.Array
+                || entries.EnumerateArray().Any(entry => attachment.Validate(entry, pointer).Count != 0
+                    || !lockedReferences.Contains(ReferenceIdentity(entry))))
+                throw new RefusedWriteException(new(MutateStage, "records.mutate.calculation_failed", [pointer]));
+        }
+    }
+
+    private void ValidateRequiredConditions(RecordTypeDocument definition, JsonObject candidate, DateTimeOffset instant,
+        CancellationToken cancellationToken)
+    {
+        // Every required_condition (records-ck-8) is evaluated after every attachment resolved, against the final candidate:
+        // a condition never reads a later field's staged entries. An attachment field needs a non-empty list
+        // (field.evidence_required); any other field needs a value under the shared runtime's absence rule, the same one
+        // Required uses: undefined, null and an empty list are absent, any other value (an empty string too) is present.
+        foreach (var field in definition.Fields)
+        {
+            if (field.RequiredCondition is not { } condition) continue;
+            var pointer = PointerOf(field.FieldKey);
+            var attachment = field.Binding is { } binding && _fieldKinds.Bind(binding.Kind, pointer) is ICompiledAttachmentFieldKind;
+            var value = candidate[field.FieldKey];
+            var present = attachment ? value is JsonArray { Count: > 0 } : value is not null and not JsonArray { Count: 0 };
+            try
+            {
+                if (BindEvidenceRule(definition.RecordTypeId, field.FieldKey, condition, present).Evaluate(candidate, instant, cancellationToken) is not null)
+                    throw new RefusedWriteException(new("rules", attachment ? "field.evidence_required" : "field.required", [pointer]));
+            }
+            catch (Exception invalid) when (invalid is ArgumentException or RuleCompilationException)
+            { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
+        }
+
+        static string PointerOf(string fieldKey) => "/" + fieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Binds a field's evidence condition as the one schema-scoped Rules predicate a write evaluates (content-store-cc-2):
+    /// when the condition holds, the field must carry evidence. Admission binds the same shape, so a condition the shared
+    /// compiler refuses never publishes. Throws <see cref="ArgumentException"/> or <see cref="RuleCompilationException"/>.
+    /// </summary>
+    internal static RecordWriteRules BindEvidenceRule(string recordTypeId, string fieldKey, JsonElement condition, bool hasEvidence)
+    {
+        var expression = new JsonObject { ["if"] = new JsonArray(JsonNode.Parse(condition.GetRawText()), JsonValue.Create(hasEvidence), JsonValue.Create(true)) };
+        var rule = new RuleDefinition
+        {
+            Id = "evidence:" + fieldKey, Tier = RuleTier.JsonLogic, Scope = RuleScope.Schema,
+            ScopeTarget = recordTypeId, Action = RuleActionKind.Validate, Expression = expression.ToJsonString(),
+        };
+        return RecordWriteRules.Bind(recordTypeId, [rule]);
+    }
+
+    // One wrapper per invocation, so simultaneous writes cannot share a session. The boundary still owns disposal/commit.
+    private sealed class ContentPreparedPort<TRecord, TResult>(IKernelPreparedTransactionPort<TRecord, TResult> inner)
+        : IKernelPreparedTransactionPort<TRecord, TResult>
+    {
+        public IContentBookkeepingSession? Session { get; private set; }
+        public async ValueTask<IKernelPreparedTransaction<TRecord, TResult>> BeginAsync(CancellationToken cancellationToken = default)
+        {
+            var transaction = await inner.BeginAsync(cancellationToken).ConfigureAwait(false);
+            Session = (transaction as IRecordContentTransaction)?.ContentSession;
+            return transaction;
+        }
     }
 
     private static RecordWriteOutcome Refused(string stage, string code, IReadOnlyList<string> pointers)
