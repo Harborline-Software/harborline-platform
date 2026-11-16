@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
 using Microsoft.Extensions.DependencyInjection;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
+using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
 using Harborline.Foundation.Forms.Engine.DependencyInjection;
@@ -344,6 +346,8 @@ public sealed class AuthoringHostIntegrationTests
     [InlineData("checks", "form.checks.bad_id", "/overlay/asyncChecks")]
     [InlineData("sensitive", "aspect.sensitive_input_unacknowledged", "/overlay/asyncChecks")]
     [InlineData("submit-gate", "form.submit_gate.form_invalid", "/submit_gate")]
+    [InlineData("tree", "form.tree.unknown_field", "/overlay/sections")]
+    [InlineData("record-type", "form.record_type.required", "/record_type_id")]
     public async Task Validation_refusal_points_at_the_overlay_member_its_code_names(string fault, string code, string pointer)
     {
         await using var provider = BuildHost();
@@ -364,6 +368,9 @@ public sealed class AuthoringHostIntegrationTests
             "checks" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("", "registry", "a", "lookup.failed")] } },
             "sensitive" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("lookup", "registry", "a", "lookup.failed")] } },
             "submit-gate" => definition with { SubmitGate = new Harborline.Contracts.Authorization.SubmitGate() },
+            "tree" => definition with { Overlay = overlay with { Sections =
+                [overlay.Sections[0] with { Items = [new FormItem(FormItemKind.Field, "undeclared")] }] } },
+            "record-type" => definition with { RecordTypeId = " " },
             _ => throw new InvalidOperationException("Unknown fault."),
         };
 
@@ -641,28 +648,99 @@ public sealed class AuthoringHostIntegrationTests
     }
 
     [Theory]
-    [InlineData("restore", "author", true)]
-    [InlineData("restore", "author", false)]
-    [InlineData("publish", "publish", true)]
-    [InlineData("publish", "publish", false)]
-    public async Task Foreign_tenant_caller_gets_one_refusal_whether_or_not_the_entry_exists(string operation, string phase, bool exists)
+    [InlineData("foreign-tenant", "restore", "author", true, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "restore", "author", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "publish", "publish", true, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "publish", "publish", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("blank-principal", "restore", "author", true, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "restore", "author", false, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "publish", "publish", true, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "publish", "publish", false, "field.value_domain_principal_required")]
+    public async Task Refused_caller_gets_one_refusal_whether_or_not_the_entry_exists(
+        string caller, string operation, string phase, bool exists, string code)
     {
-        await using var provider = BuildHost();
+        var blank = caller == "blank-principal";
+        await using var provider = BuildHost(actor: blank ? new BlankPrincipal() : null);
         await using var scope = provider.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         var store = provider.GetRequiredService<IFormDefinitionStore>();
-        var foreign = Definition("foreign-entry", "{not-json") with { Tenant = new TenantId("tenant-other") };
-        if (exists) await store.CreateAsync(foreign);
+        var entry = Definition("refused-caller-entry", "{not-json");
+        if (!blank) entry = entry with { Tenant = new TenantId("tenant-other") };
+        if (exists) await store.CreateAsync(entry);
 
         var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
             (operation == "restore"
-                ? publisher.RestoreAsDraftAsync(foreign.Tenant, foreign.Id, foreign.Version)
-                : publisher.PublishAsync(foreign.Tenant, foreign.Id, foreign.Version)).AsTask());
+                ? publisher.RestoreAsDraftAsync(entry.Tenant, entry.Id, entry.Version)
+                : publisher.PublishAsync(entry.Tenant, entry.Id, entry.Version)).AsTask());
 
         Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
         var refusal = Assert.Single(error.Refusals);
-        Assert.Equal("field.value_domain_tenant_mismatch", refusal.Code);
+        Assert.Equal(code, refusal.Code);
         Assert.Equal("", refusal.Pointer);
+    }
+
+    [Fact]
+    public async Task Publication_refuses_a_non_Draft_before_the_store_is_called()
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var published = Definition("non-draft-publication", "true") with { Status = FormDefinitionStatus.Published };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(published).AsTask());
+
+        Assert.Equal("publish", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Fact]
+    public async Task Gate_code_with_a_non_pointer_target_points_at_the_overlay()
+    {
+        var store = new RecordingStore(new FormDefinitionValidationException(
+            new("gate-node-target"), "refused", "form.submit_gate.form_invalid", "gate-node"));
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            publisher.RegisterAndPublishAsync(Definition("gate-node-target", "true")).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form.submit_gate.form_invalid", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        Assert.Equal(1, store.Calls);
+    }
+
+    private sealed class BlankPrincipal : IAuthenticatedActorContext
+    {
+        public string UserId => " ";
+        public IReadOnlyList<string> Roles => ["author"];
+        public TenantMetadata Tenant { get; } = new() { Id = new("tenant-authoring-host"), Name = "Test tenant", Status = TenantStatus.Active };
+    }
+
+    // Accepts any status and records each publication call, so only the publisher's own checks can refuse.
+    private sealed class RecordingStore(FormDefinitionValidationException? refusal = null) : IFormDefinitionStore
+    {
+        public int Calls { get; private set; }
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default)
+        {
+            Calls++;
+            return refusal is null ? ValueTask.FromResult(definition) : throw refusal;
+        }
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     [Fact]
@@ -695,12 +773,14 @@ public sealed class AuthoringHostIntegrationTests
         public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
     }
 
-    private static ServiceProvider BuildHost()
+    private static ServiceProvider BuildHost(IFormDefinitionStore? store = null, IAuthenticatedActorContext? actor = null)
     {
         var services = new ServiceCollection();
         services.AddFormGateRegisters();
-        services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        if (store is null) services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        else services.AddSingleton(store);
         AuthoringFieldFixture.Add(services, new("tenant-authoring-host"), "sha256:authoring-host", "a", "b");
+        if (actor is not null) services.AddSingleton(actor);
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
