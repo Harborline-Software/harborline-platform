@@ -96,10 +96,14 @@ public static class WorkflowsExpressionEnvironment
         return evaluator.EvaluateGuard(rule, context, RuleEvalScope.Root, admission, cancellationToken);
     }
 
+    // Rules reads an operator's array value as its argument list and any other array as a literal it neither walks nor
+    // evaluates, so a literal may hold scalars only: an operator or variable inside one would pass unchecked and inert.
     private static bool HasValidObjects(JsonNode? node) => node switch
     {
-        JsonObject obj => obj.Count == 1 && obj.All(entry => HasValidObjects(entry.Value)),
-        JsonArray array => array.All(HasValidObjects),
+        JsonObject obj => obj.Count == 1 && obj.All(entry => entry.Value is JsonArray arguments
+            ? arguments.All(HasValidObjects)
+            : HasValidObjects(entry.Value)),
+        JsonArray literal => literal.All(item => item is null or JsonValue),
         _ => true,
     };
 }

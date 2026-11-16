@@ -140,6 +140,24 @@ public sealed class WorkflowsExpressionEnvironmentTests
         Assert.Equal("rule.compile.invalid_expression", result.Error?.Code);
     }
 
+    [Theory(DisplayName = "workflows-ck-29: an operator inside a list literal is an invalid expression")]
+    [InlineData("{\"!\":[{\"in\":[\"x\",[{\"var\":\"field.a\"}]]}]}", "{\"a\":\"x\"}")]
+    [InlineData("{\"and\":[[{\"==\":[1,2]}],true]}", "{}")]
+    [InlineData("{\"!!\":[[{\"table.sum\":[\"a\"]}]]}", "{}")]
+    [InlineData("{\"!\":[{\"in\":[\"s3\",[{\"var\":\"candidate.secret\"}]]}]}", "{}")]
+    public void Workflows_ck_29_operator_in_list_literal_is_an_invalid_expression(string expression, string context)
+    {
+        var result = Evaluate(JsonNode.Parse(expression)!, JsonNode.Parse(context)!.AsObject(), EvaluationPhase.Run);
+        Assert.False(result.Ok);
+        Assert.Equal("rule.compile.invalid_expression", result.Error?.Code);
+    }
+
+    [Fact(DisplayName = "workflows-ck-29: a list literal of scalars is still admitted")]
+    public void Workflows_ck_29_scalar_list_literal_is_admitted()
+    {
+        Assert.True(Evaluate(JsonNode.Parse("{\"in\":[\"x\",[\"x\",\"y\"]]}")!, new JsonObject(), EvaluationPhase.Run).Ok);
+    }
+
     [Fact(DisplayName = "workflows-ck-29: declaration dictionaries cannot be mutated")]
     public void Workflows_ck_29_declaration_dictionaries_are_read_only()
     {
