@@ -17,5 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../../../conformance/hlp.foundation.assistance/catalogue-fixture.json" Link="catalogue-fixture.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../../conformance/hlp.copilot/delegation-cases.json" Link="delegation-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

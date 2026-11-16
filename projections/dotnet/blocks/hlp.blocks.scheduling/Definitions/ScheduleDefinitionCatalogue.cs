@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Foundation.Definitions;
 
 namespace Harborline.Blocks.Scheduling.Definitions;
@@ -83,10 +84,15 @@ public sealed record ScheduleDefinitionRevision(DefinitionRevision Revision, Sch
 public sealed class ScheduleDefinitionCatalogue
 {
     private readonly IVersionedDefinitionStore _store;
+    private readonly IReadOnlyDictionary<string, IPlanningSolver> _backends;
 
-    /// <summary>Binds the catalogue to the shared store.</summary>
-    public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store)
-        => _store = store ?? throw new ArgumentNullException(nameof(store));
+    /// <summary>Binds the catalogue to the host's registered planning solvers.</summary>
+    public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
+    {
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _backends = (backends ?? throw new ArgumentNullException(nameof(backends)))
+            .ToDictionary(solver => solver.Backend.Id, StringComparer.Ordinal);
+    }
 
     /// <summary>The shared store's validator for <see cref="DefinitionKind.Schedules"/> at author and publish.</summary>
     public static DefinitionAdmission Admission { get; } = Validate;
@@ -119,6 +125,12 @@ public sealed class ScheduleDefinitionCatalogue
         var document = new DefinitionDocument(Key(tenant, definitionId), VersionIdFor(definitionId, version), version, body);
         try
         {
+            if (stored.Solver is not null && Validate(document, DefinitionAdmissionPhase.Author).Count == 0)
+            {
+                var history = await _store.ListHistoryAsync(document.Key, cancellationToken).ConfigureAwait(false);
+                if (history.Count == 0 || history[^1].Revision <= expectedRevision)
+                    ValidateSolver(stored, DefinitionAdmissionPhase.Author);
+            }
             return Typed(await _store.SaveDraftAsync(document, expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
         }
         catch (DefinitionRefusalException refusal) when (refusal.Refusals.Any(item => item.Code == "definition.revision_conflict"))
@@ -131,8 +143,38 @@ public sealed class ScheduleDefinitionCatalogue
     /// <summary>Publishes the draft of <paramref name="version"/> immutably.</summary>
     public async ValueTask<ScheduleDefinitionRevision> PublishAsync(string tenant, string definitionId, string version,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
-        => Typed(await _store.PublishAsync(Key(tenant, definitionId), VersionIdFor(definitionId, version), expectedRevision,
-            requestId, cancellationToken).ConfigureAwait(false));
+    {
+        var key = Key(tenant, definitionId);
+        var versionId = VersionIdFor(definitionId, version);
+        var replay = await _store.GetPublicationReplayAsync(key, versionId, expectedRevision, requestId, cancellationToken).ConfigureAwait(false);
+        if (replay is not null) return Typed(replay);
+        var history = await _store.ListHistoryAsync(key, cancellationToken).ConfigureAwait(false);
+        var draft = history.LastOrDefault(revision => revision.Document.VersionId == versionId);
+        if (draft is not null && draft.Status == DefinitionStatus.Draft)
+            ValidateSolver(Typed(draft).Definition, DefinitionAdmissionPhase.Publish);
+        return Typed(await _store.PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken).ConfigureAwait(false));
+    }
+
+    private void ValidateSolver(ScheduleDefinition definition, DefinitionAdmissionPhase phase)
+    {
+        if (definition.Solver is not { } solver) return;
+        if (!_backends.TryGetValue(solver.BackendId, out var backend))
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.backend_unsupported", "/solver/backend_id")]);
+        try { backend.Backend.Validate(definition.ProblemClass, solver.Guarantee, solver.WorkBudget); }
+        catch (UnsupportedProfileException exception)
+        {
+            var reason = exception.Message.Split(':', 2)[0];
+            if (reason is not ("PROBLEM_CLASS_UNSUPPORTED" or "GUARANTEE_UNSUPPORTED" or "WORK_BUDGET_UNSUPPORTED")) throw;
+            var pointer = reason switch
+            {
+                "PROBLEM_CLASS_UNSUPPORTED" => "/solver",
+                "GUARANTEE_UNSUPPORTED" => "/solver/guarantee",
+                "WORK_BUDGET_UNSUPPORTED" => "/solver/work_budget",
+                _ => "/solver/work_budget",
+            };
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition." + reason.ToLowerInvariant(), pointer)]);
+        }
+    }
 
     /// <summary>Copies a published version into a new draft (scheduling-ck-21); publishing it moves the head.</summary>
     public async ValueTask<ScheduleDefinitionRevision> RestoreAsDraftAsync(string tenant, string definitionId, string sourceVersion,
@@ -176,6 +218,18 @@ public sealed class ScheduleDefinitionCatalogue
         var refusals = new List<DefinitionRefusal>();
         Versioning(body, "", document.Version, refusals);
         if (body["envelope"] is JsonObject envelope) Versioning(envelope, "/envelope", document.Version, refusals);
+        if (body["solver"] is JsonObject solver)
+        {
+            if (solver["backend_id"] is not JsonValue backend || !backend.TryGetValue<string>(out var backendId) || string.IsNullOrWhiteSpace(backendId))
+                refusals.Add(new("scheduling.definition.solver_invalid", "/solver/backend_id"));
+            if (solver["parameters"] is not JsonObject) refusals.Add(new("scheduling.definition.solver_invalid", "/solver/parameters"));
+            if (solver["guarantee"] is not JsonValue guarantee || !guarantee.TryGetValue<string>(out _))
+                refusals.Add(new("scheduling.definition.solver_invalid", "/solver/guarantee"));
+            if (solver["work_budget"] is not JsonValue budget || !budget.TryGetValue<int>(out _))
+                refusals.Add(new("scheduling.definition.solver_invalid", "/solver/work_budget"));
+        }
+        else if (body.ContainsKey("solver") && body["solver"] is not null)
+            refusals.Add(new("scheduling.definition.solver_invalid", "/solver"));
         if (refusals.Count > 0) return refusals;
         ScheduleDefinition definition;
         try

@@ -1,5 +1,6 @@
 export * from './types.js'
 export * from './proposal.js'
 export * from './manifest.js'
+export * from './delegation.js'
 export type { DispatchReceipt, GestureProof } from './receipt.js'
 export { assertDispatched, confirmDispatch } from './receipt.js'

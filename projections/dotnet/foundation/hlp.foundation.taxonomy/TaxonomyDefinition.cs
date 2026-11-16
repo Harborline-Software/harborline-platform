@@ -65,8 +65,8 @@ public enum TaxonomyCascadeLayer
 /// <param name="Capability">The required capability identifier.</param><param name="MinimumPlatformVersion">The minimum platform version, when applicable.</param>
 public sealed record TaxonomyDefinitionRequirement(string Capability, string? MinimumPlatformVersion = null);
 /// <summary>Envelope metadata required to bind a definition to its tenant and contract window.</summary>
-/// <param name="Identity">The serialized definition coordinates.</param><param name="Version">The definition version.</param><param name="Tenant">The owning tenant.</param><param name="CascadeLayer">The cascade layer.</param><param name="Provenance">Producer provenance JSON.</param><param name="Requires">Capability requirements.</param><param name="Contract">The contract version, when present.</param>
-public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, IReadOnlyList<TaxonomyDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
+/// <param name="Identity">The serialized definition coordinates.</param><param name="Version">The definition version.</param><param name="Tenant">The owning tenant.</param><param name="CascadeLayer">The cascade layer.</param><param name="Provenance">Producer provenance JSON.</param><param name="RetentionClass">The governed retention class.</param><param name="LegalHold">Whether legal hold applies.</param><param name="Requires">Capability requirements.</param><param name="Contract">The contract version, when present.</param>
+public sealed record TaxonomyDefinitionEnvelope(string Identity, string Version, string Tenant, TaxonomyCascadeLayer CascadeLayer, JsonElement Provenance, string RetentionClass, bool LegalHold, IReadOnlyList<TaxonomyDefinitionRequirement> Requires, DefinitionContractVersion? Contract);
 /// <summary>Records the source and actor that derived a definition version.</summary>
 /// <param name="Source">The source definition or process.</param><param name="AncestorVersion">The ancestor version.</param><param name="DerivingActor">The actor that produced the derivation.</param><param name="Time">The derivation timestamp.</param><param name="Reason">The reason for derivation.</param>
 public sealed record TaxonomyLineage(string Source, string AncestorVersion, string DerivingActor, DateTimeOffset Time, string Reason);
@@ -113,7 +113,11 @@ public enum TaxonomyAdmissionPhase
 public sealed record TaxonomyCatalogueCoordinates(string Tenant, TaxonomyDefinitionId DefinitionId, string Version);
 /// <summary>Names a validation refusal and its JSON pointer.</summary>
 /// <param name="Code">Stable refusal identifier.</param><param name="Pointer">JSON pointer to the rejected field.</param>
-public sealed record TaxonomyRefusal(string Code, string Pointer);
+public sealed record TaxonomyRefusal(string Code, string Pointer)
+{
+    /// <summary>Human-readable reason when the refusal needs one.</summary>
+    public string? Message { get; init; }
+}
 /// <summary>Raised when a definition fails admission and exposes every refusal.</summary>
 public sealed class TaxonomyAdmissionException(IReadOnlyList<TaxonomyRefusal> refusals) : Exception("The Taxonomy definition was refused.")
 {
@@ -209,6 +213,7 @@ public static class TaxonomyDefinitionAdmission
         if (definition.SchemaVersion != 1) refusals.Add(new("definition.schema_version_unsupported", "/schema_version"));
         if (definition.Envelope is null) { if (phase != TaxonomyAdmissionPhase.Author) refusals.Add(new("definition.envelope_required", "/envelope")); }
         else if (definition.Envelope.Identity != definition.DefinitionId.ToString() || definition.Envelope.Version != definition.Version || definition.Envelope.Tenant != definition.Tenant) refusals.Add(new("definition.envelope_mismatch", "/envelope"));
+        if (definition.Envelope is not null && string.IsNullOrWhiteSpace(definition.Envelope.RetentionClass)) refusals.Add(new("definition.envelope_invalid", "/envelope/retention_class"));
         // T-572 (rulings 85-88, Q6): the contract travels with the envelope, inside the host's window.
         var contract = definition.Envelope is null ? null : window.Check(definition.Envelope.Contract, null);
         if (contract is not null) refusals.Add(new(contract.Code, contract.Pointer));
@@ -239,7 +244,7 @@ public static class TaxonomyDefinitionAdmission
             if (node.SuccessorCode is not null) { if (!byCode.TryGetValue(node.SuccessorCode, out var successor)) refusals.Add(new("definition.successor_unknown", $"/nodes/{index}/successor_code")); else if (definition.Nodes[successor].Status == TaxonomyNodeStatus.Tombstoned) refusals.Add(new("definition.successor_tombstoned", $"/nodes/{index}/successor_code")); }
         }
         ValidateCollections(definition.Collections, byCode, refusals);
-        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, refusals);
+        ValidateParents(definition.Nodes, byCode, refusals); if (previous is not null) ValidatePrevious(definition, previous, byCode, refusals);
         if (vendor is not null && definition.Overlay is not null) ValidateOverlayAgainstVendor(definition, vendor, refusals);
         return refusals;
     }
@@ -327,7 +332,7 @@ public static class TaxonomyDefinitionAdmission
             }
         }
     }
-    private static void ValidatePrevious(TaxonomyDefinition definition, TaxonomyDefinition previous, List<TaxonomyRefusal> refusals)
+    private static void ValidatePrevious(TaxonomyDefinition definition, TaxonomyDefinition previous, IReadOnlyDictionary<string, int> byCode, List<TaxonomyRefusal> refusals)
     {
         if (previous.Nodes is null) { refusals.Add(new("definition.body_invalid", "/previous/nodes")); return; }
         var priorNodes = new Dictionary<string, TaxonomyNode>(StringComparer.Ordinal);
@@ -337,12 +342,13 @@ public static class TaxonomyDefinitionAdmission
             if (priorNode is null) { refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}")); continue; }
             if (priorNode.Code is null) { refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}/code")); continue; }
             if (!priorNodes.TryAdd(priorNode.Code, priorNode)) refusals.Add(new("definition.body_invalid", $"/previous/nodes/{index}/code"));
+            if (!byCode.ContainsKey(priorNode.Code)) refusals.Add(new("definition.concept_deleted", $"/previous/nodes/{index}/code") { Message = "The concept must be tombstoned, not deleted." });
         }
         for (var index = 0; index < definition.Nodes.Count; index++)
         {
             var node = definition.Nodes[index];
             if (node is null || node.Code is null || !priorNodes.TryGetValue(node.Code, out var prior)) continue;
-            // This is the producer-level proxy for never reusing a retired code; general identity reuse requires durable node history.
+            // Admitted versions retain every code, so the previous version covers their history; earlier gaps are not re-checked.
             if (prior.Status == TaxonomyNodeStatus.Tombstoned && node.Status == TaxonomyNodeStatus.Active) refusals.Add(new("definition.tombstone_reactivated", $"/nodes/{index}/status"));
             if (node.DisplayHistoryEntries.Count < prior.DisplayHistoryEntries.Count || !prior.DisplayHistoryEntries.SequenceEqual(node.DisplayHistoryEntries.Take(prior.DisplayHistoryEntries.Count))) refusals.Add(new("definition.display_history_not_append_only", $"/nodes/{index}/display_history_entries"));
         }

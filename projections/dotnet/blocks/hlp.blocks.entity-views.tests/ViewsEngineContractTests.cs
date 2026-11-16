@@ -72,7 +72,7 @@ public sealed class ViewsEngineContractTests
             "state",
             null,
             new ViewPage(Offset: 1, Limit: 3),
-            DateTimeOffset.UnixEpoch);
+            DateTimeOffset.UnixEpoch, ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
 
         var page = await source.QueryAsync(plan);
 
@@ -133,7 +133,7 @@ public sealed class ViewsEngineContractTests
         // ADR 0071 decision 2: admission adds no pipeline stage; it runs at validate. The store half is ViewDefinitionCatalogueTests.
         var store = ViewStores.Catalogue();
         var authoring = new ViewDefinitionAuthoring(
-            new ViewDefinitionAdmission(new NoKinds(), new NoRecordTypes(), new NoMeasures(), new ViewExpressionFunctionRegistry(), new NoInteractions()),
+            new ViewDefinitionAdmission(new NoKinds(), new NoRecordTypes(), new NoMeasures(), new ViewExpressionFunctionRegistry(), new NoInteractions(), ViewsExpressionEnvironment.Admitted),
             store);
         var draft = new ViewDefinitionDraft(
             new(
@@ -178,7 +178,7 @@ public sealed class ViewsEngineContractTests
     {
         static ViewQueryPlan Plan(ViewFilter filter) => new(
             "tenant-a", "work-item", new Dictionary<string, ViewRecordFieldKind> { ["state"] = ViewRecordFieldKind.Scalar },
-            [], [new(ViewPredicateSource.Authored, filter)], [], null, null, new ViewPage(0, 10), DateTimeOffset.UnixEpoch);
+            [], [new(ViewPredicateSource.Authored, filter)], [], null, null, new ViewPage(0, 10), DateTimeOffset.UnixEpoch, ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
         var source = new InMemoryViewRowSource([Row("a", "open", 1)]);
 
         var kind = await Assert.ThrowsAsync<ViewQueryException>(async () => await source.QueryAsync(Plan(new ForeignFilter())));

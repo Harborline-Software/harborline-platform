@@ -29,6 +29,8 @@
   <Project Path="projections/dotnet/foundation/hlp.foundation.assistance/Harborline.Foundation.Assistance.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.assistance.tests/Harborline.Foundation.Assistance.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj" />
+  <Project Path="projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />

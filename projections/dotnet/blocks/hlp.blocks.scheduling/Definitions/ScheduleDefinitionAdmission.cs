@@ -30,6 +30,8 @@ internal static class ScheduleDefinitionAdmission
             if (string.IsNullOrWhiteSpace(escalation.To)) refusals.Add(new(ScheduleDefinitionCodes.EscalationInvalid, "/escalation/to"));
         }
         Modules(definition, refusals);
+        if (definition.ProblemClass != ScheduleProblemClass.None && definition.Solver is null)
+            refusals.Add(new("scheduling.definition.solver_required", "/solver"));
         if (definition.RecoveryReplanning is true)
             refusals.Add(new(ScheduleDefinitionCodes.RecoveryReplanningUnsupported, "/recovery_replanning"));
         if (definition.RegulatorRuleSetRequirement is not null)

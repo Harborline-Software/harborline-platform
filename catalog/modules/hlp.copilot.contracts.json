@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/application/hlp.copilot.contracts/interface.yaml",
-      "revision": 1
+      "revision": 2
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -18,7 +18,8 @@
       "deletionTest": "PASS",
       "redistributedComplexity": [
         "proposal safety validation, stale-context fencing, and NEVER-classification exclusion reimplemented per Pilot surface",
-        "descriptor/executor import fence and provider-neutral manifest generation forked between hosts"
+        "descriptor/executor import fence and provider-neutral manifest generation forked between hosts",
+        "proposal digests and content-free delegation, disposition and standing-approval wire shapes drifting across .NET and TypeScript hosts"
       ]
     },
     "projections": {

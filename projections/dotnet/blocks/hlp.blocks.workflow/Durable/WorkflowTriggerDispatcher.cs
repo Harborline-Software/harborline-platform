@@ -47,6 +47,8 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     private readonly IWorkflowDefinitionExecutionStore? _definitionStore;
     private readonly WorkflowEngineOptions _options;
 
+    internal bool HasTypedHandler(string definitionKey) => _handlers.ContainsKey(definitionKey);
+
     /// <summary>
     /// Constructs the dispatcher over the durable store and the registered step handlers (one per
     /// definition key). Duplicate definition keys throw — a definition has exactly one handler.
@@ -93,9 +95,19 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             return WorkflowDispatchResult.UnknownInstance;
         }
 
-        if (instance.Status is WorkflowStatus.Completed or WorkflowStatus.Failed)
+        if (instance.Status is WorkflowStatus.Completed or WorkflowStatus.Failed or WorkflowStatus.Cancelled or WorkflowStatus.Terminated)
         {
             return WorkflowDispatchResult.Terminal;
+        }
+
+        if (instance.Status == WorkflowStatus.Suspended)
+        {
+            return WorkflowDispatchResult.Discarded;
+        }
+
+        if (trigger.Step != instance.CurrentStep && instance.MovedAwaySteps.Contains(trigger.Step))
+        {
+            return WorkflowDispatchResult.Discarded;
         }
 
         // ── IDEMPOTENCY GUARD ──
@@ -105,7 +117,11 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // DISTINCT key and is not falsely deduped against the earlier pass. If the row already exists, this
         // exact (instance, iteration, step) advanced before: replay (no-op), never re-run the effect.
         var key = new WorkflowStepKey(trigger.InstanceId, instance.Iteration, trigger.Step);
-        var recorded = await _store.FindStepResultAsync(key, ct).ConfigureAwait(false);
+        var (current, recorded) = await _store.FindStepResultIfCurrentAsync(instance, key, ct).ConfigureAwait(false);
+        if (!current)
+        {
+            return WorkflowDispatchResult.Discarded;
+        }
         if (recorded is not null)
         {
             return WorkflowDispatchResult.ReplayedNoOp;
@@ -143,6 +159,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // kg handlers). The general A1 interpreter is the FALLBACK: consulted only when no typed handler
         // matches, it executes the instance's pinned, re-admitted declarative definition. With neither a
         // handler nor an interpreter, an unhandled definition throws (the pre-A1 posture — unchanged).
+        using var approvalDecisions = new WorkflowApprovalDecisionScope();
         WorkflowStepOutcome outcome;
         if (_handlers.TryGetValue(instance.DefinitionKey, out var handler))
         {
@@ -177,12 +194,13 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
 
         if (outcome.Kind == WorkflowStepOutcomeKind.Park)
         {
-            return await CommitParkAsync(trigger.InstanceId, instance.Iteration, outcome, key, ct)
+            return await CommitParkAsync(instance, outcome, key, ct)
                 .ConfigureAwait(false);
         }
 
         // ATOMIC ADVANCE — effect (if any) + outcome event + idempotency row + position, one transaction.
-        await _store.AdvanceAsync(
+        var committed = await _store.AdvanceIfCurrentAsync(
+            expected: instance,
             key: key,
             effect: outcome.Effect,
             resultJson: outcome.ResultJson,
@@ -192,7 +210,9 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
             nextStatus: outcome.NextStatus,
             ct: ct).ConfigureAwait(false);
 
-        return WorkflowDispatchResult.Advanced;
+        if (committed)
+            approvalDecisions.Commit();
+        return committed ? WorkflowDispatchResult.Advanced : WorkflowDispatchResult.Discarded;
     }
 
     /// <summary>
@@ -204,8 +224,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
     /// the shipped unbounded-send-back loop (ADR 0135 A0, bug-1353).
     /// </summary>
     private async Task<WorkflowDispatchResult> CommitParkAsync(
-        string instanceId,
-        int currentIteration,
+        WorkflowInstanceRecord instance,
         WorkflowStepOutcome outcome,
         WorkflowStepKey decidedKey,
         CancellationToken ct)
@@ -213,14 +232,14 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         if (!outcome.IsLoopBack)
         {
             // Forward park — no re-entry, iteration unchanged.
-            await _store.ParkAsync(instanceId, outcome.NextStep, outcome.EventDataJson, currentIteration, ct)
+            var parked = await _store.ParkIfCurrentAsync(instance, outcome.NextStep, outcome.EventDataJson, instance.Iteration, ct)
                 .ConfigureAwait(false);
-            return WorkflowDispatchResult.Parked;
+            return parked ? WorkflowDispatchResult.Parked : WorkflowDispatchResult.Discarded;
         }
 
         // Loop-back park — this re-enters an earlier step. Bump the durable iteration so the re-entered step
         // derives a distinct, crash-stable idempotency key on its next pass.
-        var nextIteration = currentIteration + 1;
+        var nextIteration = instance.Iteration + 1;
 
         if (nextIteration >= _options.MaxIterations)
         {
@@ -232,10 +251,11 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                 kind = "max-iterations-escalation",
                 reason = "loop-back iteration cap reached",
                 step = outcome.NextStep,
-                iteration = currentIteration,
+                iteration = instance.Iteration,
                 maxIterations = _options.MaxIterations,
             });
-            await _store.AdvanceAsync(
+            var committed = await _store.AdvanceIfCurrentAsync(
+                expected: instance,
                 key: decidedKey,
                 effect: null,
                 resultJson: escalationJson,
@@ -244,12 +264,12 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                 nextStep: EscalatedStep,
                 nextStatus: WorkflowStatus.Failed,
                 ct: ct).ConfigureAwait(false);
-            return WorkflowDispatchResult.Advanced;
+            return committed ? WorkflowDispatchResult.Advanced : WorkflowDispatchResult.Discarded;
         }
 
         // Under the cap — re-park at the bumped iteration (persisted atomically with the park).
-        await _store.ParkAsync(instanceId, outcome.NextStep, outcome.EventDataJson, nextIteration, ct)
+        var loopParked = await _store.ParkIfCurrentAsync(instance, outcome.NextStep, outcome.EventDataJson, nextIteration, ct)
             .ConfigureAwait(false);
-        return WorkflowDispatchResult.Parked;
+        return loopParked ? WorkflowDispatchResult.Parked : WorkflowDispatchResult.Discarded;
     }
 }

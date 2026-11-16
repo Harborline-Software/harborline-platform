@@ -20,6 +20,32 @@ public sealed class TaxonomyDefinitionTests
         Assert.Null(ContractOf(TaxonomyDefinitionJson.SerializeCanonical(TaxonomyDefinitionJson.Deserialize(WithContract(canonical, present: false)))));
     }
 
+    [Fact(DisplayName = "taxonomy-ck-21: retention class and legal hold survive the envelope round trip")]
+    public void taxonomy_ck_21_retention_and_hold_round_trip()
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(TaxonomyDefinitionJson.SerializeCanonical(Definition()))!;
+        json["envelope"]!["retention_class"] = "regulated";
+        json["envelope"]!["legal_hold"] = true;
+        var parsed = TaxonomyDefinitionJson.Deserialize(json.ToJsonString());
+        var envelope = System.Text.Json.Nodes.JsonNode.Parse(TaxonomyDefinitionJson.SerializeCanonical(parsed))!["envelope"]!;
+        Assert.Equal("regulated", envelope["retention_class"]!.GetValue<string>());
+        Assert.True(envelope["legal_hold"]!.GetValue<bool>());
+    }
+
+    [Theory(DisplayName = "taxonomy-ck-21: blank retention class refuses an invalid envelope")]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void taxonomy_ck_21_blank_retention_refuses(string retention)
+    {
+        var definition = Definition() with { Envelope = Envelope() with { RetentionClass = retention } };
+        foreach (var phase in new[] { TaxonomyAdmissionPhase.Author, TaxonomyAdmissionPhase.Publish, TaxonomyAdmissionPhase.Install })
+        {
+            var refusal = Assert.Single(TaxonomyDefinitionAdmission.Validate(definition, phase, ContractWindow));
+            Assert.Equal("definition.envelope_invalid", refusal.Code);
+            Assert.Equal("/envelope/retention_class", refusal.Pointer);
+        }
+    }
+
     private static byte[] WithContract(byte[] canonical, bool present = true)
     {
         var node = System.Text.Json.Nodes.JsonNode.Parse(canonical)!;
@@ -186,6 +212,41 @@ public sealed class TaxonomyDefinitionTests
         Assert.False(typeof(System.Collections.IEnumerable).IsAssignableFrom(parent.PropertyType) && parent.PropertyType != typeof(string));
     }
 
+    [Theory(DisplayName = "taxonomy-auth-15: a previous active or tombstoned concept must be tombstoned, not deleted")]
+    [InlineData(TaxonomyNodeStatus.Active)]
+    [InlineData(TaxonomyNodeStatus.Tombstoned)]
+    public void taxonomy_auth_15_dropped_concept_is_refused(TaxonomyNodeStatus status)
+    {
+        var previous = Definition([Node("kept"), Node("dropped", status: status)]);
+        var refusals = TaxonomyDefinitionAdmission.Validate(Definition([Node("kept")]), TaxonomyAdmissionPhase.Author, ContractWindow, previous);
+        var refusal = Assert.Single(refusals);
+        Assert.Equal(("definition.concept_deleted", "/previous/nodes/1/code"), (refusal.Code, refusal.Pointer));
+        Assert.Equal("The concept must be tombstoned, not deleted.", refusal.Message);
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-17: a three-version chain cannot drop or reuse a retired code")]
+    public void taxonomy_auth_17_retired_code_cannot_be_reused_across_versions()
+    {
+        var first = Definition([Node("kept"), Node("retired")]) with { Envelope = null, Version = "1.0.0" };
+        var dropped = Definition([Node("kept")]) with { Envelope = null, Version = "2.0.0" };
+        var tombstoned = Definition([Node("kept"), Node("retired", status: TaxonomyNodeStatus.Tombstoned)]) with { Envelope = null, Version = "2.0.0" };
+        var reactivated = Definition([Node("kept"), Node("retired")]) with { Envelope = null, Version = "3.0.0" };
+        var readded = Definition([Node("kept"), Node("retired") with { Display = "A new concept" }]) with { Envelope = null, Version = "3.0.0" };
+
+        Assert.Equal([("definition.concept_deleted", "/previous/nodes/1/code")], TaxonomyDefinitionAdmission.Validate(dropped, TaxonomyAdmissionPhase.Author, ContractWindow, first).Select(r => (r.Code, r.Pointer)));
+        Assert.Empty(TaxonomyDefinitionAdmission.Validate(tombstoned, TaxonomyAdmissionPhase.Author, ContractWindow, first));
+        Assert.Equal([("definition.tombstone_reactivated", "/nodes/1/status")], TaxonomyDefinitionAdmission.Validate(reactivated, TaxonomyAdmissionPhase.Author, ContractWindow, tombstoned).Select(r => (r.Code, r.Pointer)));
+        Assert.Equal([("definition.tombstone_reactivated", "/nodes/1/status")], TaxonomyDefinitionAdmission.Validate(readded, TaxonomyAdmissionPhase.Author, ContractWindow, tombstoned).Select(r => (r.Code, r.Pointer)));
+    }
+
+    [Fact(DisplayName = "taxonomy-auth-25: the dropped concept refusal names its reason")]
+    public void taxonomy_auth_25_drop_refusal_names_its_reason()
+    {
+        var previous = Definition([Node("kept"), Node("retired")]);
+        var refusal = Assert.Single(TaxonomyDefinitionAdmission.Validate(Definition([Node("kept")]), TaxonomyAdmissionPhase.Author, ContractWindow, previous));
+        Assert.Equal("definition.concept_deleted", refusal.Code);
+    }
+
     [Fact(DisplayName = "taxonomy-auth-25: independent structural refusals are accumulated in one list")]
     public void Independent_refusals_are_accumulated()
     {
@@ -289,7 +350,7 @@ public sealed class TaxonomyDefinitionTests
 
     private static readonly TaxonomyDefinitionId Id = new("acme", "health", "icd");
     private static TaxonomyDefinition Definition(IReadOnlyList<TaxonomyNode>? nodes = null) => new("tenant-a", Id, "1.0.0", TaxonomyGovernanceRegime.Civilian, "author", nodes ?? [Node("root")], Envelope: Envelope(), DerivedFrom: new("source", "0.9.0", "author", DateTimeOffset.UnixEpoch, "derivation"));
-    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), [], new(1, 0));
+    private static TaxonomyDefinitionEnvelope Envelope(string? identity = null) => new(identity ?? Id.ToString(), "1.0.0", "tenant-a", TaxonomyCascadeLayer.Tenant, JsonDocument.Parse("{\"source\":\"tenant\"}").RootElement.Clone(), "regulated", false, [], new(1, 0));
     private static TaxonomyNode Node(string code, string? parent = null, TaxonomyNodeStatus status = TaxonomyNodeStatus.Active, string? successor = null, string? reason = "retired", IReadOnlyList<DisplayHistoryEntry>? history = null) => new(code, $"Display {code}", $"Description {code}", status, history ?? [new($"Display {code}", $"Description {code}", DateTimeOffset.UnixEpoch)], ParentCode: parent, PublishedAt: DateTimeOffset.UnixEpoch, TombstonedAt: status == TaxonomyNodeStatus.Tombstoned ? DateTimeOffset.UnixEpoch : null, SuccessorCode: successor, DeprecationReason: reason);
     private static void RefusesThenAdmits(TaxonomyDefinition refused, string code, TaxonomyAdmissionPhase phase = TaxonomyAdmissionPhase.Author, TaxonomyDefinition? previous = null, TaxonomyDefinition? admitted = null)
     {
