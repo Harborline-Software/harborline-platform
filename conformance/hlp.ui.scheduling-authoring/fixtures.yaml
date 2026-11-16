@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "fixtureRevision": 1,
+  "description": "T-491/schedule-editor. Both lanes replay each case's labelled steps from an empty draft and must emit exactly the literal expected body. Bodies are written from the ScheduleDefinition grammar (DES-0022; ScheduleDefinitionAdmission and the solver catalogue), never captured from an editor (T-724 ruling 121). Refusal codes and pointers are the producer's literals.",
+  "catalogue": {
+    "types": [{ "id": "types.vehicle", "label": "Vehicle" }, { "id": "types.patient", "label": "Patient" }],
+    "forms": [{ "id": "forms.inspection", "label": "Inspection form" }],
+    "workflows": [{ "id": "workflows.check", "label": "Post-operative check workflow" }],
+    "workItems": ["work.oil-change"],
+    "legalityRuleSets": [{ "id": "legality.hours-of-service", "label": "Hours of service" }],
+    "backends": [
+      { "id": "prototype.exhaustive-proof.v2", "label": "Exhaustive proof (prototype)", "guarantees": ["feasible_proof"] },
+      { "id": "prototype.greedy-first-fit.v1", "label": "Greedy first fit (prototype)", "guarantees": ["bounded_heuristic"] }
+    ]
+  },
+  "cases": [
+    {
+      "id": "scheduling-authoring.schedule-from-nothing",
+      "items": ["scheduling-eng-19", "scheduling-auth-1", "scheduling-auth-2", "scheduling-auth-3", "scheduling-auth-4", "scheduling-auth-5", "scheduling-auth-12", "scheduling-auth-13"],
+      "input": {
+        "draft": { "identity": "", "versionId": "", "body": {} },
+        "steps": [
+          { "set": "Name", "value": "Annual inspection" },
+          { "set": "Runs on record type", "value": "types.vehicle" },
+          { "set": "Starts", "value": "form" },
+          { "set": "Starts target", "value": "forms.inspection" },
+          { "set": "Basis", "value": "fixed_calendar" },
+          { "set": "Recurrence rule", "value": "FREQ=YEARLY" },
+          { "set": "Window earliest", "value": "-P7D" },
+          { "set": "Window latest", "value": "P7D" },
+          { "set": "Tolerance early", "value": "P1D" },
+          { "set": "Tolerance late", "value": "P2D" },
+          { "set": "Missed behaviour", "value": "window_closed" },
+          { "set": "Legality rule set", "value": "legality.hours-of-service" }
+        ]
+      },
+      "expected": {
+        "body": {
+          "name": "Annual inspection",
+          "on_type_id": "types.vehicle",
+          "starts": { "kind": "form", "target_id": "forms.inspection" },
+          "basis": { "kind": "fixed_calendar", "rrule": "FREQ=YEARLY" },
+          "window": { "earliest": "-P7D", "latest": "P7D" },
+          "tolerance": { "early": "P1D", "late": "P2D" },
+          "missed_behaviour": "window_closed",
+          "legality_ref": "legality.hours-of-service"
+        }
+      }
+    },
+    {
+      "id": "scheduling-authoring.chain-from-nothing",
+      "items": ["scheduling-eng-19", "scheduling-auth-2", "scheduling-auth-5", "scheduling-auth-6", "scheduling-auth-12"],
+      "input": {
+        "draft": { "identity": "", "versionId": "", "body": {} },
+        "steps": [
+          { "set": "Name", "value": "Post-operative checks" },
+          { "set": "Runs on record type", "value": "types.patient" },
+          { "set": "Starts", "value": "workflow" },
+          { "set": "Starts target", "value": "workflows.check" },
+          { "set": "Basis", "value": "event_anchored_chain" },
+          { "set": "Chain anchor", "value": "surgery.completed" },
+          { "click": "Add node" },
+          { "set": "Node 1 id", "value": "first-check" },
+          { "set": "Node 1 offset", "value": "PT4H" },
+          { "set": "Node 1 tolerance early", "value": "PT30M" },
+          { "set": "Node 1 tolerance late", "value": "PT1H" },
+          { "click": "Add node" },
+          { "set": "Node 2 id", "value": "second-check" },
+          { "set": "Node 2 follows", "value": "first-check" },
+          { "set": "Node 2 offset", "value": "P1D" },
+          { "set": "Node 2 tolerance early", "value": "PT2H" },
+          { "set": "Node 2 tolerance late", "value": "PT2H" },
+          { "set": "Missed behaviour", "value": "record_and_replan" }
+        ]
+      },
+      "expected": {
+        "body": {
+          "name": "Post-operative checks",
+          "on_type_id": "types.patient",
+          "starts": { "kind": "workflow", "target_id": "workflows.check" },
+          "basis": {
+            "kind": "event_anchored_chain",
+            "anchor": "surgery.completed",
+            "nodes": [
+              { "node_id": "first-check", "offset": "PT4H", "tolerance": { "early": "PT30M", "late": "PT1H" } },
+              { "node_id": "second-check", "after_node_id": "first-check", "offset": "P1D", "tolerance": { "early": "PT2H", "late": "PT2H" } }
+            ]
+          },
+          "missed_behaviour": "record_and_replan"
+        }
+      }
+    },
+    {
+      "id": "scheduling-authoring.solver-and-module",
+      "items": ["scheduling-eng-19", "scheduling-auth-11", "scheduling-bound-1", "scheduling-bound-2", "scheduling-bound-3", "scheduling-bound-4"],
+      "input": {
+        "draft": { "identity": "", "versionId": "", "body": {} },
+        "steps": [
+          { "set": "Name", "value": "Workshop plan" },
+          { "set": "Starts", "value": "work_item" },
+          { "set": "Starts target", "value": "work.oil-change" },
+          { "set": "Due date", "value": "2027-01-01T00:00:00Z" },
+          { "set": "Problem class", "value": "Project" },
+          { "set": "Solver backend", "value": "prototype.exhaustive-proof.v2" },
+          { "set": "Solver guarantee", "value": "feasible_proof" },
+          { "set": "Work budget", "value": "10" },
+          { "set": "Constraint module", "value": "precedence" },
+          { "click": "Add precedence constraint" },
+          { "set": "Precedence 1 id", "value": "print-after-layout" },
+          { "set": "Precedence 1 before activity", "value": "layout" },
+          { "set": "Precedence 1 after activity", "value": "print" },
+          { "set": "Precedence 1 minimum gap slots", "value": "0" }
+        ]
+      },
+      "expected": {
+        "body": {
+          "name": "Workshop plan",
+          "starts": { "kind": "work_item", "target_id": "work.oil-change" },
+          "due_date": "2027-01-01T00:00:00Z",
+          "problem_class": "Project",
+          "solver": { "backend_id": "prototype.exhaustive-proof.v2", "parameters": {}, "guarantee": "feasible_proof", "work_budget": 10 },
+          "modules": [
+            { "module": "precedence", "parameters": { "constraints": [{ "id": "print-after-layout", "beforeActivityId": "layout", "afterActivityId": "print", "minimumGapSlots": 0 }] } }
+          ]
+        }
+      }
+    },
+    {
+      "id": "scheduling-authoring.refusal-list",
+      "items": ["scheduling-eng-19", "scheduling-auth-27"],
+      "input": {
+        "draft": {
+          "identity": "schedule.inspection",
+          "versionId": "1.0.0",
+          "expectedRevision": "2",
+          "body": {
+            "name": "",
+            "starts": { "kind": "form", "target_id": "forms.inspection" },
+            "due_date": "2027-01-01T00:00:00Z",
+            "problem_class": "Project",
+            "solver": { "backend_id": "missing", "parameters": {}, "guarantee": "feasible_proof", "work_budget": 10 },
+            "input_plan_id": "plan.upstream"
+          }
+        },
+        "diagnostics": [
+          { "code": "scheduling.definition.name_required", "pointer": "/name" },
+          { "code": "scheduling.definition.backend_unsupported", "pointer": "/solver/backend_id" },
+          { "code": "scheduling.definition.plan_input_unsupported", "pointer": "/input_plan_id" },
+          { "code": "scheduling.definition.body_invalid", "pointer": "" }
+        ]
+      },
+      "expected": {
+        "refusalList": [
+          "scheduling.definition.name_required at /name (Name)",
+          "scheduling.definition.backend_unsupported at /solver/backend_id (Solver backend)",
+          "scheduling.definition.plan_input_unsupported at /input_plan_id",
+          "scheduling.definition.body_invalid at the whole definition"
+        ],
+        "invalid": ["Name", "Solver backend"]
+      }
+    }
+  ]
+}

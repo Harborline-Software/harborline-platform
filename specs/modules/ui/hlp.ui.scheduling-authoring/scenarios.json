@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "sourceFixture": "conformance/hlp.ui.scheduling-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.scheduling-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Schedule authoring",
+      "blazor": "Platform/Schedule authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "scheduling-authoring.chain",
+      "name": "Event-anchored chain",
+      "surface": "chain",
+      "sourceCaseIds": [
+        "scheduling-authoring.chain-from-nothing"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Post-operative checks as a chain whose trigger event the author still names; each node states in words what it follows, and fields stack at a narrow viewport.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "basis": "event_anchored_chain"
+        },
+        "state": {
+          "narrow": true
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchedulingAuthoringEditor value={chain} catalogue={catalogue} onDraftChange={()=>undefined}/>",
+            "blazor": "<HarborlineSchedulingAuthoringEditor Value=\"@Chain\" Catalogue=\"@Catalogue\" />",
+            "rationale": "The gallery supplies only the host-owned draft and catalogue; saving and admission stay with the host."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "scheduling-authoring.solver",
+      "name": "Solver and module",
+      "surface": "solver",
+      "sourceCaseIds": [
+        "scheduling-authoring.solver-and-module"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "A Project schedule bound to a registered backend with its declared guarantee, a work budget and one precedence constraint.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "problemClass": "Project"
+        },
+        "state": {
+          "modules": 1
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchedulingAuthoringEditor value={solver} catalogue={catalogue} onDraftChange={()=>undefined}/>",
+            "blazor": "<HarborlineSchedulingAuthoringEditor Value=\"@Solver\" Catalogue=\"@Catalogue\" />",
+            "rationale": "The backend and its guarantees come from the host catalogue; the editor calls no solver."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "filled"
+      ]
+    },
+    {
+      "id": "scheduling-authoring.refusals",
+      "name": "Refusal list",
+      "surface": "refusals",
+      "sourceCaseIds": [
+        "scheduling-authoring.refusal-list"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Every admission refusal is listed before publish with its pointer and, when shown, its field; a pointer with no field is listed as given.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {
+          "problemClass": "Project"
+        },
+        "state": {
+          "refusals": 4
+        },
+        "body": [
+          {
+            "control": "raw",
+            "react": "<SchedulingAuthoringEditor value={refused} catalogue={catalogue} diagnostics={refusals} onDraftChange={()=>undefined}/>",
+            "blazor": "<HarborlineSchedulingAuthoringEditor Value=\"@Refused\" Catalogue=\"@Catalogue\" Diagnostics=\"@Refusals\" />",
+            "rationale": "The refusals are the producer's own codes and pointers from the conformance fixture."
+          }
+        ],
+        "footer": []
+      },
+      "states": [
+        "invalid"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@attribute [Stories("Platform/Schedule authoring")]
+<Stories TComponent="SchedulingAuthoringScenario">
+  <Story Name="Event-anchored chain"><Arguments><Arg For="_ => _.ScenarioId" Value='"scheduling-authoring.chain"' /></Arguments><Template><SchedulingAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Solver and module"><Arguments><Arg For="_ => _.ScenarioId" Value='"scheduling-authoring.solver"' /></Arguments><Template><SchedulingAuthoringScenario @attributes="context.Args" /></Template></Story>
+  <Story Name="Refusal list"><Arguments><Arg For="_ => _.ScenarioId" Value='"scheduling-authoring.refusals"' /></Arguments><Template><SchedulingAuthoringScenario @attributes="context.Args" /></Template></Story>
+</Stories>

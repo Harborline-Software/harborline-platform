@@ -109,6 +109,7 @@
     <Compile Include="../../../dotnet/foundation/hlp.foundation.documents.tests/TemplateFixtures.cs" Link="DocumentAuthoring/TemplateFixtures.cs" />
     <Content Include="../../../../conformance/hlp.ui.document-authoring/fixtures.yaml" Link="document-authoring-fixtures/fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../hlp.ui.booking-authoring.tests/**/*.cs" Link="BookingAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scheduling-authoring.tests/**/*.cs" Link="SchedulingAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.layout-runtime.tests/**/*.cs" Link="Layout/LayoutRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.data-exchange.tests/**/*.cs" Link="DataExchange/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.scroll-affordance.tests/**/*.cs" Link="Layout/ScrollAffordance/%(Filename)%(Extension)" />
@@ -134,6 +135,13 @@
     <!-- The T-606/member-editors booking authoring cases, read by BookingAuthoringTests and by the calendar admission test. -->
     <Content Include="../../../../conformance/hlp.ui.booking-authoring/fixtures.yaml"
              Link="booking-authoring-fixtures/fixtures.yaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <!-- The T-491/schedule-editor cases and the scheduling producer refusal file (L487), read by SchedulingAuthoringTests. -->
+    <Content Include="../../../../conformance/hlp.ui.scheduling-authoring/fixtures.yaml"
+             Link="scheduling-authoring-fixtures/fixtures.yaml"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../../conformance/hlp.blocks.scheduling/authoring-refusals.json"
+             Link="scheduling-authoring-fixtures/authoring-refusals.json"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

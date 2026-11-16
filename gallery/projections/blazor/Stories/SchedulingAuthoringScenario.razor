@@ -1,0 +1,31 @@
+@namespace Harborline.Gallery.Blazor.Stories
+@using System.Text.Json.Nodes
+<section class="hl-gallery-scene" data-gallery-probe data-gallery-scenario="@ScenarioId">
+  <header class="hl-gallery-heading"><h2>@Copy.Title</h2><p>@Copy.Description</p></header>
+  <div class="hl-gallery-stage"><HarborlineSchedulingAuthoringEditor Value="@Draft" Catalogue="@Catalogue" Diagnostics="@(ScenarioId == "scheduling-authoring.refusals" ? Refusals : null)" /></div>
+</section>
+@code {
+  [Parameter, EditorRequired] public string ScenarioId { get; set; } = "scheduling-authoring.chain";
+  // Copies of conformance/hlp.ui.scheduling-authoring/fixtures.yaml (the chain's trigger event left unnamed), written out identically in SchedulingAuthoring.stories.tsx; the
+  // gallery's ARIA parity check holds the two lanes together.
+  private static readonly SchedulingCatalogue Catalogue = new()
+  {
+    Types = [new("types.vehicle", "Vehicle"), new("types.patient", "Patient")],
+    Forms = [new("forms.inspection", "Inspection form")],
+    Workflows = [new("workflows.check", "Post-operative check workflow")],
+    WorkItems = ["work.oil-change"],
+    LegalityRuleSets = [new("legality.hours-of-service", "Hours of service")],
+    Backends = [new("prototype.exhaustive-proof.v2", "Exhaustive proof (prototype)", ["feasible_proof"]), new("prototype.greedy-first-fit.v1", "Greedy first fit (prototype)", ["bounded_heuristic"])],
+  };
+  private static readonly SchedulingDraft Chain = new("schedule.post-op", "1.0.0", "1", JsonNode.Parse("""{"name":"Post-operative checks","on_type_id":"types.patient","starts":{"kind":"workflow","target_id":"workflows.check"},"basis":{"kind":"event_anchored_chain","nodes":[{"node_id":"first-check","offset":"PT4H","tolerance":{"early":"PT30M","late":"PT1H"}},{"node_id":"second-check","after_node_id":"first-check","offset":"P1D","tolerance":{"early":"PT2H","late":"PT2H"}}]},"missed_behaviour":"record_and_replan"}""")!.AsObject());
+  private static readonly SchedulingDraft Solver = new("schedule.workshop", "1.0.0", "1", JsonNode.Parse("""{"name":"Workshop plan","starts":{"kind":"work_item","target_id":"work.oil-change"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":10},"modules":[{"module":"precedence","parameters":{"constraints":[{"id":"print-after-layout","beforeActivityId":"layout","afterActivityId":"print","minimumGapSlots":0}]}}]}""")!.AsObject());
+  private static readonly SchedulingDraft Refused = new("schedule.inspection", "1.0.0", "2", JsonNode.Parse("""{"name":"","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"missing","parameters":{},"guarantee":"feasible_proof","work_budget":10},"input_plan_id":"plan.upstream"}""")!.AsObject());
+  private static readonly SchedulingDiagnosticSet Refusals = new("schedule.inspection", "2", 0, [new("scheduling.definition.name_required", "/name"), new("scheduling.definition.backend_unsupported", "/solver/backend_id"), new("scheduling.definition.plan_input_unsupported", "/input_plan_id"), new("scheduling.definition.body_invalid", "")]);
+  private SchedulingDraft Draft => ScenarioId switch { "scheduling-authoring.solver" => Solver, "scheduling-authoring.refusals" => Refused, _ => Chain };
+  private (string Title, string Description) Copy => ScenarioId switch
+  {
+    "scheduling-authoring.solver" => ("Solver and module", "A Project schedule bound to a registered backend with its declared guarantee, a work budget and one precedence constraint."),
+    "scheduling-authoring.refusals" => ("Refusal list", "Every admission refusal is listed before publish with its pointer and, when shown, its field; a pointer with no field is listed as given."),
+    _ => ("Event-anchored chain", "Post-operative checks as a chain whose trigger event the author still names; each node states in words what it follows, and fields stack at a narrow viewport."),
+  };
+}
