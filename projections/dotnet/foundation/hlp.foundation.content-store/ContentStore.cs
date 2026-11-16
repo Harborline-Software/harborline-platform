@@ -112,6 +112,9 @@ public sealed class ContentRefusedException : InvalidOperationException
     /// <summary>The declaration that set the limit: <see cref="InMemoryContentStore.StoreDeclaration"/> or the field's declaration.</summary>
     public string Definition { get; }
 
+    /// <summary>The optional RFC 6901 location of a field or entry refusal.</summary>
+    public string? JsonPointer { get; init; }
+
     /// <summary>C3's optional detail; <c>limit</c> and <c>observed</c> on every size and quota refusal.</summary>
     public IReadOnlyDictionary<string, long> Detail { get; }
 }
@@ -218,6 +221,8 @@ public sealed record ContentCiphertextSegment(byte[] Ciphertext, byte[] Tag);
 public sealed record ContentStoreItem(Guid StageId, TenantId Tenant, ContentId ContentId, long Length, string MediaType, DateTimeOffset CreatedUtc,
     byte[] WrappedDataKey, byte[] WrapNonce, byte[] WrapTag, byte[] NoncePrefix, int SegmentSize, Guid EpochId)
 {
+    /// <summary>The authenticated put actor allowed to promote this stage (ADR-0142); absent legacy stages cannot commit.</summary>
+    public string? StagingPrincipal { get; init; }
     /// <summary>The committed owners that currently reference the item.</summary>
     public IReadOnlyList<ContentOwner> Owners { get; init; } = [];
     /// <summary>The item's lifecycle state.</summary>
@@ -319,7 +324,11 @@ public readonly record struct ContentQuotaReservation(ContentQuotaGrain? Refused
 /// The caller's open transaction, when the write runs inside the caller's boundary execution (ck-6). Null means the store
 /// executes its own; inside an open execution that is refused as <see cref="KernelTransactionErrors.NestedExecution"/>.
 /// </param>
-public sealed record ContentStoreWrite(KernelOperationIdentity Operation, KernelAuditEvidence Audit, IContentBookkeepingSession? Transaction = null);
+public sealed record ContentStoreWrite(KernelOperationIdentity Operation, KernelAuditEvidence Audit, IContentBookkeepingSession? Transaction = null)
+{
+    /// <summary>The server-bound on-behalf-of principal; null for a direct write. Never replaces the audit actor or its authority.</summary>
+    public string? Originator { get; init; }
+}
 
 /// <summary>
 /// The bookkeeping reads and writes inside one open transaction, with no commit or rollback, so a caller can hand it to the
@@ -1200,6 +1209,23 @@ public sealed class InMemoryContentStore
     private const int TagBytes = 16;
     private const int NoncePrefixBytes = 7;
 
+    /// <summary>The measured store per-item limit, used by field admission without rewriting pack declarations.</summary>
+    public long ItemLimitBytes => _options.ItemLimitBytes;
+
+    /// <summary>
+    /// Whether a reference's media type is one the item's bytes admit (DES-0054 ck-3, ck-6). A signature type is fixed by the
+    /// bytes, so it must equal the item's. Text bytes carry no signature: detection only establishes that they are text, and
+    /// each upload's declared text subtype is its own, so <c>text/plain</c> and <c>text/csv</c> both fit any text item.
+    /// </summary>
+    public static bool MediaTypeFits(string itemMediaType, string referenceMediaType) =>
+        StringComparer.Ordinal.Equals(itemMediaType, referenceMediaType)
+        || (TextMediaTypes.Contains(itemMediaType) && TextMediaTypes.Contains(referenceMediaType));
+
+    private static readonly HashSet<string> TextMediaTypes = new(StringComparer.Ordinal) { "text/plain", "text/csv" };
+
+    /// <summary>A detached view of the store's closed R1 media-type allowlist.</summary>
+    public static IReadOnlyList<string> SupportedMediaTypes { get; } = Array.AsReadOnly(Allowlist.Order(StringComparer.Ordinal).ToArray());
+
     private readonly ContentStoreOptions _options;
     private readonly ITenantContentKeyProvider _keys;
     private readonly TimeProvider _clock;
@@ -1326,7 +1352,7 @@ public sealed class InMemoryContentStore
                         try
                         {
                             var (wrapped, wrapNonce, wrapTag) = Wrap(epochKey, dataKey, contentId);
-                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId), token).ConfigureAwait(false);
+                            await session.AddStagedAsync(new ContentStoreItem(stageId, tenant, contentId, length, mediaType, createdUtc, wrapped, wrapNonce, wrapTag, noncePrefix, SegmentSizeBytes, epoch.EpochId) { StagingPrincipal = write.Audit.ActorId }, token).ConfigureAwait(false);
                             return true;
                         }
                         finally
@@ -1364,10 +1390,14 @@ public sealed class InMemoryContentStore
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         RequireEvidence(write);
         ContentStoreItem? expired = null, collapsed = null, held = null;
+        string? uploadType = null;
         var outcome = await RunAsync(ContentStoreOperation.Commit, write, async (session, token) =>
         {
             // Held from here, so a rewrap can't change the wrap this promotion carries into the committed item.
-            if (await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false) is not { } staged || staged.Tenant != tenant) throw StagingExpiredRefusal();
+            var staged = await session.FindStagedForUpdateAsync(stageId, token).ConfigureAwait(false);
+            if (staged is null) throw StagingExpiredRefusal();
+            if (staged.Tenant != tenant || !StringComparer.Ordinal.Equals(staged.StagingPrincipal, write.Originator ?? write.Audit.ActorId))
+                throw StagingExpiredRefusal();
             if (StagedCutoff() >= staged.CreatedUtc)
             {
                 // Inside a caller's execution the refusal must fail the join and doom it; the sweep reclaims the stage.
@@ -1376,6 +1406,7 @@ public sealed class InMemoryContentStore
                 return true;
             }
 
+            uploadType = staged.MediaType;
             await ReserveQuotaAsync(session, tenant, owner.Record, staged.Length, token).ConfigureAwait(false);
             if (!await session.RemoveStagedAsync(stageId, token).ConfigureAwait(false)) throw StagingExpiredRefusal(); // a concurrent commit of this stage won it
             var key = new ContentStorageItemKey(tenant, staged.ContentId);
@@ -1405,7 +1436,9 @@ public sealed class InMemoryContentStore
         }
 
         if (collapsed is not null && outcome == WriteOutcome.Committed) await DestroyAsync(collapsed).ConfigureAwait(false);
-        return new(held!.ContentId, held.Length, held.MediaType, displayName, owner);
+        // ck-3, ck-6: the reference carries this upload's own type. A collapse never substitutes the held item's type, so a
+        // later upload is never judged by an earlier one's declaration (dedup is never visible, eng-4, board P2).
+        return new(held!.ContentId, held.Length, uploadType!, displayName, owner);
     }
 
     private async ValueTask ReserveQuotaAsync(IContentBookkeepingSession session, TenantId tenant, string record, long length, CancellationToken cancellationToken)
@@ -1481,7 +1514,7 @@ public sealed class InMemoryContentStore
     private async ValueTask<WriteOutcome> RunAsync(ContentStoreOperation operation, ContentStoreWrite write,
         Func<IContentBookkeepingSession, CancellationToken, ValueTask<bool>> writes, CancellationToken cancellationToken)
     {
-        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit);
+        var command = new KernelCommand<ContentStoreOperation>(write.Operation, operation, write.Audit with { OriginatorId = write.Originator ?? write.Audit.OriginatorId });
         if (write.Transaction is { } session)
         {
             var joined = new JoinedWrite(session, writes);
@@ -1558,19 +1591,19 @@ public sealed class InMemoryContentStore
         if (range is not { } requested || (ifRange is not null && ifRange != etag) || requested.Start < 0 || requested.End < requested.Start)
         {
             return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), 0, 0, item.Length, true, context, cancellationToken).ConfigureAwait(false),
-                200, item.MediaType, disposition, etag, null);
+                200, reference.MediaType, disposition, etag, null);
         }
 
         if (requested.Start >= item.Length)
         {
-            return new(Stream.Null, 416, item.MediaType, disposition, etag, $"bytes */{item.Length}");
+            return new(Stream.Null, 416, reference.MediaType, disposition, etag, $"bytes */{item.Length}");
         }
 
         var end = Math.Min(requested.End, item.Length - 1);
         var first = (int)(requested.Start / item.SegmentSize);
         var offset = requested.Start - ((long)first * item.SegmentSize);
         return new(await OpenReadAsync(item, epoch, reference.Owner, RequireKey(tenant), first, offset, end - requested.Start + 1, false, context, cancellationToken).ConfigureAwait(false),
-            206, item.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
+            206, reference.MediaType, disposition, etag, $"bytes {requested.Start}-{end}/{item.Length}");
     }
 
     // The boundary's own nesting check, asked before any byte is read: Enter refuses an open execution, and otherwise the
@@ -1668,7 +1701,7 @@ public sealed class InMemoryContentStore
         // Deleting orphans changes state, so even a sweep that finds nothing else carries its actor and audit row.
         var outcome = await RunAsync(ContentStoreOperation.SweepExpired, write, async (session, token) =>
         {
-            foreach (var item in expired)
+            foreach (var item in expired.OrderBy(item => item.StageId.ToString("N"), StringComparer.Ordinal))
             {
                 if (await ReclaimStagedAsync(session, item, "staging-expired", run, token).ConfigureAwait(false)) reclaimed.Add(item);
             }
@@ -1777,7 +1810,9 @@ public sealed class InMemoryContentStore
                         toKey = OpenEpoch(tenant, subkey, to);
                     }
 
-                    foreach (var item in items)
+                    // Match attachment writes: staged ids first, then committed content ids, both ordinal.
+                    foreach (var item in items.OrderBy(item => item.State != ContentLifecycleState.Staged)
+                        .ThenBy(item => item.State == ContentLifecycleState.Staged ? item.StageId.ToString("N") : item.ContentId.Value, StringComparer.Ordinal))
                     {
                         // The row is held before its wrap is opened: the listing is a snapshot, and a removal that committed since then zeroed that wrap.
                         var held = item.State == ContentLifecycleState.Staged
@@ -2096,7 +2131,8 @@ public sealed class InMemoryContentStore
 
     private async ValueTask<ContentStoreItem> ReadableAsync(TenantId tenant, ContentReference reference, bool authorized, CancellationToken cancellationToken)
     {
-        if (!authorized || await _bookkeeping.FindItemAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false) is not { } item || !item.Owners.Contains(reference.Owner))
+        if (!authorized || await _bookkeeping.FindItemAsync(new(tenant, reference.ContentId), cancellationToken).ConfigureAwait(false) is not { } item || !item.Owners.Contains(reference.Owner)
+            || !MediaTypeFits(item.MediaType, reference.MediaType))
         {
             throw new ContentNotFoundException();
         }

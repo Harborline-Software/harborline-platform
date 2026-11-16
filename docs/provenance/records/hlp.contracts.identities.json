@@ -7,9 +7,9 @@
     "projections/dotnet/contracts/hlp.contracts.identities/TenantId.cs": "ecd0027d76942eb8ece2a15c936920b3521fa96af94c28b09f57b28a0c6043aa",
     "projections/dotnet/contracts/hlp.contracts.identities/EntityId.cs": "00b43910d1f8d87d3929caa1b019d3bf47adf37953f429cc525e70dae23b6825",
     "projections/dotnet/contracts/hlp.contracts.identities.tests/IdentityContractTests.cs": "f309427a4625ef94e0b75dc332f1b11565e4c1fad17dae74b9c4f6cda9523a98",
-    "conformance/hlp.contracts.identities/fixtures.yaml": "689f2b6aa53fcde89ea0692996c627caa2cddb68494009e42af42b2e9e185c71",
-    "specs/modules/contracts/hlp.contracts.identities/interface.yaml": "52018f99edc2dd75272b1daf7a2c034b936f999a14a6bb2baf1fdc240a936641",
-    "projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldDefinitions.cs": "163338dcfc586334320e7480851e6b3f3cb8052ea3d12b25ba2809ff8e8fa4ca"
+    "conformance/hlp.contracts.identities/fixtures.yaml": "cebf3b224b25f1a43b45d45e9ec22e88fd889d33790e66b6078f5c06ce3ef2c8",
+    "specs/modules/contracts/hlp.contracts.identities/interface.yaml": "e1c225ab4f12927274ca0b89d974e011e6a559a633fa9dab90b9b4e971fe5fbb",
+    "projections/dotnet/contracts/hlp.contracts.identities/Fields/FieldDefinitions.cs": "e8c8a54f7089dd8691d0c63044fbea2b16a20d072c8101ad5db5ae9d34649b18"
   },
   "nextGate": "Consume through the completed tenancy package and continue the next dependency-ready Wave-0 contract without changing aggregate authority."
 }
