@@ -1040,7 +1040,7 @@ function verifyNuget() {
   const formsEngineDirectReferences = [...formsEngineConsumerProject.matchAll(/<PackageReference\s+Include="([^"]+)"/g)]
     .map(match => match[1])
   if (JSON.stringify(formsEngineDirectReferences) !== JSON.stringify(['Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.FieldRuntime'])) {
-    throw new Error(`Forms Engine consumer must reference only Harborline.Foundation.Forms.Engine: ${JSON.stringify(formsEngineDirectReferences)}`)
+    throw new Error(`Forms Engine consumer must reference only Harborline.Foundation.Forms.Engine and Harborline.Foundation.FieldRuntime: ${JSON.stringify(formsEngineDirectReferences)}`)
   }
   const formsEngineConsumerOutputText = runNugetConsumer(formsEngineConsumer, formsEnginePackageCache).output
   const formsEngineConsumerOutput = formsEngineConsumerOutputText
