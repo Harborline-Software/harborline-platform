@@ -268,13 +268,13 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         finally { _gate.Release(); }
     }
 
-    /// <summary>The append-only per-instance event log (monotonic Seq), for durable-history proofs.</summary>
+    /// <inheritdoc />
     public async Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
-            return _events.Where(e => e.InstanceId == instanceId).OrderBy(e => e.Seq).ToArray();
+            return _events.Where(e => e.InstanceId == instanceId).OrderBy(e => e.Seq).Select(Clone).ToArray();
         }
         finally { _gate.Release(); }
     }
@@ -444,6 +444,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         }
     }
 
+
     private void ApplyAdvance(AdvanceDto dto)
     {
         if (!_instances.TryGetValue(dto.InstanceId, out var instance))
@@ -523,6 +524,17 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
 
     private static T Deserialize<T>(ReadOnlySpan<byte> payload) =>
         JsonSerializer.Deserialize<T>(payload) ?? throw new InvalidDataException("The workflow journal payload is empty.");
+
+    private static WorkflowEventRecord Clone(WorkflowEventRecord source) => new()
+    {
+        Id = source.Id,
+        InstanceId = source.InstanceId,
+        Seq = source.Seq,
+        Step = source.Step,
+        EventType = source.EventType,
+        DataJson = source.DataJson,
+        OccurredAt = source.OccurredAt,
+    };
 
     private static WorkflowInstanceRecord Clone(WorkflowInstanceRecord source) => new()
     {

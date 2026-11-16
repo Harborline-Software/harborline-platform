@@ -15,12 +15,16 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj" />
+    <ProjectReference Include="../../foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
     <!-- Build-order only: the restart probe is launched as a CHILD PROCESS by
          FileJournalWorkflowStoreTests; its assembly must never leak into the test closure. -->
     <ProjectReference Include="../hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj" ReferenceOutputAssembly="false" />
-    <!-- TEST-ONLY: the decision-table migration-equivalence proof compiles the threshold table
-         through hlp.foundation.rule-runtime. Production Harborline.Blocks.Workflow takes no
-         rule-engine dependency. -->
+    <!-- The decision-table migration-equivalence proof compiles the threshold table through
+         hlp.foundation.rule-runtime. -->
     <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Rules released borrower fixture: the oracle for the workflows-ck-29 declaration (T-488/expression-environment). -->
+    <None Include="../../../../conformance/hlp.foundation.rule-runtime/borrower-contracts.json" Link="borrower-contracts.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -22,6 +22,8 @@
     <!-- The typed gate references and the contract version the envelope fence demands (T-488). -->
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
+    <!-- The borrowed expression environment workflows-ck-29 declares and Rules admits (T-488/expression-environment). -->
+    <ProjectReference Include="../../foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Workflow.Tests" />

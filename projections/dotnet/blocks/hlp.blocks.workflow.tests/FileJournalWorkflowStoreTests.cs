@@ -44,6 +44,32 @@ public sealed class FileJournalWorkflowStoreTests
         Assert.Equal(new[] { "earlier", "old" }, restored.MovedAwaySteps.Order().ToArray());
     }
 
+    [Fact]
+    public async Task Events_returned_to_a_caller_cannot_rewrite_committed_history_or_the_next_sequence()
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await store.CreateInstanceAsync(new WorkflowInstanceRecord
+        {
+            Id = "copy-1", TenantId = "tenant-1", DefinitionKey = "flow", DefinitionVersion = "1.0.0",
+            CurrentStep = "wait", Status = WorkflowStatus.Running,
+        });
+        await store.ParkAsync("copy-1", "wait", "{\"reason\":\"first\"}");
+
+        var leaked = Assert.Single(await store.EventsAsync("copy-1"));
+        leaked.EventType = "Forged";
+        leaked.DataJson = "{\"forged\":true}";
+        leaked.Seq = 41;
+
+        var reread = Assert.Single(await store.EventsAsync("copy-1"));
+        Assert.Equal("Parked", reread.EventType);
+        Assert.Equal("{\"reason\":\"first\"}", reread.DataJson);
+        Assert.Equal(1, reread.Seq);
+
+        await store.ParkAsync("copy-1", "wait", "{\"reason\":\"second\"}");
+        Assert.Equal(new long[] { 1, 2 }, (await store.EventsAsync("copy-1")).Select(e => e.Seq).ToArray());
+    }
+
     [Theory]
     [InlineData("{\"principal\":\"operator\"}")]
     [InlineData("not JSON")]

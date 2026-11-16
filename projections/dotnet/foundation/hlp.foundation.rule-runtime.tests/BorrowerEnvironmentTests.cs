@@ -190,6 +190,7 @@ public sealed class BorrowerEnvironmentTests
     private static readonly string[] InventoriedCallSites =
     [
         "projections/dotnet/blocks/hlp.blocks.layout-runtime/LayoutBindingResolution.cs",
+        "projections/dotnet/blocks/hlp.blocks.workflow/WorkflowsExpressionEnvironment.cs",
         "projections/dotnet/foundation/hlp.foundation.documents/DocumentsExpressionEnvironment.cs",
         "projections/dotnet/foundation/hlp.foundation.field-runtime/ValueDomainRuntime.cs",
         "projections/dotnet/foundation/hlp.foundation.forms-engine/FormCandidateEvaluator.cs",

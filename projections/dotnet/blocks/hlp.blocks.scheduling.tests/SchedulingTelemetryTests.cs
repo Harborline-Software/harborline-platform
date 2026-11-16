@@ -27,6 +27,7 @@ public sealed class SchedulingTelemetryTests
         var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
         Assert.Equal(1, refusal.Value);
         Assert.Equal("invalid_fact_set_pin", refusal.Tags["reason"]);
+        Assert.Equal("plan", refusal.Tags["stage"]);
     }
 
     [Fact]
@@ -185,7 +186,7 @@ public sealed class SchedulingTelemetryTests
     {
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
-            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }), []);
         await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first");
         var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", DueDateAndForm, 0, "second").AsTask());
@@ -201,7 +202,7 @@ public sealed class SchedulingTelemetryTests
     {
         using var measurements = new SchedulingMeterMeasurements();
         var catalogue = new ScheduleDefinitionCatalogue(new InMemoryVersionedDefinitionStore(
-            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }));
+            new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }), []);
         await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "3", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
@@ -211,11 +212,97 @@ public sealed class SchedulingTelemetryTests
     public async Task A_refusal_naming_no_fence_conflict_records_no_commit_refusal()
     {
         using var measurements = new SchedulingMeterMeasurements();
-        var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore());
+        var catalogue = new ScheduleDefinitionCatalogue(new RefusingStore(), []);
         await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first").AsTask());
         Assert.Empty(measurements.ForInstrument("scheduling.commit.stale_refusals"));
     }
+
+    [Fact(DisplayName = "L1271: a draft refused for a missing name adds one author-stage refusal by its code")]
+    public async Task Missing_name_records_one_author_refusal()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => AdmittingCatalogue().SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm with { Name = "" }, 0, "first").AsTask());
+
+        var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
+        Assert.Equal(1, refusal.Value);
+        Assert.Equal(new Dictionary<string, string>
+        {
+            ["stage"] = "author",
+            ["definition"] = "definition-1",
+            ["reason"] = "scheduling.definition.name_required",
+        }, refusal.Tags);
+    }
+
+    [Fact(DisplayName = "L1271: a draft with two faults adds one author-stage refusal for each")]
+    public async Task Two_faults_record_two_author_refusals()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        await Assert.ThrowsAsync<DefinitionRefusalException>(() => AdmittingCatalogue().SaveDraftAsync("tenant-a", "definition-1", "1.0.0",
+            DueDateAndForm with { Name = "", Starts = new ScheduleStarts(ScheduleStartKind.Form, "") }, 0, "first").AsTask());
+
+        var refusals = measurements.ForInstrument("scheduling.admission.refusals");
+        Assert.Equal(["scheduling.definition.name_required", "scheduling.definition.starts_required"],
+            refusals.Select(refusal => refusal.Tags["reason"]));
+        Assert.All(refusals, refusal =>
+        {
+            Assert.Equal(1, refusal.Value);
+            Assert.Equal("author", refusal.Tags["stage"]);
+            Assert.Equal("definition-1", refusal.Tags["definition"]);
+        });
+    }
+
+    [Fact(DisplayName = "L1271: an unserialisable body adds one author-stage refusal for body_invalid")]
+    public async Task Unserialisable_body_records_one_author_refusal()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        await Assert.ThrowsAsync<DefinitionRefusalException>(() => AdmittingCatalogue().SaveDraftAsync("tenant-a", "definition-1", "1.0.0",
+            DueDateAndForm with { MissedBehaviour = (ScheduleMissedBehaviour)99 }, 0, "first").AsTask());
+
+        var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
+        Assert.Equal(1, refusal.Value);
+        Assert.Equal(new Dictionary<string, string>
+        {
+            ["stage"] = "author",
+            ["definition"] = "definition-1",
+            ["reason"] = "scheduling.definition.body_invalid",
+        }, refusal.Tags);
+    }
+
+    [Fact(DisplayName = "L1271: an admitted draft and a revision conflict add no admission refusal; only the refused draft does")]
+    public async Task Admitted_draft_and_revision_conflict_record_no_admission_refusal()
+    {
+        using var measurements = new SchedulingMeterMeasurements();
+        var catalogue = AdmittingCatalogue();
+        await catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.0", DueDateAndForm, 0, "first");
+        var stale = await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-1", "1.0.1", DueDateAndForm, 0, "second").AsTask());
+        Assert.Equal([new DefinitionRefusal("definition.revision_conflict", "/expectedRevision")], stale.Refusals);
+        // The positive control: the same instrument does see a refusal on this catalogue.
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
+            () => catalogue.SaveDraftAsync("tenant-a", "definition-2", "1.0.0", DueDateAndForm with { Name = "" }, 0, "third").AsTask());
+
+        var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
+        Assert.Equal("definition-2", refusal.Tags["definition"]);
+        Assert.Equal("scheduling.definition.name_required", refusal.Tags["reason"]);
+    }
+
+    [Fact(DisplayName = "L1271: no admission refusal tag carries a value from the definition body")]
+    public async Task Refusal_tags_carry_no_body_value()
+    {
+        const string marker = "MARKER-7f3c-name-is-tenant-text";
+        using var measurements = new SchedulingMeterMeasurements();
+        await Assert.ThrowsAsync<DefinitionRefusalException>(() => AdmittingCatalogue().SaveDraftAsync("tenant-a", "definition-1", "1.0.0",
+            DueDateAndForm with { Name = marker, Starts = new ScheduleStarts(ScheduleStartKind.Form, "") }, 0, "first").AsTask());
+
+        var refusal = Assert.Single(measurements.ForInstrument("scheduling.admission.refusals"));
+        Assert.Equal("scheduling.definition.starts_required", refusal.Tags["reason"]);
+        Assert.All(refusal.Tags, tag => Assert.DoesNotContain(marker, tag.Key + "=" + tag.Value, StringComparison.Ordinal));
+    }
+
+    private static ScheduleDefinitionCatalogue AdmittingCatalogue() => new(new InMemoryVersionedDefinitionStore(
+        new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission }), []);
 
     private static readonly ScheduleDefinition DueDateAndForm = new(null, "Due", new ScheduleStarts(ScheduleStartKind.Form, "forms.a"),
         DueDate: "2027-01-01T00:00:00Z", Window: new("2027-01-01T00:00:00Z", "2027-01-31T00:00:00Z"));

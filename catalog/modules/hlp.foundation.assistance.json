@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.assistance/interface.yaml",
-      "revision": 2
+      "revision": 4
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -11,13 +11,15 @@
       "rationale": "The foundation package owns the projection-neutral AssistanceDefinition and its phase-aware admission; the binding editor and reading-surface panel are separate projections over this interface."
     },
     "owner": "platform-foundation",
-    "dependencies": [],
+    "dependencies": [
+      "hlp.contracts.identities"
+    ],
     "status": "implemented",
     "depth": {
       "disposition": "deep-module",
       "deletionTest": "PASS",
       "redistributedComplexity": [
-        "catalogue and previous-version command narrowing (export status, tier, bounded fail-closed args schema, intersection of permitted recipients), NEVER-archetype and context-allowlist admission reimplemented by every host that authors or installs an Assistance binding",
+        "catalogue and previous-version command narrowing (export status, tier, bounded fail-closed args schema, intersection of permitted recipients), NEVER-archetype and context-allowlist admission, including field-governance refusal of personal, confidential or masked values, reimplemented by every host that authors or installs an Assistance binding",
         "canonical envelope shape and the reserved DefinitionKind.Pilot namespace allowed to drift between the definition producer and the shared builder-definitions catalogue",
         "proposal digests and content-free delegation, disposition and standing-approval wire shapes drifting across .NET and TypeScript hosts"
       ]

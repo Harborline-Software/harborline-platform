@@ -25,6 +25,10 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// </remarks>
 public interface IWorkflowStore
 {
+    /// <summary>Reads the per-run history in sequence order.</summary>
+    Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
+        => throw new NotSupportedException("This workflow store does not support history reads.");
+
     /// <summary>Atomically re-pins an unchanged instance and records the migration.</summary>
     Task MigrateAsync(WorkflowInstanceRecord expected, string targetVersion, string targetStep,
         string eventDataJson, CancellationToken ct = default)
