@@ -12,15 +12,33 @@ namespace Harborline.Foundation.Forms.Engine.Authoring;
 /// <summary>
 /// Fail-closed implementation of the Harborline App authoring-host save-and-publish sequence.
 /// </summary>
-public sealed class FormDefinitionAuthoringPublisher(
-    IFormDefinitionStore store,
-    IFormDefinitionPolicyAdmission policyAdmission,
-    IFormFieldBindingSource fieldBindings,
-    IFieldKindRuntime fieldKinds,
-    IFieldDomainRuntime fieldDomains,
-    IAuthenticatedActorContext? actor = null)
-    : IFormDefinitionAuthoringPublisher
+public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringPublisher
 {
+    private readonly IFormDefinitionStore store;
+    private readonly IFormDefinitionPolicyAdmission policyAdmission;
+    private readonly IFormFieldBindingSource fieldBindings;
+    private readonly IFieldKindRuntime fieldKinds;
+    private readonly IFieldDomainRuntime fieldDomains;
+    private readonly IAuthenticatedActorContext? actor;
+
+    /// <summary>Creates the publisher; every port but the actor is required.</summary>
+    public FormDefinitionAuthoringPublisher(
+        IFormDefinitionStore store,
+        IFormDefinitionPolicyAdmission policyAdmission,
+        IFormFieldBindingSource fieldBindings,
+        IFieldKindRuntime fieldKinds,
+        IFieldDomainRuntime fieldDomains,
+        IAuthenticatedActorContext? actor = null)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(policyAdmission);
+        ArgumentNullException.ThrowIfNull(fieldBindings);
+        ArgumentNullException.ThrowIfNull(fieldKinds);
+        ArgumentNullException.ThrowIfNull(fieldDomains);
+        (this.store, this.policyAdmission, this.fieldBindings, this.fieldKinds, this.fieldDomains, this.actor)
+            = (store, policyAdmission, fieldBindings, fieldKinds, fieldDomains, actor);
+    }
+
     /// <inheritdoc />
     public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken cancellationToken = default)
         => SaveAsync(definition, store.CreateAsync, cancellationToken);

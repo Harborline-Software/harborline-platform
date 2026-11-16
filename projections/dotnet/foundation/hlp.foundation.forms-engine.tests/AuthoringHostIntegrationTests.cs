@@ -374,6 +374,26 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(pointer, refusal.Pointer);
     }
 
+    [Theory]
+    [InlineData("store")]
+    [InlineData("policyAdmission")]
+    [InlineData("fieldBindings")]
+    [InlineData("fieldKinds")]
+    [InlineData("fieldDomains")]
+    public async Task Publisher_refuses_a_null_port_at_construction(string port)
+    {
+        await using var provider = BuildHost();
+        var services = provider.GetRequiredService<IServiceProvider>();
+        T Port<T>(string name) where T : class => name == port ? null! : services.GetRequiredService<T>();
+
+        var exception = Assert.Throws<ArgumentNullException>(() => new FormDefinitionAuthoringPublisher(
+            Port<IFormDefinitionStore>("store"), Port<IFormDefinitionPolicyAdmission>("policyAdmission"),
+            Port<IFormFieldBindingSource>("fieldBindings"), Port<Harborline.Contracts.Fields.IFieldKindRuntime>("fieldKinds"),
+            Port<Harborline.Contracts.Fields.IFieldDomainRuntime>("fieldDomains")));
+
+        Assert.Equal(port, exception.ParamName);
+    }
+
     [Fact]
     public async Task Page_id_shaped_like_a_pointer_is_not_echoed_as_the_pointer()
     {
