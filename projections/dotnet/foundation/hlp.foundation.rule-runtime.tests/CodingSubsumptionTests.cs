@@ -192,6 +192,14 @@ public sealed class CodingSubsumptionTests
     }
 
     [Fact]
+    public void Flat_strict_equality_does_not_coerce_zero_string_to_number()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"===":["0",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.False(result.Value!.GetValue<bool>());
+    }
+
+    [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
         static string Answers(string bindings) => "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[" + bindings + "],[[\"s\",\"a\",\"d\",true]]]";
