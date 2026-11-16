@@ -1,4 +1,5 @@
 using Harborline.Contracts.Fields;
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.FieldRuntime;
@@ -80,7 +81,7 @@ public sealed class SharedFieldPublicationTests
         }
         else
         {
-            var error = await Assert.ThrowsAsync<FieldAdmissionException>(() => publisher.RegisterAndPublishAsync(definition).AsTask());
+            var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(definition).AsTask());
             Assert.Contains(error.Refusals, refusal => refusal.Code == code);
             Assert.Null(await store.GetCurrentPublishedAsync(host.Tenant, definition.Id));
             await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(host.Tenant, definition.Id, definition.Version).AsTask());
@@ -132,13 +133,47 @@ public sealed class SharedFieldPublicationTests
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
         var store = provider.GetRequiredService<IFormDefinitionStore>();
 
-        var error = await Assert.ThrowsAsync<FieldAdmissionException>(
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains(error.Refusals, refusal => refusal.Code == expectedCode && refusal.JsonPointer == "/name");
+        Assert.Contains(error.Refusals, refusal => refusal.Code == expectedCode && refusal.Pointer == "/name");
         Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Fact]
+    public async Task Publication_refuses_dropping_a_required_field_with_publish_phase()
+    {
+        var host = new FieldHost { SchemaRef = "sha256:publication-fields" };
+        var definition = Harness.CreateDefinition(host.SchemaRef, host.Tenant) with
+        {
+            Status = FormDefinitionStatus.Draft,
+            SubmitGate = new Harborline.Contracts.Authorization.SubmitGate(
+                Role: Harborline.Contracts.Authorization.RoleReference.Domain("admin")),
+            Authoring = new(new Dictionary<string, FormFieldAuthoringMetadata>
+            {
+                ["name"] = new("text", false),
+            }),
+        };
+        var services = new ServiceCollection();
+        services.AddFormGateRegisters();
+        services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        services.AddSingleton<IAuthenticatedActorContext>(new PublicationActor(host.Tenant));
+        services.AddSingleton<IFormFieldBindingSource>(host);
+        services.AddSingleton<IFieldKindRuntime>(new FieldKindRuntime(new FieldKindRegistry([new("declared", "1", null)])));
+        services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(host, host, TimeProvider.System));
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(definition).AsTask());
+        Assert.Equal("publish", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.requirement_dropped", refusal.Code);
+        Assert.Equal("/name", refusal.Pointer);
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
 
     private sealed class PublicationActor(TenantId tenant, string userId = "alice", string scenario = "") : IAuthenticatedActorContext

@@ -1,3 +1,4 @@
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
@@ -35,6 +36,17 @@ public sealed class FormDefinitionAuthoringPublisher(
     }
 
     private async ValueTask<FormDefinitionPublicationResult> PublishAsync(FormDefinition definition,
+        FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
+    {
+        try { return await PublishCoreAsync(definition, context, cancellationToken).ConfigureAwait(false); }
+        catch (FieldAdmissionException exception)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish,
+                exception.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+        }
+    }
+
+    private async ValueTask<FormDefinitionPublicationResult> PublishCoreAsync(FormDefinition definition,
         FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
