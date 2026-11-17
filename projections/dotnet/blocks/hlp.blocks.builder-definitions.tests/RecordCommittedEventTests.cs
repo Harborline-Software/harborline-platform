@@ -136,6 +136,7 @@ public sealed class RecordCommittedEventTests
         var events = await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0);
         Assert.Equal(2, events.Count);
         var reacted = events[1];
+        // Current two-identity shape; the ADR-0154 three-identity shape (principal, executor, workflow as actor) lands in T-616/reaction-write-identities.
         Assert.Equal(("records.record.created", outcome.Receipt.RecordId, "r1", "operator-7", (string?)null),
             (reacted.EventType, reacted.RecordId, reacted.OperationId, reacted.Principal, reacted.Executor));
         Assert.Equal("8:tenant-a10:operator-72:r144:reaction:12:wf.follow-up5:1.0.010:on-created", reacted.EventId);
@@ -145,6 +146,7 @@ public sealed class RecordCommittedEventTests
         Assert.Equal(events[0], trigger);
         var stored = await fixture.Storage.FindAsync(Tenant, outcome.Receipt.RecordId);
         Assert.Equal("""{"status":"B","value":5}""", Encoding.UTF8.GetString(stored!.Body.Span));
+        // Current two-identity shape; the ADR-0154 three-identity shape (principal, executor, workflow as actor) lands in T-616/reaction-write-identities.
         Assert.Equal(("r1", "operator-7"), (stored.OperationId, stored.ActorId));
     }
 
