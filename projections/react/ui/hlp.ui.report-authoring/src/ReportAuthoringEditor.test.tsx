@@ -202,12 +202,12 @@ it('pending edits kept on the old revision accumulate after successive changes',
   expect(props.onChange.mock.lastCall?.[0].parameters.map((p: {name: string}) => p.name)).toEqual(['first', 'second'])
 })
 
-it('readOnly disables pending replacement decisions', () => {
+it('reports-auth-12 readOnly permits discard but disables keeping edits', () => {
   const props = { value: { tenant: 't', key: 'r', version: '1', measures: [] }, onCreate: vi.fn(), onChange: vi.fn() }
   const view = render(<ReportAuthoringEditor {...props} />)
   fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
   view.rerender(<ReportAuthoringEditor {...props} readOnly value={{ ...props.value, version: '2' }} />)
-  expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Keep editing' })).toBeDisabled()
 })
 
@@ -463,4 +463,19 @@ it('reports-bound-9 a read-only measure selection does not fence a host replacem
   expect(screen.getByText('finance.new')).toBeInTheDocument()
   expect(screen.queryByText('finance.old')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Keep editing' })).toBeNull()
+})
+
+it.each(['with', 'after'])('reports-auth-12 accepts a replacement arriving %s the read-only switch', timing => {
+  const old = { tenant: 't', key: 'old', version: '1', measures: [] }
+  const next = { ...old, key: 'new' }
+  const props = { onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} value={old} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'pending' } })
+  if (timing === 'after') view.rerender(<ReportAuthoringEditor {...props} value={old} readOnly />)
+  view.rerender(<ReportAuthoringEditor {...props} value={next} readOnly />)
+  expect(screen.getByRole('button', { name: 'Keep editing' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Discard edits and load' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Discard edits and load' }))
+  expect(screen.getByLabelText('Report key')).toHaveValue('new')
+  expect(props.onChange).not.toHaveBeenCalled()
 })

@@ -369,7 +369,25 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.Equal(new[] { "first", "second" }, changes[^1].Parameters.Select(p => p.Name));
     }
 
-    [Fact(DisplayName = "readOnly disables pending replacement decisions")]
+    [Theory(DisplayName = "reports-auth-12 replacement arriving with or after read-only can be accepted")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReadOnlyReplacementCanBeAccepted(bool switchFirst)
+    {
+        var old = new ReportDraft("t", "old", "1", [], []);
+        var emitted = false;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, old).Add(x => x.ValueChanged, _ => emitted = true));
+        cut.Find("[aria-label='Parameter name']").Change("pending");
+        if (switchFirst) cut.Render(p => p.Add(x => x.ReadOnly, true));
+        cut.Render(p => p.Add(x => x.Value, old with { Key = "new" }).Add(x => x.ReadOnly, true));
+        Assert.True(cut.Find("[aria-label='Keep editing']").HasAttribute("disabled"));
+        Assert.False(cut.Find("[aria-label='Discard edits and load']").HasAttribute("disabled"));
+        cut.Find("[aria-label='Discard edits and load']").Click();
+        Assert.Equal("new", cut.Find("[aria-label='Report key']").GetAttribute("value"));
+        Assert.False(emitted);
+    }
+
+    [Fact(DisplayName = "reports-auth-12 readOnly permits discard but disables keeping edits")]
     public void ReadOnlyPending()
     {
         var value = new ReportDraft("t", "r", "1", [], []);
@@ -377,7 +395,7 @@ public sealed class ReportAuthoringTests : BunitContext
         cut.Find("[aria-label='Parameter name']").Change("pending");
         cut.Render(p => p.Add(x => x.Value, value with { Version = "2" }).Add(x => x.ReadOnly, true));
         Assert.True(cut.Find("[aria-label='Keep editing']").HasAttribute("disabled"));
-        Assert.True(cut.Find("[aria-label='Discard edits and load']").HasAttribute("disabled"));
+        Assert.False(cut.Find("[aria-label='Discard edits and load']").HasAttribute("disabled"));
     }
     [Fact(DisplayName = "a new host revision of the same definition waits for pending edits")]
     public void SameDefinitionNewRevision()
