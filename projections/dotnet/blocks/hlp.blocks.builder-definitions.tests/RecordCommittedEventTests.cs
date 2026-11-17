@@ -63,6 +63,41 @@ public sealed class RecordCommittedEventTests
 
     [Fact]
     [Trait("Holds", "records-run-3")]
+    public async Task Interleaved_tenants_each_read_only_their_own_events_at_their_journal_positions()
+    {
+        using var fixture = await Fixture.Create(otherTenant: "tenant-b");
+        _ = Committed(await fixture.CreateEvent("r1"));
+        // The optional status is omitted: the shared fixture's domain read authority admits tenant-a members only.
+        _ = Committed(await fixture.Writer.CreateEffectiveAsync(new("tenant-b", Actor),
+            new(EntryType, "r1", new JsonObject { ["value"] = 30 }, Date("2031-04-01T00:00:00-04:00"), null)));
+        _ = Committed(await fixture.CreateEvent("r3", value: 40));
+
+        var tenantA = await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0);
+        var tenantB = await fixture.Storage.Inner.ReadCommittedAsync("tenant-b", 0);
+
+        Assert.Equal([(1L, "tenant-a", "8:tenant-a10:operator-72:r1"), (3L, "tenant-a", "8:tenant-a10:operator-72:r3")],
+            tenantA.Select(item => (item.Position, item.Tenant, item.EventId)));
+        Assert.Equal([(2L, "tenant-b", "8:tenant-b10:operator-72:r1")], tenantB.Select(item => (item.Position, item.Tenant, item.EventId)));
+        var resumed = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 2));
+        Assert.Equal((3L, "r3"), (resumed.Position, resumed.OperationId));
+        Assert.Empty(await fixture.Storage.Inner.ReadCommittedAsync("tenant-b", 2));
+    }
+
+    [Fact]
+    [Trait("Holds", "records-run-3")]
+    public async Task A_negative_position_is_refused_naming_the_position_argument()
+    {
+        using var fixture = await Fixture.Create();
+        _ = Committed(await fixture.CreateEvent());
+
+        var refusal = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => fixture.Storage.Inner.ReadCommittedAsync(Tenant, -1).AsTask());
+
+        Assert.Equal("after", refusal.ParamName);
+    }
+
+    [Fact]
+    [Trait("Holds", "records-run-3")]
     public async Task A_refused_or_faulted_write_publishes_nothing_and_a_replayed_write_publishes_once()
     {
         using var fixture = await Fixture.Create();
