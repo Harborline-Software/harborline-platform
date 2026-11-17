@@ -17,6 +17,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
 
     private static readonly string[] ExpectedFindings = [
         "projections/blazor/emit.ts:1",
+        "projections/blazor/member/ContentRemoved.test.cs:1",
+        "projections/blazor/member/CrossType.test.cs:1",
         "projections/blazor/member/ValueLeak.test.cs:1",
         "projections/blazor/pkg/Default.test.cs:1",
         "projections/react/activity.cs:1",
@@ -194,11 +196,14 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             // A packable project compiles whatever its globs match, test-like name or not; a non-packable one ships nothing.
             var blazor = Path.Combine(root, "projections", "blazor");
             foreach (var name in new[] { "pkg", "member", "pkg.tests", "member.tests" }) Directory.CreateDirectory(Path.Combine(blazor, name));
-            File.WriteAllText(Path.Combine(blazor, "pkg", "Pkg.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk.Razor\"><ItemGroup><Compile Include=\"../member/**/*.cs\" Exclude=\"../member/Excluded.test.cs\" /><Compile Include=\"../member/Removed.test.cs\" /><Compile Remove=\"../member/Removed.test.cs\" /></ItemGroup></Project>\n");
+            File.WriteAllText(Path.Combine(blazor, "pkg", "Pkg.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk.Razor\"><ItemGroup><Compile Include=\"../member/**/*.cs\" Exclude=\"../member/Excluded.test.cs\" /><Compile Include=\"../member/Removed.test.cs\" /><Compile Remove=\"../member/Removed.test.cs\" /><Content Include=\"../member/CrossType.test.cs\" /><Compile Remove=\"../member/CrossType.test.cs\" /><Content Remove=\"../member/ContentRemoved.test.cs\" /></ItemGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "pkg", "Default.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "member", "ValueLeak.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "member", "Excluded.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "member", "Removed.test.cs"), "Console.WriteLine(value);\n");
+            // MSBuild keeps one list per item type: a Remove on one type leaves the same path in another.
+            File.WriteAllText(Path.Combine(blazor, "member", "CrossType.test.cs"), "Console.WriteLine(value);\n");
+            File.WriteAllText(Path.Combine(blazor, "member", "ContentRemoved.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "pkg.tests", "Pkg.Tests.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><IsPackable>false</IsPackable></PropertyGroup><ItemGroup><Compile Include=\"../member.tests/**/*.cs\" /></ItemGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "member.tests", "Probe.test.cs"), "Console.WriteLine(value);\n");
 
@@ -272,7 +277,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
 
     // Compile, RazorComponent and Content items of every packable project (IsPackable is not false), read with
     // MSBuild's semantics: Include and Exclude are ;-separated globs relative to the project, Remove applies in
-    // document order, and the SDK default items (**/*.cs, **/*.razor, wwwroot/**, minus bin and obj) come first.
+    // document order to its own item type, and the SDK defaults (Compile **/*.cs; Content **/*.razor and wwwroot/**;
+    // minus bin and obj) come first.
     // ponytail: no property or import evaluation; an Include that needs one fails the test instead of being skipped.
     private static IEnumerable<string> PackageInputs(string scanRoot)
     {
@@ -287,20 +293,28 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         var dir = Path.GetDirectoryName(project)!;
         var items = XDocument.Load(project).Descendants().ToArray();
         if (items.Any(e => e.Name.LocalName == "IsPackable" && e.Value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase))) return [];
-        var inputs = Globs(dir, "**/*.cs;**/*.razor;wwwroot/**").Except(Globs(dir, "bin/**;obj/**"), StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items.Where(e => e.Name.LocalName is "Compile" or "RazorComponent" or "Content"))
+        // MSBuild keeps one list per item type, so a Remove drops paths only from its own type's list.
+        HashSet<string> Defaults(string globs) => Globs(dir, globs).Except(Globs(dir, "bin/**;obj/**"), StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var inputs = new Dictionary<string, HashSet<string>>
         {
+            ["Compile"] = Defaults("**/*.cs"),
+            ["Content"] = Defaults("**/*.razor;wwwroot/**"),
+            ["RazorComponent"] = new(StringComparer.OrdinalIgnoreCase),
+        };
+        foreach (var item in items.Where(e => inputs.ContainsKey(e.Name.LocalName)))
+        {
+            var list = inputs[item.Name.LocalName];
             var include = (string?)item.Attribute("Include");
             var remove = (string?)item.Attribute("Remove");
             if (include is not null)
             {
                 Assert.False(Regex.IsMatch(include, @"[$@%]\("), $"{project}: evaluate this Include before scanning: {include}");
                 var excluded = Globs(dir, (string?)item.Attribute("Exclude")).ToHashSet(StringComparer.OrdinalIgnoreCase);
-                inputs.UnionWith(Globs(dir, include).Where(file => !excluded.Contains(file)));
+                list.UnionWith(Globs(dir, include).Where(file => !excluded.Contains(file)));
             }
-            if (remove is not null) inputs.ExceptWith(Globs(dir, remove));
+            if (remove is not null) list.ExceptWith(Globs(dir, remove));
         }
-        return inputs;
+        return inputs.Values.SelectMany(list => list);
     }
 
     private static IEnumerable<string> Globs(string dir, string? list) =>
