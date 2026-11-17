@@ -232,6 +232,16 @@ describe('T-493 coding evaluation', () => {
     expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
   })
 
+  it.each<[Json, Json]>([
+    [{ '!!': [{}] }, false],
+    [{ '!': [{}] }, true],
+    [{ and: [{}, true] }, {}],
+    [{ or: [{}, true] }, true],
+    [{ if: [{}, true, false] }, false],
+  ])('v1 empty object is falsy in every logical operator: %j', (expression, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
+  })
+
   it('keeps taxonomy traversal and callback-like operators outside the grammar', () => {
     for (const op of ['taxonomy.subsumes', 'taxonomy.succeeds', 'coding.descendant'])
       expect(() => compile([rule({ [op]: ['x', 'y'] })])).toThrow()

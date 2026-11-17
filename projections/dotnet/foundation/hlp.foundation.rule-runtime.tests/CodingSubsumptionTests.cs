@@ -225,6 +225,37 @@ public sealed class CodingSubsumptionTests
         Assert.False(evaluator.EvaluateValue(Rule("""{"==":["not numeric",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
     }
 
+    [Theory]
+    [InlineData("""{"!!":[{}]}""", "false")]
+    [InlineData("""{"!":[{}]}""", "true")]
+    [InlineData("""{"and":[{},true]}""", "{}")]
+    [InlineData("""{"or":[{},true]}""", "true")]
+    [InlineData("""{"if":[{},true,false]}""", "false")]
+    public void V1_empty_object_is_falsy_in_every_logical_operator(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void Missing_operators_preserve_pending_dependencies()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"missing":["coding"]}""", """{"missing_some":[1,["coding"]]}""" })
+            Assert.Equal(ValueState.Pending, evaluator.EvaluateValue(Rule(expression), Facts("""{"@pending":true}"""), RuleEvalScope.Root, TestAdmission.Any).State);
+    }
+
+    [Fact]
+    public void Missing_some_preserves_the_bad_reference_identity()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(
+            Rule("""{"missing_some":[1,["row.coding"]]}""", RuleScope.Row, "items/out"), Facts("null"), new RuleEvalScope("items", "r1"), TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.bad_reference", result.Error!.Code);
+        Assert.Equal("row.coding", result.Error.Params["path"]);
+    }
+
     [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
