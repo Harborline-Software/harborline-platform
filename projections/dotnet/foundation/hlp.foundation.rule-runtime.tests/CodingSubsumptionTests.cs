@@ -257,6 +257,32 @@ public sealed class CodingSubsumptionTests
     }
 
     [Fact]
+    public void Legacy_coding_coercion_keeps_boolean_and_numeric_spellings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","false"]}"""), Facts("""{"system":"sys","code":false}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","true"]}"""), Facts("""{"system":"sys","code":true}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","0.5"]}"""), Facts("""{"system":"sys","code":0.5}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Numeric_operations_preserve_the_recorded_nonnumeric_refusal()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"+":[{"var":"coding"},1]}"""), Facts("{}"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("not-a-number", result.Error.Params["reason"]);
+    }
+
+    [Fact]
+    public void Nonfinite_arithmetic_fails_closed()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"*":[{"var":"coding"},{"var":"coding"}]}"""), Facts("1e308"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+    }
+
+    [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
         static string Answers(string bindings) => "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[" + bindings + "],[[\"s\",\"a\",\"d\",true]]]";
