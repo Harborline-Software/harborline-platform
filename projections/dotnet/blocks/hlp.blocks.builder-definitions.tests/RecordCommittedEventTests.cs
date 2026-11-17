@@ -12,15 +12,17 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// committed row; a reaction creates new work only, through the same authorize, bind and validate path, keeping the source
 /// <c>operation_id</c> and adding its reaction key, and never changes the source record.
 /// Oracles: the literal event types and fields ADR 0124 decision 2 names; the literal principals (the fixture's caller
-/// <c>operator-7</c>); the literal source operation ids and effect ids the tests send; key bytes hand-framed from the
+/// <c>operator-7</c>); the literal source operation ids and effects the tests send; key bytes hand-framed from the
 /// length-framing rule <see cref="RecordWriteOperationKey.IdempotencyKey"/> documents (reaction origin: workflow key,
-/// version, trigger id, source event id, effect id); the literal stored bodies the tests submitted; record and event counts
-/// as literals.
+/// version, trigger id, source event id, then the effect's instance id, iteration, step and purpose, each its own frame);
+/// the literal stored bodies the tests submitted; record and event counts as literals; the literal refusal stage and code
+/// of a binding mismatch (ADR-0110 open item 7).
 /// </summary>
 public sealed class RecordCommittedEventTests
 {
     private const string EntryType = "temporal.entry";
     private static readonly RecordReactionKey FollowUp = new("wf.follow-up", "1.0.0", "on-created");
+    private static readonly RecordReactionEffect Effect1 = new("run-1", 0, "follow-up", "create");
 
     [Fact]
     [Trait("Holds", "records-run-3")]
@@ -129,7 +131,7 @@ public sealed class RecordCommittedEventTests
         var trigger = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
 
         var outcome = await fixture.Writer.CreateReactionAsync(new(Tenant, trigger.Principal),
-            new RecordReactionCreate(trigger, FollowUp, "effect-1", EntryType, Body(5, "B")));
+            new RecordReactionCreate(trigger, FollowUp, Effect1, EntryType, Body(5, "B")));
 
         Assert.True(outcome.Committed);
         Assert.False(outcome.Replayed);
@@ -141,7 +143,7 @@ public sealed class RecordCommittedEventTests
         // Current two-identity shape. The ADR-0154 shape (principal, executor, Workflow as actor) is not built; T-616/postcommit-reactions acceptance stays open.
         Assert.Equal(("records.record.created", outcome.Receipt.RecordId, "r1", "operator-7", (string?)null),
             (reacted.EventType, reacted.RecordId, reacted.OperationId, reacted.Principal, reacted.Executor));
-        Assert.Equal("8:tenant-a10:operator-72:r184:reaction:12:wf.follow-up5:1.0.010:on-created27:8:tenant-a10:operator-72:r18:effect-1", reacted.EventId);
+        Assert.Equal("8:tenant-a10:operator-72:r1103:reaction:12:wf.follow-up5:1.0.010:on-created27:8:tenant-a10:operator-72:r15:run-11:09:follow-up6:create", reacted.EventId);
         // The source stays exactly as validated and committed: one version, its submitted body and its published event unchanged.
         var history = await fixture.Storage.HistoryAsync(Tenant, source.Receipt.RecordId);
         Assert.Equal(["""{"status":"A","value":10}"""], history.Versions.Select(version => Encoding.UTF8.GetString(version.Row.Body.Span)).ToArray());
@@ -159,13 +161,13 @@ public sealed class RecordCommittedEventTests
         using var fixture = await Fixture.Create();
         _ = Committed(await fixture.CreateEvent());
         var trigger = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
-        var first = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "effect-1", EntryType, Body(5)));
+        var first = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
 
-        var again = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "effect-1", EntryType, Body(5)));
+        var again = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
         var other = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
-            new(trigger, new RecordReactionKey("wf.follow-up", "1.0.0", "on-created-2"), "effect-1", EntryType, Body(5)));
+            new(trigger, new RecordReactionKey("wf.follow-up", "1.0.0", "on-created-2"), Effect1, EntryType, Body(5)));
         var nextVersion = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
-            new(trigger, new RecordReactionKey("wf.follow-up", "1.0.1", "on-created"), "effect-1", EntryType, Body(5)));
+            new(trigger, new RecordReactionKey("wf.follow-up", "1.0.1", "on-created"), Effect1, EntryType, Body(5)));
 
         Assert.True(again.Replayed);
         Assert.Equal(first.Receipt!.RecordId, again.Receipt!.RecordId);
@@ -174,15 +176,16 @@ public sealed class RecordCommittedEventTests
         Assert.Equal(3, new[] { first.Receipt.RecordId, other.Receipt!.RecordId, nextVersion.Receipt!.RecordId }.Distinct().Count());
         var events = await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0);
         Assert.Equal(["r1", "r1", "r1", "r1"], events.Select(item => item.OperationId).ToArray());
-        Assert.Equal("8:tenant-a10:operator-72:r186:reaction:12:wf.follow-up5:1.0.012:on-created-227:8:tenant-a10:operator-72:r18:effect-1", events[2].EventId);
-        Assert.Equal("8:tenant-a10:operator-72:r184:reaction:12:wf.follow-up5:1.0.110:on-created27:8:tenant-a10:operator-72:r18:effect-1", events[3].EventId);
+        Assert.Equal("8:tenant-a10:operator-72:r1105:reaction:12:wf.follow-up5:1.0.012:on-created-227:8:tenant-a10:operator-72:r15:run-11:09:follow-up6:create", events[2].EventId);
+        Assert.Equal("8:tenant-a10:operator-72:r1103:reaction:12:wf.follow-up5:1.0.110:on-created27:8:tenant-a10:operator-72:r15:run-11:09:follow-up6:create", events[3].EventId);
         // Another body under the same reaction key is the same operation with another intent.
-        var conflict = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "effect-1", EntryType, Body(6)));
+        var conflict = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(6)));
         Assert.Equal(("commit", "records.write.replay_conflict"), (conflict.Refusal!.Stage, conflict.Refusal.Code));
     }
 
-    // One reacting run that makes two effects from one event (DES-0019 K10: each effect has its own step identity) creates
-    // two records, whatever their bodies; redelivering either effect replays that effect's record only.
+    // One reacting run's effects from one event (DES-0019 K10: each effect has its own step identity and purpose) each create
+    // their own record, whatever their bodies: another step, another iteration, another purpose in one step and another run
+    // instance; redelivering an effect replays that effect's record only.
     [Fact]
     [Trait("Holds", "records-run-3")]
     public async Task Two_effects_of_one_reacting_run_each_create_their_own_record_and_each_replays_on_redelivery()
@@ -191,16 +194,76 @@ public sealed class RecordCommittedEventTests
         _ = Committed(await fixture.CreateEvent());
         var trigger = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
 
-        var notify = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "run-1:0:notify", EntryType, Body(5)));
-        var audit = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "run-1:0:audit", EntryType, Body(5)));
-        var amount = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "run-1:1:notify", EntryType, Body(6)));
-        var notifyAgain = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "run-1:0:notify", EntryType, Body(5)));
+        var notify = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-1", 0, "notify", "create"), EntryType, Body(5)));
+        var audit = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-1", 0, "audit", "create"), EntryType, Body(5)));
+        var amount = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-1", 1, "notify", "create"), EntryType, Body(6)));
+        var mirror = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-1", 0, "notify", "mirror"), EntryType, Body(5)));
+        var rerun = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-2", 0, "notify", "create"), EntryType, Body(5)));
+        var notifyAgain = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("run-1", 0, "notify", "create"), EntryType, Body(5)));
 
-        Assert.Equal([false, false, false], new[] { notify, audit, amount }.Select(item => item.Replayed));
-        Assert.Equal(3, new[] { notify, audit, amount }.Select(item => item.Receipt!.RecordId).Distinct().Count());
+        Assert.Equal([false, false, false, false, false], new[] { notify, audit, amount, mirror, rerun }.Select(item => item.Replayed));
+        Assert.Equal(5, new[] { notify, audit, amount, mirror, rerun }.Select(item => item.Receipt!.RecordId).Distinct().Count());
         Assert.True(notifyAgain.Replayed);
         Assert.Equal(notify.Receipt!.RecordId, notifyAgain.Receipt!.RecordId);
-        Assert.Equal(4, (await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0)).Count);
+        Assert.Equal(6, (await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0)).Count);
+    }
+
+    // P3-2 (DES-0019 K10): the effect's instance id, iteration and step are framed one by one, not joined as
+    // WorkflowStepKey.Value joins them. Instance "a", iteration 1, step "2:b" and instance "a:1", iteration 2, step "b" both
+    // join to "a:1:2:b"; they are two effects, so each creates its own record and neither replays the other.
+    // Oracles: the two literal keys, hand-framed from the length-framing rule; the event count as a literal.
+    [Fact]
+    [Trait("Holds", "records-run-3")]
+    public async Task Two_effect_step_identities_that_join_to_the_same_text_each_create_their_own_record()
+    {
+        using var fixture = await Fixture.Create();
+        _ = Committed(await fixture.CreateEvent());
+        var trigger = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
+
+        var first = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("a", 1, "2:b", "create"), EntryType, Body(5)));
+        var second = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, new("a:1", 2, "b", "create"), EntryType, Body(5)));
+
+        Assert.True(first.Committed);
+        Assert.Null(second.Refusal);
+        Assert.False(second.Replayed);
+        Assert.NotEqual(first.Receipt!.RecordId, second.Receipt!.RecordId);
+        var events = await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0);
+        Assert.Equal(3, events.Count);
+        Assert.Equal("8:tenant-a10:operator-72:r193:reaction:12:wf.follow-up5:1.0.010:on-created27:8:tenant-a10:operator-72:r11:a1:13:2:b6:create", events[1].EventId);
+        Assert.Equal("8:tenant-a10:operator-72:r193:reaction:12:wf.follow-up5:1.0.010:on-created27:8:tenant-a10:operator-72:r13:a:11:21:b6:create", events[2].EventId);
+    }
+
+    // P3-1 (ADR-0154 decisions 1 and 3; CWE-441): a reaction acts only for its source event's principal, with its source
+    // event's executor. A direct write's event has no executor, so its reaction passes none. Any other pair is refused at
+    // bind after the gate decided, as an accepted command's binding mismatch is, and nothing is written.
+    // Oracles: the literal principals and worker id sent here; the literal stage and code records.command.binding_mismatch
+    // (ADR-0110 open item 7); the journal bytes before the refusals.
+    [Fact]
+    [Trait("Holds", "records-run-3")]
+    public async Task A_reaction_to_a_direct_event_acts_only_as_its_principal_with_no_executor_and_a_mismatch_persists_nothing()
+    {
+        using var fixture = await Fixture.Create();
+        _ = Committed(await fixture.CreateEvent());
+        var trigger = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
+        var before = fixture.Bytes();
+
+        var otherPrincipal = await fixture.Writer.CreateReactionAsync(new(Tenant, "operator-8"), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
+        Assert.Equal("operator-8", fixture.Access.Requests.Last().Principal);
+        var withExecutor = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1, EntryType, Body(5), Executor: "sys.records-worker"));
+
+        foreach (var refused in new[] { otherPrincipal, withExecutor })
+        {
+            Assert.Equal(("bind", "records.command.binding_mismatch"), (refused.Refusal!.Stage, refused.Refusal.Code));
+            Assert.Null(refused.Receipt);
+            Assert.NotNull(refused.Decision);
+        }
+        Assert.Equal(before, fixture.Bytes());
+
+        var direct = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
+
+        Assert.True(direct.Committed);
+        Assert.Equal(2, (await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0)).Count);
     }
 
     // A reaction's own output event keeps the source operation id and principal, so it shares the reaction scope with its
@@ -213,11 +276,11 @@ public sealed class RecordCommittedEventTests
         using var fixture = await Fixture.Create();
         _ = Committed(await fixture.CreateEvent());
         var source = Assert.Single(await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0));
-        var first = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(source, FollowUp, "effect-1", EntryType, Body(5)));
+        var first = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(source, FollowUp, Effect1, EntryType, Body(5)));
         var output = (await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0))[1];
         Assert.Equal(("r1", "operator-7"), (output.OperationId, output.Principal));
 
-        var chained = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(output, FollowUp, "effect-1", EntryType, Body(5)));
+        var chained = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(output, FollowUp, Effect1, EntryType, Body(5)));
 
         Assert.True(first.Committed);
         Assert.Null(chained.Refusal);
@@ -236,7 +299,7 @@ public sealed class RecordCommittedEventTests
         var before = fixture.Bytes();
         fixture.Access.Allow = false;
 
-        var denied = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, "effect-1", EntryType, Body(5)));
+        var denied = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
 
         Assert.Equal(("authorize", "TemporalDenied"), (denied.Refusal!.Stage, denied.Refusal.Code));
         var asked = fixture.Access.Requests.Last();
@@ -244,17 +307,25 @@ public sealed class RecordCommittedEventTests
         fixture.Access.Allow = true;
 
         var invalid = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
-            new(trigger, FollowUp, "effect-1", EntryType, new JsonObject { ["status"] = "A" }));
+            new(trigger, FollowUp, Effect1, EntryType, new JsonObject { ["status"] = "A" }));
 
         Assert.Equal(("validate", "entity.validation.body_invalid"), (invalid.Refusal!.Stage, invalid.Refusal.Code));
         Assert.Equal(before, fixture.Bytes());
         await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new("tenant-b", Actor),
-            new(trigger, FollowUp, "effect-1", EntryType, Body(5))).AsTask());
+            new(trigger, FollowUp, Effect1, EntryType, Body(5))).AsTask());
         // A reaction without its effect or its source event identity has no key of its own and is refused before any write.
-        Assert.Equal("EffectId", (await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
-            new(trigger, FollowUp, " ", EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+        Assert.Equal("InstanceId", (await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1 with { InstanceId = " " }, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+        Assert.Equal("Iteration", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1 with { Iteration = -1 }, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+        Assert.Equal("Step", (await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1 with { Step = "" }, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+        Assert.Equal("Purpose", (await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1 with { Purpose = " " }, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+        Assert.Equal("Effect", (await Assert.ThrowsAsync<ArgumentNullException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, null!, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
         Assert.Equal("EventId", (await Assert.ThrowsAsync<ArgumentException>(() => fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
-            new(trigger with { EventId = "" }, FollowUp, "effect-1", EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
+            new(trigger with { EventId = "" }, FollowUp, Effect1, EntryType, Body(5))).AsTask())).ParamName?.Split('.').Last());
         Assert.Equal(before, fixture.Bytes());
     }
 }

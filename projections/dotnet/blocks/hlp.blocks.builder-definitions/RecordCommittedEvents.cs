@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -44,6 +45,21 @@ public static class RecordCommittedEvents
 /// </summary>
 public sealed record RecordReactionKey(string WorkflowKey, string WorkflowVersion, string TriggerId);
 
+/// <summary>
+/// One effect of a reacting Workflow run: the run step's <c>(instance, iteration, step)</c> identity, as the Workflow engine's
+/// <c>WorkflowStepKey</c> holds it (hlp.blocks.workflow <c>WorkflowStepKey.cs:10</c>), and the purpose that tells apart the
+/// effects one step makes (DES-0019 K10). Records frames each part on its own, so two splits that read alike when joined
+/// (instance <c>a</c>, iteration 1, step <c>2:b</c> and instance <c>a:1</c>, iteration 2, step <c>b</c>) are two effects.
+/// Host requirement on T-488/event-trigger-start: the instance id is the same on every redelivery of one source event to one
+/// trigger, so it is derived from that event and trigger and never freshly minted; a fresh instance id is a new effect and a
+/// second record.
+/// </summary>
+/// <param name="InstanceId">The reacting run's instance id.</param>
+/// <param name="Iteration">The step's 0-based iteration within the run.</param>
+/// <param name="Step">The step id within the Workflow definition.</param>
+/// <param name="Purpose">The effect's purpose within the step.</param>
+public sealed record RecordReactionEffect(string InstanceId, int Iteration, string Step, string Purpose);
+
 /// <summary>A reaction's new record: created from a committed event, never written into the event's source record.</summary>
 /// <param name="Source">
 /// The committed event the reaction answers, exactly as <see cref="FileJournalRecordWriteStore.ReadCommittedAsync"/> read it;
@@ -52,21 +68,22 @@ public sealed record RecordReactionKey(string WorkflowKey, string WorkflowVersio
 /// again.
 /// </param>
 /// <param name="Reaction">The reacting Workflow trigger.</param>
-/// <param name="EffectId">
-/// The effect's stable identity within the reacting run: the same on every retry or redelivery of that effect, and distinct
-/// for each effect the run makes. A Workflow step derives it from its <c>(instance, iteration, step)</c> key and a purpose
-/// when one step makes several effects (ADR 0135 decision 2, DES-0019 K10). Opaque to Records.
-/// </param>
+/// <param name="Effect">The effect's stable identity within the reacting run: the same on every retry or redelivery of that
+/// effect, and distinct for each effect the run makes.</param>
 /// <param name="RecordTypeId">The Record Type of the new record.</param>
 /// <param name="Body">The new record's submitted body.</param>
 /// <param name="Version">An explicit published version pin, or null for the published head.</param>
-public sealed record RecordReactionCreate(RecordCommittedEvent Source, RecordReactionKey Reaction, string EffectId, string RecordTypeId,
-    JsonObject Body, string? Version = null)
+/// <param name="Executor">The worker that executes the reaction for the source's principal: the source event's
+/// <see cref="RecordCommittedEvent.Executor"/>, so null for a direct write's event (ADR-0154 decision 1). Records checks it
+/// against the event and does not record it yet.</param>
+public sealed record RecordReactionCreate(RecordCommittedEvent Source, RecordReactionKey Reaction, RecordReactionEffect Effect,
+    string RecordTypeId, JsonObject Body, string? Version = null, string? Executor = null)
 {
-    // The operation key's origin frame: the reacting trigger, the source event and the effect. Its own frames make it
-    // injective, and its prefix keeps it apart from RecordWriteOperationKey.AcceptedCommandOrigin. Distinct source events
-    // that share an operation id, a reaction's own output event, and two effects of one run each key their own write.
+    // Each part is its own frame. WorkflowStepKey.Value joins instance, iteration and step with ':' unframed, so two effects
+    // could share that text; framed one by one they never do.
     internal string Origin => "reaction:" + RecordWriteOperationKey.Framed(Reaction.WorkflowKey)
         + RecordWriteOperationKey.Framed(Reaction.WorkflowVersion) + RecordWriteOperationKey.Framed(Reaction.TriggerId)
-        + RecordWriteOperationKey.Framed(Source.EventId) + RecordWriteOperationKey.Framed(EffectId);
+        + RecordWriteOperationKey.Framed(Source.EventId) + RecordWriteOperationKey.Framed(Effect.InstanceId)
+        + RecordWriteOperationKey.Framed(Effect.Iteration.ToString(CultureInfo.InvariantCulture))
+        + RecordWriteOperationKey.Framed(Effect.Step) + RecordWriteOperationKey.Framed(Effect.Purpose);
 }

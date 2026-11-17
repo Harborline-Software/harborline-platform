@@ -542,14 +542,61 @@ public sealed class AcceptedRecordCreateTests
             var reaction = new RecordReactionKey("wf.follow-up", "1.0.0", "on-created");
             var secondBody = sameBody ? Body() : JsonNode.Parse("""{"asset_tag":"A-2","quantity":3,"notes":"spare"}""")!.AsObject();
 
-            var first = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[0], reaction, "effect-1", "eam.meter", Body()));
-            var second = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[1], reaction, "effect-1", "eam.meter", secondBody));
+            var effect = new RecordReactionEffect("run-1", 0, "follow-up", "create");
+
+            // The accepted create's event names the worker as executor; the direct create's names none (ADR-0154 decision 1).
+            var first = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[0], reaction, effect, "eam.meter", Body(), Executor: Worker));
+            var second = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[1], reaction, effect, "eam.meter", secondBody));
 
             Assert.True(first.Committed);
             Assert.Null(second.Refusal);
             Assert.False(second.Replayed);
             Assert.NotEqual(first.Receipt!.RecordId, second.Receipt!.RecordId);
             Assert.Equal(4, (await journal.ReadCommittedAsync(Tenant, 0)).Count);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    // P3-1 (ADR-0154 decisions 1 and 3; CWE-441): a reaction to an accepted create acts for the submitter, with the worker
+    // that completed the command as executor. A host that passes the worker as principal, drops the executor or names
+    // another worker is refused at bind after the gate decided, as the accepted command's own binding mismatch is, and
+    // nothing is written. The gate admits records:write for the worker too, so only this check refuses the worker pairs.
+    // Oracles: the literal submitter, worker and delegate ids this class uses; the literal stage and code
+    // records.command.binding_mismatch (ADR-0110 open item 7); the journal file's bytes before the refusal.
+    [Theory]
+    [Trait("Proves", "platform")]
+    [InlineData(Worker, Worker)]
+    [InlineData(Worker, null)]
+    [InlineData(Submitter, null)]
+    [InlineData(Submitter, Delegate)]
+    public async Task A_reaction_to_an_accepted_create_acts_only_for_the_submitter_with_the_worker_as_executor(string principal, string? executor)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-reaction-identity-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "records.json");
+            var journal = new FileJournalRecordWriteStore(path);
+            var fixture = await Fixture.CreateAsync(journal: journal);
+            Assert.True((await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command())).Committed);
+            var source = Assert.Single(await journal.ReadCommittedAsync(Tenant, 0));
+            Assert.Equal((Submitter, Worker), (source.Principal, source.Executor));
+            var reaction = new RecordReactionKey("wf.follow-up", "1.0.0", "on-created");
+            var effect = new RecordReactionEffect("run-1", 0, "follow-up", "create");
+            var before = File.ReadAllBytes(path);
+
+            var refused = await fixture.Operation.CreateReactionAsync(new(Tenant, principal), new(source, reaction, effect, "eam.meter", Body(), Executor: executor));
+
+            Assert.Equal(("bind", "records.command.binding_mismatch"), (refused.Refusal!.Stage, refused.Refusal.Code));
+            Assert.Null(refused.Receipt);
+            Assert.NotNull(refused.Decision);
+            Assert.Equal(principal, fixture.Gate.Asked.Last().Principal);
+            Assert.Equal(before, File.ReadAllBytes(path));
+
+            var allowed = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(source, reaction, effect, "eam.meter", Body(), Executor: Worker));
+
+            Assert.True(allowed.Committed);
+            Assert.Equal(2, (await journal.ReadCommittedAsync(Tenant, 0)).Count);
         }
         finally { Directory.Delete(directory, true); }
     }
