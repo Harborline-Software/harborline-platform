@@ -6,6 +6,46 @@ namespace Harborline.Foundation.Taxonomy.Tests;
 
 public sealed class TaxonomyInterpreterTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_stream_refuses_overflow_before_growing(bool spanWrite)
+    {
+        var streamType = typeof(TaxonomyInterpreter).GetNestedType("CaptureStream", System.Reflection.BindingFlags.NonPublic)!;
+        using var stream = (Stream)Activator.CreateInstance(streamType, nonPublic: true)!;
+        var bytes = new byte[262145];
+        var refusal = Assert.Throws<TaxonomyCodingCaptureException>(() =>
+        {
+            if (spanWrite) stream.Write(bytes.AsSpan());
+            else stream.Write(bytes, 0, bytes.Length);
+        });
+        Assert.Equal("taxonomy.coding_capture_too_large", refusal.Code);
+        Assert.Equal(0, stream.Length);
+    }
+
+    [Fact]
+    public void Duplicate_pinned_sources_refuse_instead_of_selecting_the_first()
+    {
+        var definition = Definition();
+        Assert.Throws<ArgumentException>(() => new TaxonomyInterpreter([definition, definition]));
+    }
+
+    [Fact]
+    public void Descendants_admit_64_edges_and_refuse_the_65th()
+    {
+        var admitted = Definition(Enumerable.Range(0, 65).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal(64, Interpreter(admitted).GetDescendants(admitted, "n0").Count);
+        var refused = Definition(Enumerable.Range(0, 66).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal("taxonomy.traversal_depth_exceeded", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(refused).GetDescendants(refused, "n0")).Code);
+    }
+
+    [Fact]
+    public void A_descendant_cycle_at_the_depth_boundary_keeps_its_cycle_identity()
+    {
+        var cycle = Definition(Enumerable.Range(0, 64).Select(index => Node($"n{index}", index == 0 ? "n63" : $"n{index - 1}")).ToArray());
+        Assert.Equal("taxonomy.parent_cycle", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetDescendants(cycle, "n0")).Code);
+    }
+
     [Fact] public void Resolves_pinned_definition_or_returns_typed_not_found()
     {
         var interpreter = Interpreter();

@@ -222,6 +222,7 @@ public sealed class CodingSubsumptionTests
     {
         var evaluator = new GuardEvaluator(Clock);
         Assert.True(evaluator.EvaluateValue(Rule("""{"==":["5",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["05",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
         Assert.False(evaluator.EvaluateValue(Rule("""{"==":["not numeric",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
     }
 
@@ -263,6 +264,7 @@ public sealed class CodingSubsumptionTests
         Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","false"]}"""), Facts("""{"system":"sys","code":false}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
         Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","true"]}"""), Facts("""{"system":"sys","code":true}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
         Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","0.5"]}"""), Facts("""{"system":"sys","code":0.5}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","1e+30"]}"""), Facts("""{"system":"sys","code":1e30}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
     }
 
     [Fact]
@@ -280,6 +282,30 @@ public sealed class CodingSubsumptionTests
         var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"*":[{"var":"coding"},{"var":"coding"}]}"""), Facts("1e308"), RuleEvalScope.Root, TestAdmission.Any);
         Assert.Equal(ValueState.Error, result.State);
         Assert.Equal("rule.type_error", result.Error!.Code);
+    }
+
+    [Fact]
+    public void Money_refuses_non_decimal_values_instead_of_coercing_them()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var input in new[] { "true", "null", "{}", "[]", "\"not money\"" })
+        {
+            var result = evaluator.EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
+    }
+
+    [Fact]
+    public void Date_operators_refuse_invalid_dates_instead_of_returning_a_value()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"date.add":[{"var":"coding"},1,"day"]}""", """{"date.diff":[{"var":"coding"},"2026-01-01"]}""" })
+        {
+            var result = evaluator.EvaluateValue(Rule(expression), Facts("\"not a date\""), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
     }
 
     [Fact]
