@@ -58,6 +58,28 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal(["root", "extra"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(result).Codes);
     }
 
+    [Fact]
+    public void Overlay_without_a_vendor_reference_keeps_its_refusal_identity()
+    {
+        var definition = Definition();
+        Assert.Equal("taxonomy.overlay_reference_missing", Assert.Throws<TaxonomyOverlayException>(() => Interpreter(definition).ExpandOverlay(Coordinates, "1.0.0")).Code);
+    }
+
+    [Fact]
+    public void A_missing_parent_keeps_its_refusal_identity()
+    {
+        var definition = Definition([Node("root", "missing")]);
+        Assert.Equal("taxonomy.parent_unknown", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(definition).GetAncestors(definition, "root")).Code);
+    }
+
+    [Fact]
+    public void Diff_refuses_mismatching_tenant_or_definition_identity()
+    {
+        var definition = Definition();
+        Assert.Throws<ArgumentException>(() => Interpreter(definition).Diff(definition, definition with { Tenant = "tenant-b" }));
+        Assert.Throws<ArgumentException>(() => Interpreter(definition).Diff(definition, definition with { DefinitionId = new("other", "health", "scheme") }));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -96,6 +118,7 @@ public sealed class TaxonomyInterpreterTests
     {
         var cycle = Definition(Enumerable.Range(0, 64).Select(index => Node($"n{index}", index == 0 ? "n63" : $"n{index - 1}")).ToArray());
         Assert.Equal("taxonomy.parent_cycle", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetDescendants(cycle, "n0")).Code);
+        Assert.Equal("taxonomy.parent_cycle", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetAncestors(cycle, "n0")).Code);
     }
 
     [Fact] public void Resolves_pinned_definition_or_returns_typed_not_found()
@@ -475,6 +498,7 @@ public sealed class TaxonomyInterpreterTests
         var interpreter = new TaxonomyInterpreter([vendorV1, overlay]);
 
         var vendorMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "9.9.9"));
+        Assert.Equal("", vendorMissing.Coordinates.Tenant);
         Assert.Equal("9.9.9", vendorMissing.Coordinates.Version);
 
         var overlayMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "9.9.9"), "1.0.0"));
