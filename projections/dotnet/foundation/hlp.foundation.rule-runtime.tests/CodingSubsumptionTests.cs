@@ -64,9 +64,10 @@ public sealed class CodingSubsumptionTests
             ("9.007199254740994e15", "9007199254740994", "9007199254740995"),
             ("9.223372036854776e18", "9223372036854775808", "9223372036854775809"),
             ("-9.223372036854776e18", "-9223372036854775808", "-9223372036854775807"),
-            // Independent boundary oracles: (-2^63 - 2048) + 1; -10^19 + 1; (2^63 - 1024) + 1.
+            // Independent boundary oracles: (-2^63 - 2048) + 1; -10^19 + 1; 10^19 + 1; (2^63 - 1024) + 1.
             ("-9.223372036854777e18", "-9223372036854777856", "-9223372036854777855"),
             ("-1e19", "-10000000000000000000", "-9999999999999999999"),
+            ("1e19", "10000000000000000000", "10000000000000000001"),
             ("9.223372036854775e18", "9223372036854774784", "9223372036854774785"),
         ];
         foreach (var row in rows)
@@ -82,6 +83,15 @@ public sealed class CodingSubsumptionTests
         var result = Value(input, expression: expression);
         Assert.Equal(ValueState.Resolved, result.State);
         Assert.Equal(expected, result.Value!.GetValue<string>());
+    }
+
+    // ToMoney's lower fence (HarborlineJsonLogic.cs:292) admits -2^63 to FromInteger; the BigInteger
+    // fallback must render the same literal, so moving the fence by one value is equivalent.
+    [Fact]
+    public void Money_lower_fence_paths_agree_on_negative_two_to_the_63()
+    {
+        Assert.Equal("-9223372036854775808", MoneyDecimal.FromInteger(long.MinValue).ToCanonicalString());
+        Assert.Equal("-9223372036854775808", MoneyDecimal.Parse(new BigInteger(-9223372036854775808d).ToString(System.Globalization.CultureInfo.InvariantCulture)).ToCanonicalString());
     }
 
     // Exact integer storage includes the lower endpoint and the positive interior boundary.
