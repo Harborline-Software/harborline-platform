@@ -73,9 +73,10 @@ public sealed record RecordReactionEffect(string InstanceId, int Iteration, stri
 /// <param name="RecordTypeId">The Record Type of the new record.</param>
 /// <param name="Body">The new record's submitted body.</param>
 /// <param name="Version">An explicit published version pin, or null for the published head.</param>
-/// <param name="Executor">The worker that executes the reaction for the source's principal: the source event's
-/// <see cref="RecordCommittedEvent.Executor"/>, so null for a direct write's event (ADR-0154 decision 1). Records checks it
-/// against the event and does not record it yet.</param>
+/// <param name="Executor">The source event's <see cref="RecordCommittedEvent.Executor"/>, passed back unchanged: an accepted
+/// command's worker, carried on its event, and never the reacting run's own worker (ADR-0154 decisions 1 and 2). It is null
+/// for a direct write's event, even when a worker runs the reaction. Records compares it with the event's executor
+/// ordinally, so a case variant, or an empty string for null, is another executor; it does not record it yet.</param>
 public sealed record RecordReactionCreate(RecordCommittedEvent Source, RecordReactionKey Reaction, RecordReactionEffect Effect,
     string RecordTypeId, JsonObject Body, string? Version = null, string? Executor = null)
 {

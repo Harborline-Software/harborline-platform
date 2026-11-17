@@ -235,9 +235,11 @@ public sealed class RecordCommittedEventTests
 
     // P3-1 (ADR-0154 decisions 1 and 3; CWE-441): a reaction acts only for its source event's principal, with its source
     // event's executor. A direct write's event has no executor, so its reaction passes none. Any other pair is refused at
-    // bind after the gate decided, as an accepted command's binding mismatch is, and nothing is written.
-    // Oracles: the literal principals and worker id sent here; the literal stage and code records.command.binding_mismatch
-    // (ADR-0110 open item 7); the journal bytes before the refusals.
+    // bind after the gate decided, as an accepted command's binding mismatch is, and nothing is written. Identities compare
+    // ordinally (P3-A): an empty executor is not the absent one, whichever side holds it, and a principal that differs only
+    // in case is another principal.
+    // Oracles: the literal principals, worker id, "OPERATOR-7" and empty executor sent here; the literal stage and code
+    // records.command.binding_mismatch (ADR-0110 open item 7); the journal bytes before the refusals.
     [Fact]
     [Trait("Holds", "records-run-3")]
     public async Task A_reaction_to_a_direct_event_acts_only_as_its_principal_with_no_executor_and_a_mismatch_persists_nothing()
@@ -251,13 +253,23 @@ public sealed class RecordCommittedEventTests
         Assert.Equal("operator-8", fixture.Access.Requests.Last().Principal);
         var withExecutor = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
             new(trigger, FollowUp, Effect1, EntryType, Body(5), Executor: "sys.records-worker"));
+        var otherCase = await fixture.Writer.CreateReactionAsync(new(Tenant, "OPERATOR-7"), new(trigger, FollowUp, Effect1, EntryType, Body(5)));
+        Assert.Equal("OPERATOR-7", fixture.Access.Requests.Last().Principal);
+        var emptyExecutor = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger, FollowUp, Effect1, EntryType, Body(5), Executor: ""));
+        // The reverse: a source event that names an empty executor, answered with none.
+        var emptySourceExecutor = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor),
+            new(trigger with { Executor = "" }, FollowUp, Effect1, EntryType, Body(5)));
 
-        foreach (var refused in new[] { otherPrincipal, withExecutor })
+        // Each case is checked and named on its own, so a failure says which pair bound.
+        Assert.All(new[] { ("operator-8", otherPrincipal), ("executor sys.records-worker", withExecutor), ("OPERATOR-7", otherCase),
+            ("executor \"\" for null", emptyExecutor), ("null for source executor \"\"", emptySourceExecutor) }, named =>
         {
-            Assert.Equal(("bind", "records.command.binding_mismatch"), (refused.Refusal!.Stage, refused.Refusal.Code));
+            var (name, refused) = named;
+            Assert.Equal((name, "bind", "records.command.binding_mismatch"), (name, refused.Refusal?.Stage, refused.Refusal?.Code));
             Assert.Null(refused.Receipt);
             Assert.NotNull(refused.Decision);
-        }
+        });
         Assert.Equal(before, fixture.Bytes());
 
         var direct = await fixture.Writer.CreateReactionAsync(new(Tenant, Actor), new(trigger, FollowUp, Effect1, EntryType, Body(5)));

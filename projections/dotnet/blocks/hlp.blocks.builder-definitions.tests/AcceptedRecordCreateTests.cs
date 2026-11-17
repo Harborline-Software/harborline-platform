@@ -561,14 +561,19 @@ public sealed class AcceptedRecordCreateTests
     // that completed the command as executor. A host that passes the worker as principal, drops the executor or names
     // another worker is refused at bind after the gate decided, as the accepted command's own binding mismatch is, and
     // nothing is written. The gate admits records:write for the worker too, so only this check refuses the worker pairs.
-    // Oracles: the literal submitter, worker and delegate ids this class uses; the literal stage and code
-    // records.command.binding_mismatch (ADR-0110 open item 7); the journal file's bytes before the refusal.
+    // Identities compare ordinally (P3-A): a principal or an executor that differs from the event's only in case is another
+    // identity, and the gate admits records:write for "Alice" too, so only the bind check refuses it.
+    // Oracles: the literal submitter, worker and delegate ids this class uses, and the literal case variants "Alice" of
+    // "alice" and "SYS.RECORDS-WORKER" of "sys.records-worker"; the literal stage and code records.command.binding_mismatch
+    // (ADR-0110 open item 7); the journal file's bytes before the refusal.
     [Theory]
     [Trait("Proves", "platform")]
     [InlineData(Worker, Worker)]
     [InlineData(Worker, null)]
     [InlineData(Submitter, null)]
     [InlineData(Submitter, Delegate)]
+    [InlineData("Alice", Worker)]
+    [InlineData(Submitter, "SYS.RECORDS-WORKER")]
     public async Task A_reaction_to_an_accepted_create_acts_only_for_the_submitter_with_the_worker_as_executor(string principal, string? executor)
     {
         var directory = Path.Combine(Path.GetTempPath(), "t616-reaction-identity-" + Guid.NewGuid().ToString("N"));

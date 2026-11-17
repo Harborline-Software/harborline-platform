@@ -540,9 +540,11 @@ gate, creation gate, bind, mutate and validate path unchanged, in the event's te
 `operation_id`.
 
 - **Identity check.** After the gate decides, the scope's caller must be the event's `Principal`, and
-  `RecordReactionCreate.Executor` (optional, null by default) must equal the event's `Executor`. A reaction to an
-  accepted command's event acts for the submitter, with the command's worker as executor; a reaction to a direct write's
-  event acts as its caller, with no executor. Any other pair refuses `records.command.binding_mismatch` at bind and
+  `RecordReactionCreate.Executor` (optional, null by default) must equal the event's `Executor`: the host passes the
+  event's executor back unchanged, never the reacting run's own worker. A reaction to an accepted command's event acts
+  for the submitter, with the command's worker as executor; a reaction to a direct write's event acts as its caller,
+  with no executor, even when a worker runs the reaction. Both compare ordinally, so a case variant, or an empty string
+  for a null executor, is another identity. Any other pair refuses `records.command.binding_mismatch` at bind and
   persists nothing. Records checks the executor but does not record it yet.
 - **Key.** The operation key is the scope's tenant, caller and source operation id, with the origin `reaction:`
   followed by these length frames: the `RecordReactionKey` (`WorkflowKey`, `WorkflowVersion`, `TriggerId`), the source
