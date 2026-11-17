@@ -200,6 +200,32 @@ public sealed class CodingSubsumptionTests
     }
 
     [Fact]
+    public void Flat_strict_and_loose_equality_respect_null_and_boolean_values()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"===":[true,true]}""", """{"===":[null,null]}""", """{"==":[null,null]}""" })
+            Assert.True(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        foreach (var expression in new[] { """{"===":[true,false]}""", """{"===":[true,"true"]}""", """{"===":["true",true]}""", """{"===":[null,0]}""", """{"===":[0,null]}""", """{"==":[null,0]}""", """{"==":[0,null]}""" })
+            Assert.False(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_strict_equality_distinguishes_equal_and_unequal_numbers()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"===":[5,5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"===":[5,2]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_loose_equality_coerces_numeric_strings_but_not_other_strings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["5",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"==":["not numeric",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
         static string Answers(string bindings) => "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[" + bindings + "],[[\"s\",\"a\",\"d\",true]]]";
