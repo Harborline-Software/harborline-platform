@@ -8,8 +8,15 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static readonly string[] Roots = ["react", "blazor", "shared"];
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
-    private static readonly Regex Emit = new(@"\b(?:console\s*\.\s*\w+\s*\(|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Console\s*\.\s*(?:Write\w*|Error|Out)\b|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|navigator\s*\.\s*sendBeacon\b|(?:import|from|require)\s*(?:\(\s*)?['""]@opentelemetry/)", RegexOptions.Compiled);
+    private static readonly Regex Emit = new(@"\b(?:console\s*(?:(?:\?\.|\.)\s*\w+|\[\s*['""]\w+['""]\s*\])\s*(?:\?\.)?\s*\(|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Console\s*\.\s*(?:Write\w*|Error|Out)\b|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|navigator\s*\.\s*sendBeacon\b|(?:import|from|require)\s*(?:\(\s*)?['""]@opentelemetry/|using\s+static\s+System\s*\.\s*(?:Diagnostics\s*\.\s*)?(?:Console|Debug|Trace)\b)", RegexOptions.Compiled);
+    private static readonly Regex CommentsAndStrings = new("""(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/|<!--[\s\S]*?-->)|@"(?:""|[^"])*"|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`""", RegexOptions.Compiled);
     private static readonly Regex LiteralCall = new("""^\s*console\s*\.\s*\w+\s*\(\s*(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*\)\s*;?\s*$""", RegexOptions.Compiled);
+
+    private static readonly string[] ExpectedFindings = [
+                "projections/blazor/emit.ts:1", "projections/react/activity.cs:1", "projections/react/bypasses.ts:1", "projections/react/bypasses.ts:2", "projections/react/bypasses.ts:3", "projections/react/bypasses.ts:4", "projections/react/bypasses.ts:6", "projections/react/bypasses.ts:8", "projections/react/console.cs:1", "projections/react/console.ts:2", "projections/react/debug.razor:1", "projections/react/debug.razor:2", "projections/react/error.cjs:1", "projections/react/error.cjs:2",
+                "projections/react/event.ts:1", "projections/react/factory.tsx:1", "projections/react/interpolated.cs:1", "projections/react/logger.cs:1", "projections/react/message.js:1", "projections/react/meter.mjs:1", "projections/react/metrics.jsx:1", "projections/react/otel.js:1", "projections/react/source.cs:1",
+                "projections/react/static.cs:1", "projections/react/static.cs:2", "projections/react/static.cs:3", "projections/react/trace.cs:1", "projections/react/trace.cs:2", "projections/react/variable.ts:1", "projections/react/variable.ts:2", "projections/react/variable.ts:3", "projections/react/variable.ts:4", "projections/shared/emit.ts:1"
+                ];
 
     // The existing deprecation warning is fixed text and carries no rendered value.
     private static readonly Dictionary<string, (int Count, string Reason)> AllowList = new(StringComparer.Ordinal)
@@ -44,16 +51,40 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(dir, "variable.ts"), "console.log(value)\nconsole.log(value.name)\nconsole.log(`value ${value}`)\nconsole.log('a' + value)\n");
             File.WriteAllText(Path.Combine(dir, "interpolated.cs"), "Console.WriteLine($\"{value}\");\n");
             File.WriteAllText(Path.Combine(dir, "ignored.test.ts"), "console.log(value)\n");
+            File.WriteAllText(Path.Combine(dir, "bypasses.ts"), "console?.log(value)\nconsole.log?.(value)\nconsole['log'](value)\nconsole\n .log(value)\nconsole.log\n(value)\n/* comment */ console.log(value)\n");
+            File.WriteAllText(Path.Combine(dir, "static.cs"), "using static System.Console;\nusing static System.Diagnostics.Debug;\nusing static System.Diagnostics.Trace;\nWriteLine(value);\nWrite(value);\n");
+            File.WriteAllText(Path.Combine(dir, "factory.tsx"), "ILoggerFactory factory;\n");
+            File.WriteAllText(Path.Combine(dir, "message.js"), "LoggerMessage message;\n");
+            File.WriteAllText(Path.Combine(dir, "metrics.jsx"), "System.Diagnostics.Metrics metrics;\n");
+            File.WriteAllText(Path.Combine(dir, "meter.mjs"), "new Meter(name);\n");
+            File.WriteAllText(Path.Combine(dir, "error.cjs"), "Console.Error.Write(value);\nConsole.Out.Write(value);\n");
+            File.WriteAllText(Path.Combine(dir, "debug.razor"), "Debug.Print(value);\nDebug.Write(value);\n");
+            File.WriteAllText(Path.Combine(dir, "trace.cs"), "Trace.TraceError(value);\nTrace.Write(value);\n");
+            File.WriteAllText(Path.Combine(dir, "source.cs"), "EventSource source;\n");
+            File.WriteAllText(Path.Combine(dir, "otel.js"), "import '@opentelemetry/api';\n");
+            foreach (var name in new[] { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories", "example.tests" })
+            {
+                var skipped = Path.Combine(dir, name);
+                Directory.CreateDirectory(skipped);
+                File.WriteAllText(Path.Combine(skipped, "ignored.ts"), "console.log(value);\n");
+            }
+            File.WriteAllText(Path.Combine(dir, "ignored.spec.ts"), "console.log(value);\n");
+            File.WriteAllText(Path.Combine(dir, "ignored.stories.ts"), "console.log(value);\n");
+            foreach (var lane in new[] { "blazor", "shared" })
+            {
+                var laneDir = Path.Combine(root, "projections", lane);
+                Directory.CreateDirectory(laneDir);
+                File.WriteAllText(Path.Combine(laneDir, "emit.ts"), "console.log(value);\n");
+            }
             var findings = Scan(root);
-            Assert.Equal(new[] {
-                "projections/react/activity.cs:1", "projections/react/console.cs:1", "projections/react/console.ts:2",
-                "projections/react/event.ts:1", "projections/react/interpolated.cs:1", "projections/react/logger.cs:1",
-                "projections/react/variable.ts:1", "projections/react/variable.ts:2", "projections/react/variable.ts:3", "projections/react/variable.ts:4"
-            }, findings.Select(row => $"{row.Path}:{row.Line}"));
+            Assert.Equal(ExpectedFindings, findings.Select(row => $"{row.Path}:{row.Line}"));
             Assert.True(findings.Single(row => row.Path == "projections/react/console.ts").Literal);
-            var allowed = new Dictionary<string, (int Count, string Reason)> { ["projections/react/variable.ts"] = (4, "fixture") };
+            var allowed = new Dictionary<string, (int Count, string Reason)> { ["projections/react/variable.ts"] = (4, "fixture"), ["projections/react/activity.cs"] = (0, "fixture"), ["projections/react/missing.ts"] = (1, "fixture") };
             var errors = Violations(findings, allowed);
             Assert.Contains(errors, error => error.StartsWith("projections/react/variable.ts:1:", StringComparison.Ordinal));
+            Assert.Contains("projections/react/console.ts:2: console.log('fixed')", errors);
+            Assert.Contains("projections/react/activity.cs: expected 0 emit call(s), found 1", errors);
+            Assert.Contains("projections/react/missing.ts: expected 1 emit call(s), found 0", errors);
             Assert.All(findings.Where(row => row.Path == "projections/react/variable.ts" || row.Path == "projections/react/interpolated.cs"), row => Assert.False(row.Literal));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
@@ -72,15 +103,21 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     }
 
     private static Finding[] Scan(string root) => Roots.SelectMany(lane => Files(root, lane))
-        .SelectMany(file => File.ReadLines(file).Select((line, index) => (line, index))
-            .Where(row => !IsComment(row.line) && Emit.IsMatch(row.line))
-            .Select(row => new Finding(Path.GetRelativePath(root, file).Replace('\\', '/'), row.index + 1, row.line.Trim(), LiteralCall.IsMatch(row.line))))
+        .SelectMany(file => ScanFile(root, file))
         .OrderBy(row => row.Path, StringComparer.Ordinal).ThenBy(row => row.Line).ToArray();
 
-    private static bool IsComment(string line)
+    private static IEnumerable<Finding> ScanFile(string root, string file)
     {
-        var text = line.TrimStart();
-        return text.StartsWith("//") || text.StartsWith("/*") || text.StartsWith("*") || text.StartsWith("<!--");
+        var source = File.ReadAllText(file);
+        var clean = CommentsAndStrings.Replace(source, match => match.Groups["comment"].Success
+            ? new string(match.Value.Select(c => c is '\r' or '\n' ? c : ' ').ToArray()) : match.Value);
+        var lines = clean.Split('\n');
+        foreach (Match match in Emit.Matches(clean))
+        {
+            var line = clean.AsSpan(0, match.Index).Count('\n') + 1;
+            var text = lines[line - 1].Trim();
+            yield return new Finding(Path.GetRelativePath(root, file).Replace('\\', '/'), line, text, LiteralCall.IsMatch(text));
+        }
     }
 
     private static IEnumerable<string> Files(string root, string lane)
