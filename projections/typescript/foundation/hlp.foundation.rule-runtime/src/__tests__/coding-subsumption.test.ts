@@ -45,6 +45,34 @@ function wire(bindings: Json = [binding], answers: Json = [['s', 'a', 'd', true]
 const read = (pair: ReturnType<typeof wire>) => CodingSubsumptionSnapshot.fromJsonText(pair.actual, pair.expected)
 
 describe('T-493 finite pinned coding reader', () => {
+  it('refuses nontext capture arguments before reading caller properties', () => {
+    let reads = 0
+    const nontext = new Proxy({}, { get() { reads++; throw new Error('caller property read') } })
+    const pair = wire()
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(nontext as never, pair.expected)).toThrow(TypeError)
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(pair.actual, nontext as never)).toThrow(TypeError)
+    expect(reads).toBe(0)
+  })
+
+  it('refuses trailing members on every tuple', () => {
+    const pair = wire()
+    const expected = JSON.parse(pair.expected) as Json[]
+    const actual = JSON.parse(pair.actual) as Json[]
+    expect(() => read({ ...pair, expected: JSON.stringify([...expected, false]) })).toThrow(TypeError)
+    expect(() => read({ ...pair, actual: JSON.stringify([...actual, false]) })).toThrow(TypeError)
+    expect(() => read(wire([[...binding, false]]))).toThrow(TypeError)
+    expect(() => read(wire([binding], [['s', 'a', 'd', true, false]]))).toThrow(TypeError)
+  })
+
+  it('requires a string tenant even when both documents agree', () => {
+    expect(() => read(wire([binding], [['s', 'a', 'd', true]], 1 as never))).toThrow(TypeError)
+    expect(() => read(wire([binding], [['s', 'a', 'd', true]], true as never))).toThrow(TypeError)
+  })
+
+  it('compares an earlier tuple component before a later reversed component', () => {
+    expect(() => read(wire([binding], [['s', 'z', 'a', true], ['s', 'a', 'z', false]]))).toThrow(TypeError)
+  })
+
   it('owns the shared literal hierarchy answers and changes pins only on a new evaluator', () => {
     const first = capture()
     expect(Object.isFrozen(first)).toBe(true)
