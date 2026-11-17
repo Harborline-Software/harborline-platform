@@ -4,14 +4,14 @@ using Xunit;
 namespace Harborline.Architecture.Tests;
 
 /// <summary>
-/// T-523/L879: freezes member-call folds outside the compute packages. Hand loops and static
-/// calls such as Enumerable.Sum(rows) are outside this text scan's reach.
+/// T-523/L879: freezes member-call folds outside the compute packages. Method groups, using static
+/// calls, AggregateBy, SumAsync and hand loops are outside this text scan's reach.
 /// </summary>
 public sealed class ComputeSiteArchitectureTests
 {
     // Scalar static receivers are not LINQ folds over rows.
-    private const string ScalarReceivers = @"\b(?:Math|MathF|BigInteger|TimeSpan|decimal|DateTimeOffset|DateTime|Interlocked|Vector(?:[0-9]+|<[^>]+>)?)\s*$";
-    private static readonly Regex Fold = new(@"\.(?:Sum|Average|Aggregate|MinBy|MaxBy|Min|Max)\s*\(", RegexOptions.CultureInvariant);
+    private const string ScalarReceivers = @"(?<!\.)\b(?:System\.(?:Numerics\.|Threading\.)?)?(?:Math|MathF|BigInteger|TimeSpan|decimal|DateTimeOffset|DateTime|Interlocked|Vector(?:[0-9]+|<[^>]+>)?)\s*$";
+    private static readonly Regex Fold = new(@"\.(?:Sum|Average|Aggregate|MinBy|MaxBy|Min|Max)\s*(?:<(?:(?<depth><)|(?<-depth>>)|[\w\s.,?\[\]:()*])*(?(depth)(?!))>\s*)?\(", RegexOptions.CultureInvariant);
     private static readonly Regex Scalar = new(ScalarReceivers, RegexOptions.CultureInvariant);
 
     // Frozen findings, not permission to add folds. Delete a row when its last fold moves.
@@ -32,11 +32,19 @@ public sealed class ComputeSiteArchitectureTests
     [Fact]
     public void Set_folds_outside_the_compute_packages_match_the_commented_allow_list_exactly()
     {
-        var found = Scan(DotnetRoot(), false);
-        var differences = found.Keys.Union(Listed.Keys, StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal)
-            .Where(path => found.GetValueOrDefault(path) != Listed.GetValueOrDefault(path))
-            .Select(path => $"{path}: found {found.GetValueOrDefault(path)}, listed {Listed.GetValueOrDefault(path)}");
-        Assert.True(!differences.Any(), "Fold counts differ:\n" + string.Join("\n", differences));
+        AssertMatches(Scan(DotnetRoot(), false), Listed);
+    }
+
+    [Fact]
+    public void Allow_list_comparison_rejects_stale_and_mismatched_counts()
+    {
+        var found = new Dictionary<string, int> { ["a.cs"] = 1 };
+        var stale = Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertMatches(found, new() { ["a.cs"] = 1, ["b.cs"] = 1 }));
+        Assert.Contains("b.cs: found 0, listed 1", stale.Message);
+        var tooFew = Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertMatches(found, new() { ["a.cs"] = 2 }));
+        Assert.Contains("a.cs: found 1, listed 2", tooFew.Message);
+        var tooMany = Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertMatches(found, new() { ["a.cs"] = 0 }));
+        Assert.Contains("a.cs: found 1, listed 0", tooMany.Message);
     }
 
     [Theory]
@@ -49,12 +57,19 @@ public sealed class ComputeSiteArchitectureTests
     [InlineData("rows.MinBy(r => r.Amount)")]
     [InlineData("rows.MaxBy(r => r.Amount)")]
     [InlineData("rows.Aggregate(0, (sum, row) => sum + row.Value) + Math.Max(0, count)")]
+    [InlineData("rows.Sum<Row>(r => r.Amount)")]
+    [InlineData("rows.Aggregate<Row, decimal>(0m, (sum, r) => sum + r.Amount)")]
+    [InlineData("rows.Sum<KeyValuePair<string, int>>(r => r.Value)")]
+    [InlineData("rows.Sum<List<List<Row>>>(r => r.Count)")]
+    [InlineData("shape.Vector.Sum(v => v.X)")]
+    [InlineData("slotsByDateTime.Max(s => s.At)")]
     public void Canary_rejects_a_planted_fold_over_rows(string source) => Assert.Equal(1, CountFolds(source));
 
     [Fact]
     public void Scalar_math_and_catalogue_calls_remain_permitted()
     {
         Assert.Equal(0, CountFolds("Math.Max(a, b); BigInteger.Max(a, b); TimeSpan.FromTicks(Math.Min(a, b)); await catalogue.EvaluateAsync(reference, request, cancellationToken);"));
+        Assert.Equal(0, CountFolds("<c>Cardinality.Max</c> (and the cap)"));
     }
 
     [Theory]
@@ -68,6 +83,8 @@ public sealed class ComputeSiteArchitectureTests
     [InlineData("Interlocked.Max(a, b)")]
     [InlineData("Vector<int>.Max(a, b)")]
     [InlineData("Vector128.Max(a, b)")]
+    [InlineData("System.Math.Max(a, b)")]
+    [InlineData("System.Numerics.BigInteger.Max(a, b)")]
     public void Scalar_receivers_are_not_folds(string source) => Assert.Equal(0, CountFolds(source));
 
     [Fact]
@@ -89,7 +106,7 @@ public sealed class ComputeSiteArchitectureTests
         try
         {
             string[] paths = ["blocks/consumer/Rows.cs", "foundation/example/Rows.cs", "kernel/example/Rows.cs", "blocks/hlp.blocks.measure-catalogue/Rows.cs",
-                "blocks/hlp.blocks.aggregates/Rows.cs", "blocks/hlp.blocks.reports/Rows.cs", "blocks/example.tests/Rows.cs",
+                "blocks/hlp.blocks.aggregates/Rows.cs", "blocks/hlp.blocks.reports/Rows.cs", "blocks/example.tests/Rows.cs", "blocks/mixed.Tests/Rows.cs",
                 "blocks/example/bin/Rows.cs", "blocks/example/obj/Rows.cs", "architecture/Rows.cs", "blocks/consumer/Rows.txt"];
             foreach (var path in paths)
             {
@@ -107,6 +124,14 @@ public sealed class ComputeSiteArchitectureTests
     }
 
     private static int CountFolds(string source) => Fold.Matches(source).Count(match => !Scalar.IsMatch(source[..match.Index]));
+
+    private static void AssertMatches(Dictionary<string, int> found, Dictionary<string, int> listed)
+    {
+        var differences = found.Keys.Union(listed.Keys, StringComparer.Ordinal).OrderBy(path => path, StringComparer.Ordinal)
+            .Where(path => found.GetValueOrDefault(path) != listed.GetValueOrDefault(path))
+            .Select(path => $"{path}: found {found.GetValueOrDefault(path)}, listed {listed.GetValueOrDefault(path)}");
+        Assert.True(!differences.Any(), "Fold counts differ:\n" + string.Join("\n", differences));
+    }
 
     private static Dictionary<string, int> Scan(string root, bool includeCompute)
     {
