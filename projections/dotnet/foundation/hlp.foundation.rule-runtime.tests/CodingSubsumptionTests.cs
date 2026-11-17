@@ -64,6 +64,10 @@ public sealed class CodingSubsumptionTests
             ("9.007199254740994e15", "9007199254740994", "9007199254740995"),
             ("9.223372036854776e18", "9223372036854775808", "9223372036854775809"),
             ("-9.223372036854776e18", "-9223372036854775808", "-9223372036854775807"),
+            // Independent boundary oracles: (-2^63 - 2048) + 1; -10^19 + 1; (2^63 - 1024) + 1.
+            ("-9.223372036854777e18", "-9223372036854777856", "-9223372036854777855"),
+            ("-1e19", "-10000000000000000000", "-9999999999999999999"),
+            ("9.223372036854775e18", "9223372036854774784", "9223372036854774785"),
         ];
         foreach (var row in rows)
             foreach (string input in new[] { row.Exponent, row.Integer })
@@ -80,7 +84,7 @@ public sealed class CodingSubsumptionTests
         Assert.Equal(expected, result.Value!.GetValue<string>());
     }
 
-    // Integer storage must preserve the literal value throughout the signed-long range.
+    // Exact integer storage includes the lower endpoint and the positive interior boundary.
     [Theory]
     [InlineData(9007000000000000L)]
     [InlineData(9007000000000001L)]
@@ -88,6 +92,7 @@ public sealed class CodingSubsumptionTests
     [InlineData(9007199254740992L)]
     [InlineData(9007199254740994L)]
     [InlineData(long.MinValue)]
+    [InlineData(9223372036854774784L)]
     public void Money_NumNode_preserves_exact_long_integer_storage(long expected)
     {
         var node = (JsonValue)HarborlineJsonLogic.NumNode(expected);
