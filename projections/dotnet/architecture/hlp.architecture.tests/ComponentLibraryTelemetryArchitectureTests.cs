@@ -6,7 +6,7 @@ namespace Harborline.Architecture.Tests;
 public sealed class ComponentLibraryTelemetryArchitectureTests
 {
     private static readonly string[] Roots = ["react", "blazor", "shared"];
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
+    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
     // Raw source text, no comment or string stripping: a mention in a comment or string is a finding too,
     // and only an exact allow-list row admits it. Bare console/Console/sendBeacon tokens keep a comment
@@ -57,6 +57,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/message.js:1",
         "projections/react/meter.mjs:1",
         "projections/react/metrics.jsx:1",
+        "projections/react/module.cts:2",
+        "projections/react/module.mts:2",
         "projections/react/nested-follow.ts:1",
         "projections/react/nested-interpolation.cs:1",
         "projections/react/nested-template.ts:1",
@@ -139,6 +141,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(dir, "message.js"), "LoggerMessage message;\n");
             File.WriteAllText(Path.Combine(dir, "metrics.jsx"), "System.Diagnostics.Metrics metrics;\n");
             File.WriteAllText(Path.Combine(dir, "meter.mjs"), "new Meter(name);\n");
+            File.WriteAllText(Path.Combine(dir, "module.cts"), "import value = require('./value');\nconsole.log(value);\n");
+            File.WriteAllText(Path.Combine(dir, "module.mts"), "import { value } from './value.js';\nconsole.log(value);\n");
             File.WriteAllText(Path.Combine(dir, "error.cjs"), "Console.Error.Write(value);\nConsole.Out.Write(value);\n");
             File.WriteAllText(Path.Combine(dir, "debug.razor"), "Debug.Print(value);\nDebug.Write(value);\n");
             File.WriteAllText(Path.Combine(dir, "trace.cs"), "Trace.TraceError(value);\nTrace.Write(value);\n");
