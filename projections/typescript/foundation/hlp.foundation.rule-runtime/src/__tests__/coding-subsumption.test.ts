@@ -44,6 +44,52 @@ function wire(bindings: Json = [binding], answers: Json = [['s', 'a', 'd', true]
 }
 const read = (pair: ReturnType<typeof wire>) => CodingSubsumptionSnapshot.fromJsonText(pair.actual, pair.expected)
 
+// Oracle: README Decision DI, MoneyDecimal integer-input contract, DES-0018 rules-ck-8,
+// and T-588/native-money-parity's independent decimal literals (T-724 rulings 121 and 35).
+const moneyExpressions: Json[] = [
+  { 'money.add': [{ var: 'coding' }, '1'] },
+  { 'money.add': [{ '+': [{ var: 'coding' }, 0] }, '1'] },
+]
+const moneyIntegerLiterals = [
+  ['9.006999999999999e15', '9006999999999999', '9007000000000000'],
+  ['9.007e15', '9007000000000000', '9007000000000001'],
+  ['9.007000000000001e15', '9007000000000001', '9007000000000002'],
+  ['9.007199254740991e15', '9007199254740991', '9007199254740992'],
+  ['9.007199254740992e15', '9007199254740992', '9007199254740993'],
+  ['9.007199254740994e15', '9007199254740994', '9007199254740995'],
+  ['9.223372036854776e18', '9223372036854775808', '9223372036854775809'],
+  ['-9.223372036854776e18', '-9223372036854775808', '-9223372036854775807'],
+] as const
+
+describe('T-588 native money parity', () => {
+  it.each(moneyExpressions)('record oracle probe resolves the exact fence integer: %j', expression => {
+    const result = new GuardEvaluator(clock, limits, capture()).evaluateValue(
+      rule(expression), RuleContextSnapshot.fromJsonText('{"coding":9.007e15}'), admission)
+    expect(result).toEqual({ state: 'Resolved', value: '9007000000000001' })
+  })
+
+  for (const [exponent, integer, expected] of moneyIntegerLiterals)
+    for (const input of [exponent, integer])
+      it.each(moneyExpressions)(`integer input ${input} matches literal ${expected}: %j`, expression => {
+        const result = new GuardEvaluator(clock, limits, capture()).evaluateValue(
+          rule(expression), RuleContextSnapshot.fromJsonText(`{"coding":${input}}`), admission)
+        expect(result).toEqual({ state: 'Resolved', value: expected })
+      })
+
+  it.each(moneyExpressions)('refuses fractional money input: %j', expression => {
+    const result = new GuardEvaluator(clock, limits, capture()).evaluateValue(
+      rule(expression), RuleContextSnapshot.fromJsonText('{"coding":1.5}'), admission)
+    expect(result).toEqual({ state: 'Error', error: { code: 'rule.type_error', params: { op: 'money' } } })
+  })
+
+  it('refuses nonfinite arithmetic before money conversion', () => {
+    const result = new GuardEvaluator(clock, limits, capture()).evaluateValue(
+      rule({ 'money.add': [{ '*': [{ var: 'coding' }, 2] }, '1'] }),
+      RuleContextSnapshot.fromJsonText('{"coding":1e308}'), admission)
+    expect(result).toEqual({ state: 'Error', error: { code: 'rule.type_error', params: { reason: 'non-finite' } } })
+  })
+})
+
 describe('T-493 finite pinned coding reader', () => {
   it('owns the shared literal hierarchy answers and changes pins only on a new evaluator', () => {
     const first = capture()
