@@ -6,6 +6,58 @@ namespace Harborline.Foundation.Taxonomy.Tests;
 
 public sealed class TaxonomyInterpreterTests
 {
+    [Fact]
+    public void Public_argument_guards_name_the_rejected_parameter()
+    {
+        var definition = Definition();
+        var interpreter = Interpreter(definition);
+        Assert.Equal("definitions", Assert.Throws<ArgumentNullException>(() => new TaxonomyInterpreter(null!)).ParamName);
+        Assert.Throws<ArgumentNullException>(() => new TaxonomyInterpreter([null!]));
+        Assert.Equal("coordinates", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveDefinition(null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassification(null!, Reference("root"))).ParamName);
+        Assert.Equal("reference", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassification(definition, null!)).ParamName);
+        Assert.Equal("references", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassifications(definition, null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.GetAncestors(definition, null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.GetDescendants(definition, null!)).ParamName);
+        Assert.Equal("ancestorCode", Assert.Throws<ArgumentNullException>(() => interpreter.Subsumes(definition, null!, "root")).ParamName);
+        Assert.Equal("descendantCode", Assert.Throws<ArgumentNullException>(() => interpreter.Subsumes(definition, "root", null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveSuccession(definition, null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandWholeScheme(null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(null!, "branch")).ParamName);
+        Assert.Equal("collectionName", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(definition, null!)).ParamName);
+        Assert.Equal("overlay", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(null!, definition)).ParamName);
+        Assert.Equal("vendor", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(definition, null!)).ParamName);
+        Assert.Equal("previous", Assert.Throws<ArgumentNullException>(() => interpreter.Diff(null!, definition)).ParamName);
+        Assert.Equal("current", Assert.Throws<ArgumentNullException>(() => interpreter.Diff(definition, null!)).ParamName);
+    }
+
+    [Fact]
+    public void Expansion_refuses_malformed_inventories_and_collection_members()
+    {
+        var malformed = Definition() with { Nodes = null! };
+        var interpreter = Interpreter();
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandWholeScheme(malformed)).Code);
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandCollection(malformed, "branch")).Code);
+        var missingMembers = Definition() with { Collections = [new("branch", null!)] };
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandCollection(missingMembers, "branch")).Code);
+        var noCollections = Definition() with { Collections = null };
+        Assert.Equal("branch", Assert.IsType<TaxonomyCollectionExpansionNotFound>(interpreter.ExpandCollection(noCollections, "branch")).CollectionName);
+    }
+
+    [Fact]
+    public void Known_vendor_designations_do_not_block_overlay_expansion()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("extra")], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("root", "Tenant label", null)],
+        };
+        var result = new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0");
+        Assert.Equal(["root", "extra"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(result).Codes);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
