@@ -9,7 +9,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
     private static readonly Regex Emit = new(@"\b(?:console\s*(?:(?:\?\.|\.)\s*\w+|\[\s*['""]\w+['""]\s*\])\s*(?:\?\.)?\s*\(|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Console\s*\.\s*(?:Write\w*|Error|Out)\b|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|navigator\s*\.\s*sendBeacon\b|(?:import|from|require)\s*(?:\(\s*)?['""]@opentelemetry/|using\s+static\s+System\s*\.\s*(?:Diagnostics\s*\.\s*)?(?:Console|Debug|Trace)\b)", RegexOptions.Compiled);
-    private static readonly Regex CommentsAndStrings = new("""(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/|<!--[\s\S]*?-->)|@"(?:""|[^"])*"|"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'|`(?:\\.|[^`\\])*`""", RegexOptions.Compiled);
+    private static readonly Regex CommentsAndStrings = new("""(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/|<!--[\s\S]*?-->)|(?<string>@"(?:""|[^"])*"|"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'|`(?:\\.|[^`\\])*`)|(?<regex>/(?![/*])(?:\\.|[^/\\\r\n])+/[a-z]*)""", RegexOptions.Compiled);
     private static readonly Regex LiteralCall = new("""^\s*console\s*\.\s*\w+\s*\(\s*(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*\)\s*;?\s*$""", RegexOptions.Compiled);
 
     private static readonly string[] ExpectedFindings = [
@@ -31,20 +31,28 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/console.ts:2",
         "projections/react/debug.razor:1",
         "projections/react/debug.razor:2",
+        "projections/react/division-regex.ts:1",
+        "projections/react/division-regex.ts:2",
+        "projections/react/division.ts:1",
         "projections/react/dot-split.ts:1",
         "projections/react/error.cjs:1",
         "projections/react/error.cjs:2",
         "projections/react/event.ts:1",
         "projections/react/factory.tsx:1",
         "projections/react/interpolated.cs:1",
+        "projections/react/interpolation-hole.cs:1",
         "projections/react/logger.cs:1",
         "projections/react/message.js:1",
         "projections/react/meter.mjs:1",
         "projections/react/metrics.jsx:1",
+        "projections/react/nested-follow.ts:1",
+        "projections/react/nested-interpolation.cs:1",
+        "projections/react/nested-template.ts:1",
         "projections/react/otel-dynamic.mjs:1",
         "projections/react/otel-from.ts:1",
         "projections/react/otel-require.cjs:1",
         "projections/react/otel.js:1",
+        "projections/react/regex.ts:1",
         "projections/react/source.cs:1",
         "projections/react/static.cs:1",
         "projections/react/static.cs:2",
@@ -52,12 +60,14 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/strings.ts:1",
         "projections/react/strings.ts:2",
         "projections/react/strings.ts:3",
+        "projections/react/template-hole.ts:1",
         "projections/react/trace.cs:1",
         "projections/react/trace.cs:2",
         "projections/react/variable.ts:1",
         "projections/react/variable.ts:2",
         "projections/react/variable.ts:3",
         "projections/react/variable.ts:4",
+        "projections/react/verbatim-interpolation.cs:1",
         "projections/react/verbatim.cs:1",
         "projections/shared/emit.ts:1",
     ];
@@ -117,6 +127,16 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(dir, "strings.ts"), "const u = 'http://x'; console.log(value)\nconst u = \"http://x\"; console.log(value)\nconst u = `http://x`; console.log(value)\n");
             File.WriteAllText(Path.Combine(dir, "verbatim.cs"), "var p = @\"a\\\"; var u = \"//\"; Console.WriteLine(p);\n");
             File.WriteAllText(Path.Combine(dir, "anchors.ts"), "console.warn('fixed'); console.log(value)\nconsole.log(value); console.warn('fixed')\n");
+            File.WriteAllText(Path.Combine(dir, "regex.ts"), "const pattern = /https?:\\/\\//; console.log(value);\n");
+            File.WriteAllText(Path.Combine(dir, "inert.ts"), "const help = \"console.log(value)\";\n");
+            File.WriteAllText(Path.Combine(dir, "division.ts"), "const ratio = a / b; console.log(value); // comment\n");
+            File.WriteAllText(Path.Combine(dir, "template-hole.ts"), "const text = `value ${console.log(value)}`;\n");
+            File.WriteAllText(Path.Combine(dir, "interpolation-hole.cs"), "var text = $\"value {Console.WriteLine(value)}\";\n");
+            File.WriteAllText(Path.Combine(dir, "nested-template.ts"), "const text = `${a ? `x${console.log(v)}` : b}`;\n");
+            File.WriteAllText(Path.Combine(dir, "nested-follow.ts"), "const text = `${f(`inner ${x}`, console.log(v))}`;\n");
+            File.WriteAllText(Path.Combine(dir, "nested-interpolation.cs"), "var text = $\"{(x ? $\"{Console.WriteLine(v)}\" : y)}\";\n");
+            File.WriteAllText(Path.Combine(dir, "verbatim-interpolation.cs"), "var text = $@\"value {Console.WriteLine(v)}\";\n");
+            File.WriteAllText(Path.Combine(dir, "division-regex.ts"), "const ratio = a / b; console.log(v) // x\nconst re = /['\"]/; console.log(v)\n");
             foreach (var name in new[] { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories", "example.tests" })
             {
                 var skipped = Path.Combine(dir, name);
@@ -132,6 +152,15 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
                 File.WriteAllText(Path.Combine(laneDir, "emit.ts"), "console.log(value);\n");
             }
             var findings = Scan(root);
+            Assert.Contains(findings, row => row.Path == "projections/react/nested-follow.ts" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/nested-template.ts" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/nested-interpolation.cs" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/verbatim-interpolation.cs" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/division-regex.ts" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/division-regex.ts" && row.Line == 2);
+            Assert.Contains(findings, row => row.Path == "projections/react/division.ts" && row.Line == 1);
+            Assert.DoesNotContain(findings, row => row.Path == "projections/react/inert.ts");
+            Assert.Contains(findings, row => row.Path == "projections/react/regex.ts" && row.Line == 1);
             Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 1);
             Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 2);
             Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 3);
@@ -171,11 +200,39 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static IEnumerable<Finding> ScanFile(string root, string file)
     {
         var source = File.ReadAllText(file);
-        var clean = CommentsAndStrings.Replace(source, match => match.Groups["comment"].Success
-            ? new string(match.Value.Select(c => c is '\r' or '\n' ? c : ' ').ToArray()) : match.Value);
+        var inert = new bool[source.Length];
+        var uncertain = source.Length;
+        var clean = CommentsAndStrings.Replace(source, match =>
+        {
+            if (match.Groups["comment"].Success)
+                return new string(match.Value.Select(c => c is '\r' or '\n' ? c : ' ').ToArray());
+            if (match.Groups["regex"].Success)
+            {
+                var previous = match.Index - 1;
+                while (previous >= 0 && char.IsWhiteSpace(source[previous])) previous--;
+                if (previous >= 0 && (char.IsLetterOrDigit(source[previous]) || source[previous] is '_' or ')' or ']'))
+                    return match.Value;
+            }
+            for (var i = match.Index; i < match.Index + match.Length; i++) inert[i] = true;
+            var interpolated = match.Value[0] == '`' || (match.Index > 0 && source[match.Index - 1] == '$');
+            var hole = interpolated ? match.Value.IndexOf('{', StringComparison.Ordinal) : -1;
+            if (hole >= 0)
+            {
+                for (var i = match.Index + hole; i < match.Index + match.Length; i++) inert[i] = false;
+                if (match.Value.AsSpan(hole).Count('{') > match.Value.AsSpan(hole).Count('}'))
+                    uncertain = Math.Min(uncertain, match.Index + hole);
+            }
+            return match.Value;
+        });
+        if (uncertain < source.Length)
+        {
+            clean = clean[..uncertain] + source[uncertain..];
+            Array.Clear(inert, uncertain, inert.Length - uncertain);
+        }
         var lines = clean.Split('\n');
         foreach (Match match in Emit.Matches(clean))
         {
+            if (inert[match.Index]) continue;
             var line = clean.AsSpan(0, match.Index).Count('\n') + 1;
             var text = lines[line - 1].Trim();
             yield return new Finding(Path.GetRelativePath(root, file).Replace('\\', '/'), line, text, LiteralCall.IsMatch(text));
