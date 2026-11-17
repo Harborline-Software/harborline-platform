@@ -1066,6 +1066,8 @@ function verifyNuget() {
     .sort()
   const formsEngineExpectedIds = [
     'Harborline.Foundation.FieldRuntime',
+    'Harborline.Foundation.ContentStore',
+    'Harborline.Foundation.ExecutionRuntime',
     'Harborline.Foundation.Definitions',
     'Harborline.Foundation.Forms.Engine',
     'Harborline.Foundation.MultiTenancy',
