@@ -479,3 +479,13 @@ it.each(['with', 'after'])('reports-auth-12 accepts a replacement arriving %s th
   expect(screen.getByLabelText('Report key')).toHaveValue('new')
   expect(props.onChange).not.toHaveBeenCalled()
 })
+
+it('reports-auth-8 emits the validated datetime without surrounding whitespace', () => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'when' } })
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: 'date_time' } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: '  2026-01-01T00:00:00Z  ' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change).toHaveBeenCalledWith({ tenant: 't', key: 'r', version: '1', measures: [], parameters: [{ name: 'when', type: 'date_time', default: { kind: 'datetime', type: 'date_time', is_valid: true, value: '2026-01-01T00:00:00Z' } }] })
+})
