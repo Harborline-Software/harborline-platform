@@ -5,7 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import { runFixtureStep } from '../resolve-command.mjs'
 
@@ -43,7 +43,7 @@ globalThis.fetch = async (request, options) => {
   return new Response(new Uint8Array([0, 255, 128, 80, 75, 3, 4, 10, 13, 0, 42, 17]))
 }
 `)
-  return { directory, destination, attempts, args: ['--import', hook, helper, url, destination] }
+  return { directory, destination, attempts, args: ['--import', pathToFileURL(hook).href, helper, url, destination] }
 }
 
 function requests(f) {

@@ -246,7 +246,7 @@ test('candidate orchestration edits are replaced by the actual main-copy step', 
   put(f.root, '.trusted-orchestration/tooling/collect-gallery-shards.mjs', 'main count')
   put(f.root, '.trusted-orchestration/tooling/gate-contract.mjs', 'main recorder')
   put(f.root, '.trusted-orchestration/tooling/tests/candidate.test.mjs', 'old test')
-  execFileSync('python3', ['-c', script], {cwd: f.root})
+  execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c', script], {cwd: f.root})
   assert.equal(readFileSync(resolve(f.root, 'tooling/run-phase-4-gate.mjs'), 'utf8'), 'main gate')
   assert.equal(readFileSync(resolve(f.root, 'tooling/collect-gallery-shards.mjs'), 'utf8'), 'main count')
   assert.equal(readFileSync(resolve(f.root, 'tooling/gate-contract.mjs'), 'utf8'), 'main recorder')
