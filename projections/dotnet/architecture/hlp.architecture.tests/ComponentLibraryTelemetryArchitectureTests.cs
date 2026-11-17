@@ -9,14 +9,58 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
     private static readonly Regex Emit = new(@"\b(?:console\s*(?:(?:\?\.|\.)\s*\w+|\[\s*['""]\w+['""]\s*\])\s*(?:\?\.)?\s*\(|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Console\s*\.\s*(?:Write\w*|Error|Out)\b|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|navigator\s*\.\s*sendBeacon\b|(?:import|from|require)\s*(?:\(\s*)?['""]@opentelemetry/|using\s+static\s+System\s*\.\s*(?:Diagnostics\s*\.\s*)?(?:Console|Debug|Trace)\b)", RegexOptions.Compiled);
-    private static readonly Regex CommentsAndStrings = new("""(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/|<!--[\s\S]*?-->)|@"(?:""|[^"])*"|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`""", RegexOptions.Compiled);
+    private static readonly Regex CommentsAndStrings = new("""(?<comment>//[^\r\n]*|/\*[\s\S]*?\*/|<!--[\s\S]*?-->)|@"(?:""|[^"])*"|"(?:\\[^\r\n]|[^"\\\r\n])*"|'(?:\\[^\r\n]|[^'\\\r\n])*'|`(?:\\.|[^`\\])*`""", RegexOptions.Compiled);
     private static readonly Regex LiteralCall = new("""^\s*console\s*\.\s*\w+\s*\(\s*(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*\)\s*;?\s*$""", RegexOptions.Compiled);
 
     private static readonly string[] ExpectedFindings = [
-                "projections/blazor/emit.ts:1", "projections/react/activity.cs:1", "projections/react/bypasses.ts:1", "projections/react/bypasses.ts:2", "projections/react/bypasses.ts:3", "projections/react/bypasses.ts:4", "projections/react/bypasses.ts:6", "projections/react/bypasses.ts:8", "projections/react/console.cs:1", "projections/react/console.ts:2", "projections/react/debug.razor:1", "projections/react/debug.razor:2", "projections/react/error.cjs:1", "projections/react/error.cjs:2",
-                "projections/react/event.ts:1", "projections/react/factory.tsx:1", "projections/react/interpolated.cs:1", "projections/react/logger.cs:1", "projections/react/message.js:1", "projections/react/meter.mjs:1", "projections/react/metrics.jsx:1", "projections/react/otel.js:1", "projections/react/source.cs:1",
-                "projections/react/static.cs:1", "projections/react/static.cs:2", "projections/react/static.cs:3", "projections/react/trace.cs:1", "projections/react/trace.cs:2", "projections/react/variable.ts:1", "projections/react/variable.ts:2", "projections/react/variable.ts:3", "projections/react/variable.ts:4", "projections/shared/emit.ts:1"
-                ];
+        "projections/blazor/emit.ts:1",
+        "projections/react/activity.cs:1",
+        "projections/react/anchors.ts:1",
+        "projections/react/anchors.ts:1",
+        "projections/react/anchors.ts:2",
+        "projections/react/anchors.ts:2",
+        "projections/react/apostrophe.tsx:2",
+        "projections/react/bypasses.ts:1",
+        "projections/react/bypasses.ts:2",
+        "projections/react/bypasses.ts:3",
+        "projections/react/bypasses.ts:4",
+        "projections/react/bypasses.ts:6",
+        "projections/react/bypasses.ts:8",
+        "projections/react/comment-lines.ts:4",
+        "projections/react/console.cs:1",
+        "projections/react/console.ts:2",
+        "projections/react/debug.razor:1",
+        "projections/react/debug.razor:2",
+        "projections/react/dot-split.ts:1",
+        "projections/react/error.cjs:1",
+        "projections/react/error.cjs:2",
+        "projections/react/event.ts:1",
+        "projections/react/factory.tsx:1",
+        "projections/react/interpolated.cs:1",
+        "projections/react/logger.cs:1",
+        "projections/react/message.js:1",
+        "projections/react/meter.mjs:1",
+        "projections/react/metrics.jsx:1",
+        "projections/react/otel-dynamic.mjs:1",
+        "projections/react/otel-from.ts:1",
+        "projections/react/otel-require.cjs:1",
+        "projections/react/otel.js:1",
+        "projections/react/source.cs:1",
+        "projections/react/static.cs:1",
+        "projections/react/static.cs:2",
+        "projections/react/static.cs:3",
+        "projections/react/strings.ts:1",
+        "projections/react/strings.ts:2",
+        "projections/react/strings.ts:3",
+        "projections/react/trace.cs:1",
+        "projections/react/trace.cs:2",
+        "projections/react/variable.ts:1",
+        "projections/react/variable.ts:2",
+        "projections/react/variable.ts:3",
+        "projections/react/variable.ts:4",
+        "projections/react/verbatim.cs:1",
+        "projections/shared/emit.ts:1",
+    ];
 
     // The existing deprecation warning is fixed text and carries no rendered value.
     private static readonly Dictionary<string, (int Count, string Reason)> AllowList = new(StringComparer.Ordinal)
@@ -62,6 +106,17 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(dir, "trace.cs"), "Trace.TraceError(value);\nTrace.Write(value);\n");
             File.WriteAllText(Path.Combine(dir, "source.cs"), "EventSource source;\n");
             File.WriteAllText(Path.Combine(dir, "otel.js"), "import '@opentelemetry/api';\n");
+            File.WriteAllText(Path.Combine(dir, "apostrophe.tsx"), "<p>Don't</p>\nconst u = 'http://x'; console.log(value)\n");
+            File.WriteAllText(Path.Combine(dir, "otel-from.ts"), "import { trace } from '@opentelemetry/api';\n");
+            File.WriteAllText(Path.Combine(dir, "otel-require.cjs"), "const api = require('@opentelemetry/api');\n");
+            File.WriteAllText(Path.Combine(dir, "otel-dynamic.mjs"), "await import('@opentelemetry/api');\n");
+            File.WriteAllText(Path.Combine(dir, "dot-split.ts"), "console.\nlog(value)\n");
+            File.WriteAllText(Path.Combine(dir, "block.ts"), "/* console.log(value) */\n");
+            File.WriteAllText(Path.Combine(dir, "html.razor"), "<!-- @{ Console.WriteLine(Value); } -->\n");
+            File.WriteAllText(Path.Combine(dir, "comment-lines.ts"), "/*\n\n*/\nconsole.log(value)\n");
+            File.WriteAllText(Path.Combine(dir, "strings.ts"), "const u = 'http://x'; console.log(value)\nconst u = \"http://x\"; console.log(value)\nconst u = `http://x`; console.log(value)\n");
+            File.WriteAllText(Path.Combine(dir, "verbatim.cs"), "var p = @\"a\\\"; var u = \"//\"; Console.WriteLine(p);\n");
+            File.WriteAllText(Path.Combine(dir, "anchors.ts"), "console.warn('fixed'); console.log(value)\nconsole.log(value); console.warn('fixed')\n");
             foreach (var name in new[] { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories", "example.tests" })
             {
                 var skipped = Path.Combine(dir, name);
@@ -77,14 +132,21 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
                 File.WriteAllText(Path.Combine(laneDir, "emit.ts"), "console.log(value);\n");
             }
             var findings = Scan(root);
+            Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 2);
+            Assert.Contains(findings, row => row.Path == "projections/react/strings.ts" && row.Line == 3);
+            Assert.Contains(findings, row => row.Path == "projections/react/verbatim.cs" && row.Line == 1);
+            Assert.Contains(findings, row => row.Path == "projections/react/apostrophe.tsx" && row.Line == 2);
             Assert.Equal(ExpectedFindings, findings.Select(row => $"{row.Path}:{row.Line}"));
             Assert.True(findings.Single(row => row.Path == "projections/react/console.ts").Literal);
-            var allowed = new Dictionary<string, (int Count, string Reason)> { ["projections/react/variable.ts"] = (4, "fixture"), ["projections/react/activity.cs"] = (0, "fixture"), ["projections/react/missing.ts"] = (1, "fixture") };
+            var allowed = new Dictionary<string, (int Count, string Reason)> { ["projections/react/variable.ts"] = (4, "fixture"), ["projections/react/activity.cs"] = (0, "fixture"), ["projections/react/missing.ts"] = (1, "fixture"), ["projections/react/logger.cs"] = (2, "fixture"), ["projections/react/anchors.ts"] = (4, "fixture") };
             var errors = Violations(findings, allowed);
             Assert.Contains(errors, error => error.StartsWith("projections/react/variable.ts:1:", StringComparison.Ordinal));
             Assert.Contains("projections/react/console.ts:2: console.log('fixed')", errors);
             Assert.Contains("projections/react/activity.cs: expected 0 emit call(s), found 1", errors);
             Assert.Contains("projections/react/missing.ts: expected 1 emit call(s), found 0", errors);
+            Assert.Contains("projections/react/logger.cs: expected 2 emit call(s), found 1", errors);
+            Assert.All(findings.Where(row => row.Path == "projections/react/anchors.ts"), row => Assert.False(row.Literal));
             Assert.All(findings.Where(row => row.Path == "projections/react/variable.ts" || row.Path == "projections/react/interpolated.cs"), row => Assert.False(row.Literal));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
