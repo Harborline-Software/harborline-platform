@@ -1149,8 +1149,12 @@ public sealed class RecordWriteOperation
     /// after the source write committed and outside its transaction, so it never amends the source record. It is a
     /// principal's direct create in every other respect: the gate decides <paramref name="scope"/>'s create of the requested
     /// type first, and the bind, creation policy and validation are <see cref="CreateAsync"/>'s, so reaction provenance
-    /// bypasses no gate. The row keeps the source <c>operation_id</c>, and the operation key adds the reaction key as its
-    /// origin, so a redelivered event replays the reaction and two reactions to one source write each create their own record.
+    /// bypasses no gate. The row keeps the source <c>operation_id</c>, and the operation key adds an origin framing the
+    /// reaction key, the source event id and the effect id, so a redelivered effect replays its record and every other effect
+    /// creates its own: two reactions to one source write, two effects of one run, two committed events that share an
+    /// operation id, and a reaction to a reaction's own output event. No key collision stops a reaction chain; bounding a
+    /// cascade across reactions is the Workflow event-trigger start's (T-488/event-trigger-start), and the in-run loop bound
+    /// is the Workflow engine's <c>MaxIterations</c> (ADR 0135 A0).
     /// </summary>
     public async ValueTask<RecordWriteOutcome> CreateReactionAsync(RecordWriteScope scope, RecordReactionCreate reaction,
         CancellationToken cancellationToken = default)
@@ -1163,11 +1167,13 @@ public sealed class RecordWriteOperation
         ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Reaction.WorkflowVersion);
         ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Reaction.TriggerId);
         ArgumentNullException.ThrowIfNull(reaction.Source.OperationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Source.EventId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.EffectId);
         // A reaction works in its source write's tenant only.
         if (!StringComparer.Ordinal.Equals(scope.Tenant, reaction.Source.Tenant))
             throw new ArgumentException("A reaction writes in its source event's tenant.", nameof(scope));
         return await CreateKeyedAsync(scope, new(reaction.RecordTypeId, reaction.Source.OperationId, reaction.Body, reaction.Version),
-            reaction.Reaction.Origin, cancellationToken).ConfigureAwait(false);
+            reaction.Origin, cancellationToken).ConfigureAwait(false);
     }
 
     // One write after the gate allowed it: a principal's direct create (no originator) or an accepted command's completion

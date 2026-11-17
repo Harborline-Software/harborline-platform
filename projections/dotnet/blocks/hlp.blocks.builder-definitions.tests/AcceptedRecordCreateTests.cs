@@ -519,6 +519,41 @@ public sealed class AcceptedRecordCreateTests
         finally { Directory.Delete(directory, true); }
     }
 
+    // T-616/postcommit-reactions (ADR 0124 decision 3; DES-0019 K10): a direct create and an accepted command that share an
+    // operation id are two committed events with one principal, so one reaction scope handles both. Each event's reaction is
+    // its own work: neither is replayed as the other's (identical bodies) nor refused as its conflict (different bodies).
+    // Oracles: the literal operation id, principal and bodies sent here; the record count is the two sources plus two reactions.
+    [Theory]
+    [Trait("Proves", "platform")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Reactions_to_a_direct_and_an_accepted_create_sharing_an_operation_id_each_create_their_own_record(bool sameBody)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-shared-op-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var journal = new FileJournalRecordWriteStore(Path.Combine(directory, "records.json"));
+            var fixture = await Fixture.CreateAsync(journal: journal);
+            Assert.True((await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command())).Committed);
+            Assert.True((await fixture.Operation.CreateAsync(new(Tenant, Submitter), new("eam.meter", "op-accepted-1", Body()))).Committed);
+            var sources = await journal.ReadCommittedAsync(Tenant, 0);
+            Assert.Equal([("op-accepted-1", "alice"), ("op-accepted-1", "alice")], sources.Select(item => (item.OperationId, item.Principal)));
+            var reaction = new RecordReactionKey("wf.follow-up", "1.0.0", "on-created");
+            var secondBody = sameBody ? Body() : JsonNode.Parse("""{"asset_tag":"A-2","quantity":3,"notes":"spare"}""")!.AsObject();
+
+            var first = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[0], reaction, "effect-1", "eam.meter", Body()));
+            var second = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[1], reaction, "effect-1", "eam.meter", secondBody));
+
+            Assert.True(first.Committed);
+            Assert.Null(second.Refusal);
+            Assert.False(second.Replayed);
+            Assert.NotEqual(first.Receipt!.RecordId, second.Receipt!.RecordId);
+            Assert.Equal(4, (await journal.ReadCommittedAsync(Tenant, 0)).Count);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private static JsonObject Body() => JsonNode.Parse(ValidBody)!.AsObject();
 
     // The accepted command as the accepting store holds it: acceptance audit, form revision, the decision at acceptance and

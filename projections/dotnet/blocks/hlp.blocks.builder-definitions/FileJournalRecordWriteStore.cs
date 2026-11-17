@@ -586,6 +586,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     /// journal is the outbox: an event exists exactly when its entry committed, so a refused, faulted or replayed write
     /// publishes nothing new. A relay checkpoints a position only after its hand-off, and reading from an earlier position
     /// redelivers equal events, which consumers dedupe by <see cref="RecordCommittedEvent.EventId"/>.
+    /// <para>The position is this journal's own entry index, shared by every tenant in it, so one tenant's positions have
+    /// gaps; it is a private cursor into this file journal, not a portable event sequence. Not in this store: paging (each
+    /// read returns every later event), a durable relay checkpoint, and the host relay that hands events to Workflow
+    /// triggers.</para>
     /// </summary>
     /// <param name="tenant">The tenant whose events are read; no other tenant's entry is returned.</param>
     /// <param name="after">The last handed-off position, or 0 to read from the start.</param>

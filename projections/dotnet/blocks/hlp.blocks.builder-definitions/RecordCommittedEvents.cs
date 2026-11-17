@@ -42,19 +42,31 @@ public static class RecordCommittedEvents
 /// The Workflow trigger that reacts to a committed event (ADR 0124 decision 3): the Workflow's key and version plus its
 /// trigger id. Two reactions to one source write differ by it; a redelivered event replays the same reaction.
 /// </summary>
-public sealed record RecordReactionKey(string WorkflowKey, string WorkflowVersion, string TriggerId)
-{
-    // The operation key's origin frame. Its own frames make it injective, and its prefix keeps it apart from
-    // RecordWriteOperationKey.AcceptedCommandOrigin.
-    internal string Origin => "reaction:" + RecordWriteOperationKey.Framed(WorkflowKey)
-        + RecordWriteOperationKey.Framed(WorkflowVersion) + RecordWriteOperationKey.Framed(TriggerId);
-}
+public sealed record RecordReactionKey(string WorkflowKey, string WorkflowVersion, string TriggerId);
 
 /// <summary>A reaction's new record: created from a committed event, never written into the event's source record.</summary>
-/// <param name="Source">The committed event the reaction answers; its <c>operation_id</c> is kept (records-run-3).</param>
+/// <param name="Source">
+/// The committed event the reaction answers, exactly as <see cref="FileJournalRecordWriteStore.ReadCommittedAsync"/> read it;
+/// its <c>operation_id</c> is kept (records-run-3) and its <see cref="RecordCommittedEvent.EventId"/> is the source identity
+/// of the reaction's key. The event is trusted input: the host relays it from the journal and Records does not look it up
+/// again.
+/// </param>
 /// <param name="Reaction">The reacting Workflow trigger.</param>
+/// <param name="EffectId">
+/// The effect's stable identity within the reacting run: the same on every retry or redelivery of that effect, and distinct
+/// for each effect the run makes. A Workflow step derives it from its <c>(instance, iteration, step)</c> key and a purpose
+/// when one step makes several effects (ADR 0135 decision 2, DES-0019 K10). Opaque to Records.
+/// </param>
 /// <param name="RecordTypeId">The Record Type of the new record.</param>
 /// <param name="Body">The new record's submitted body.</param>
 /// <param name="Version">An explicit published version pin, or null for the published head.</param>
-public sealed record RecordReactionCreate(RecordCommittedEvent Source, RecordReactionKey Reaction, string RecordTypeId,
-    JsonObject Body, string? Version = null);
+public sealed record RecordReactionCreate(RecordCommittedEvent Source, RecordReactionKey Reaction, string EffectId, string RecordTypeId,
+    JsonObject Body, string? Version = null)
+{
+    // The operation key's origin frame: the reacting trigger, the source event and the effect. Its own frames make it
+    // injective, and its prefix keeps it apart from RecordWriteOperationKey.AcceptedCommandOrigin. Distinct source events
+    // that share an operation id, a reaction's own output event, and two effects of one run each key their own write.
+    internal string Origin => "reaction:" + RecordWriteOperationKey.Framed(Reaction.WorkflowKey)
+        + RecordWriteOperationKey.Framed(Reaction.WorkflowVersion) + RecordWriteOperationKey.Framed(Reaction.TriggerId)
+        + RecordWriteOperationKey.Framed(Source.EventId) + RecordWriteOperationKey.Framed(EffectId);
+}
