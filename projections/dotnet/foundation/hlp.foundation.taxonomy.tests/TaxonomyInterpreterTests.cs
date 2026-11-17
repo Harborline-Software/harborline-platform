@@ -25,6 +25,7 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandWholeScheme(null!)).ParamName);
         Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(null!, "branch")).ParamName);
         Assert.Equal("collectionName", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(definition, null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(null!, null!)).ParamName);
         Assert.Equal("overlay", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(null!, definition)).ParamName);
         Assert.Equal("vendor", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(definition, null!)).ParamName);
         Assert.Equal("previous", Assert.Throws<ArgumentNullException>(() => interpreter.Diff(null!, definition)).ParamName);

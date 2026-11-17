@@ -247,6 +247,84 @@ public sealed class CodingSubsumptionTests
             Assert.Equal(ValueState.Pending, evaluator.EvaluateValue(Rule(expression), Facts("""{"@pending":true}"""), RuleEvalScope.Root, TestAdmission.Any).State);
     }
 
+    [Theory]
+    [InlineData("""{"missing_some":[1,[null,false,3,[],{}]]}""", """["","false","3","[]","{}"]""")]
+    [InlineData("""{"!!":[""]}""", "false")]
+    [InlineData("""{"!!":["0"]}""", "true")]
+    [InlineData("""{"!!":[0]}""", "false")]
+    [InlineData("""{"!!":[2]}""", "true")]
+    [InlineData("""{"+":[true,2]}""", "3")]
+    [InlineData("""{"+":[false,2]}""", "2")]
+    [InlineData("""{"==":[true,1]}""", "true")]
+    [InlineData("""{"==":[false,0]}""", "true")]
+    [InlineData("""{"===":[[1],[1]]}""", "true")]
+    [InlineData("""{"===":[[1],[2]]}""", "false")]
+    [InlineData("""{"==":[[1],[1]]}""", "true")]
+    [InlineData("""{"==":[[1],[2]]}""", "false")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"date.add":["2026-01-01",1,{"var":"coding"}]}""", "\"2026-01-02\"")]
+    [InlineData("""{"money.mul":["0.005","3"]}""", "\"0.015\"")]
+    public void V1_agreed_operator_semantics_match_literal_parity_corpus(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Null(result.Error);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "\"invalid\"", "op", "money")]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "1.5", "op", "money")]
+    [InlineData("""{"date.add":[{"var":"coding"},1,"day"]}""", "\"invalid\"", "op", "date.add")]
+    [InlineData("""{"date.diff":[{"var":"coding"},"2026-01-01"]}""", "\"invalid\"", "op", "date.diff")]
+    [InlineData("""{"+":[{"var":"coding"},1]}""", "null", "reason", "null-as-number")]
+    [InlineData("""{"*":[{"var":"coding"},{"var":"coding"}]}""", "1e308", "reason", "non-finite")]
+    public void V1_error_values_match_literal_parity_corpus(string expression, string input, string parameter, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        var pair = Assert.Single(result.Error.Params);
+        Assert.Equal(parameter, pair.Key);
+        Assert.Equal(expected, pair.Value);
+    }
+
+    [Fact]
+    public void V1_numeric_money_accepts_an_exact_small_integer()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts("1.0"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal("2", result.Value!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":["12345"]}""", 7, "12345")]
+    [InlineData("""{"money.add":["12345"]}""", 6, null)]
+    [InlineData("""{"money.mul":["123","456"]}""", 14, "56088")]
+    [InlineData("""{"money.mul":["123","456"]}""", 13, null)]
+    public void V1_money_charges_each_operand_and_result_mantissa(string expression, int steps, string? expected)
+    {
+        var evaluator = new GuardEvaluator(Clock, RuleEngineLimits.Default with { StepBudget = steps });
+        var rule = RuleDefinitionFactory.Create("v1-money-budget", RuleTier.JsonLogic, RuleScope.Field, "out", expression, RuleActionKind.Compute);
+        var result = evaluator.EvaluateValue(rule, Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        if (expected is null)
+        {
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.budget_exceeded", result.Error!.Code);
+            var pair = Assert.Single(result.Error.Params);
+            Assert.Equal("rule", pair.Key);
+            Assert.Equal("v1-money-budget", pair.Value);
+        }
+        else
+        {
+            Assert.Equal(ValueState.Resolved, result.State);
+            Assert.Equal(expected, result.Value!.GetValue<string>());
+        }
+    }
+
     [Fact]
     public void Missing_some_preserves_the_bad_reference_identity()
     {

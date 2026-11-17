@@ -45,6 +45,14 @@ function wire(bindings: Json = [binding], answers: Json = [['s', 'a', 'd', true]
 const read = (pair: ReturnType<typeof wire>) => CodingSubsumptionSnapshot.fromJsonText(pair.actual, pair.expected)
 
 describe('T-493 finite pinned coding reader', () => {
+  it('pins the malformed binding diagnostic without a foreign iteration cause', () => {
+    let failure: unknown
+    try { read(wire({})) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(TypeError)
+    expect(failure).toMatchObject({ message: 'Invalid pinned Taxonomy coding capture' })
+    expect(failure).not.toHaveProperty('cause')
+  })
+
   it('refuses nontext capture arguments before reading caller properties', () => {
     let reads = 0
     const nontext = new Proxy({}, { get() { reads++; throw new Error('caller property read') } })
@@ -268,6 +276,58 @@ describe('T-493 coding evaluation', () => {
     [{ if: [{}, true, false] }, false],
   ])('v1 empty object is falsy in every logical operator: %j', (expression, expected) => {
     expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
+  })
+
+  it.each([
+    ['{"missing_some":[1,[null,false,3,[],{}]]}', '["","false","3","[]","{}"]'],
+    ['{"!!":[""]}', 'false'],
+    ['{"!!":["0"]}', 'true'],
+    ['{"!!":[0]}', 'false'],
+    ['{"!!":[2]}', 'true'],
+    ['{"+":[true,2]}', '3'],
+    ['{"+":[false,2]}', '2'],
+    ['{"==":[true,1]}', 'true'],
+    ['{"==":[false,0]}', 'true'],
+    ['{"===":[[1],[1]]}', 'true'],
+    ['{"===":[[1],[2]]}', 'false'],
+    ['{"==":[[1],[1]]}', 'true'],
+    ['{"==":[[1],[2]]}', 'false'],
+    ['{"===":[{"a":1,"b":2},{"a":1,"b":2}]}', 'true'],
+    ['{"===":[{"a":1,"b":2},{"b":2,"a":1}]}', 'false'],
+    ['{"==":[{"a":1,"b":2},{"a":1,"b":2}]}', 'true'],
+    ['{"==":[{"a":1,"b":2},{"b":2,"a":1}]}', 'false'],
+    ['{"date.add":["2026-01-01",1,{"var":"coding"}]}', '"2026-01-02"'],
+    ['{"money.mul":["0.005","3"]}', '"0.015"'],
+  ])('v1 agreed operator semantics match literal parity corpus: %s', (expression, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(JSON.parse(expression) as Json), RuleContextSnapshot.fromJsonText('{"coding":null}'), admission))
+      .toEqual({ state: 'Resolved', value: JSON.parse(expected) as Json })
+  })
+
+  it.each([
+    ['{"money.add":[{"var":"coding"},"1"]}', '"invalid"', 'op', 'money'],
+    ['{"money.add":[{"var":"coding"},"1"]}', '1.5', 'op', 'money'],
+    ['{"date.add":[{"var":"coding"},1,"day"]}', '"invalid"', 'op', 'date.add'],
+    ['{"date.diff":[{"var":"coding"},"2026-01-01"]}', '"invalid"', 'op', 'date.diff'],
+    ['{"+":[{"var":"coding"},1]}', 'null', 'reason', 'null-as-number'],
+    ['{"*":[{"var":"coding"},{"var":"coding"}]}', '1e308', 'reason', 'non-finite'],
+  ])('v1 error values match literal parity corpus: %s with %s', (expression, input, parameter, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(JSON.parse(expression) as Json), RuleContextSnapshot.fromJsonText(`{"coding":${input}}`), admission))
+      .toEqual({ state: 'Error', error: { code: 'rule.type_error', params: { [parameter]: expected } } })
+  })
+
+  it('v1 numeric money accepts an exact small integer', () => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule({ 'money.add': [{ var: 'coding' }, '1'] }), RuleContextSnapshot.fromJsonText('{"coding":1.0}'), admission))
+      .toEqual({ state: 'Resolved', value: '2' })
+  })
+
+  it.each([
+    ['{"money.add":["12345"]}', 7, '12345'],
+    ['{"money.add":["12345"]}', 6, null],
+    ['{"money.mul":["123","456"]}', 14, '56088'],
+    ['{"money.mul":["123","456"]}', 13, null],
+  ] as const)('v1 money charges each operand and result mantissa: %s at %s', (expression, stepBudget, expected) => {
+    expect(new GuardEvaluator(clock, { ...limits, stepBudget }).evaluateValue({ ...rule(JSON.parse(expression) as Json), id: 'v1-money-budget' }, context(null), admission))
+      .toEqual(expected === null ? { state: 'Error', error: { code: 'rule.budget_exceeded', params: { rule: 'v1-money-budget' } } } : { state: 'Resolved', value: expected })
   })
 
   it('keeps taxonomy traversal and callback-like operators outside the grammar', () => {
