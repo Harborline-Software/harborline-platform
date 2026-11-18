@@ -489,3 +489,14 @@ it('reports-auth-8 emits the validated datetime without surrounding whitespace',
   fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
   expect(change).toHaveBeenCalledWith({ tenant: 't', key: 'r', version: '1', measures: [], parameters: [{ name: 'when', type: 'date_time', default: { kind: 'datetime', type: 'date_time', is_valid: true, value: '2026-01-01T00:00:00Z' } }] })
 })
+
+it.each(['2026-01-01T24:00:00Z', '2026-01-01T00:60:00Z', '2026-01-01T00:00:60Z'])('reports-auth-8 refuses the out-of-range time %s', text => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'when' } })
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: 'date_time' } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: text } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change).not.toHaveBeenCalled()
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid default.')
+})

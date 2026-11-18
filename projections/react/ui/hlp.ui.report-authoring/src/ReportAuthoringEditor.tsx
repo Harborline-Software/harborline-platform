@@ -7,10 +7,11 @@ export interface ReportRefusal { code: string; pointer: string; measure?: string
 export interface ReportAuthoringEditorProps { value: ReportDraft | null; resolveMeasures?: (query: string) => Promise<readonly MeasureOption[]>; onCreate: (draft: ReportDraft) => void; onChange: (value: ReportDraft) => void; refusals?: readonly ReportRefusal[]; readOnly?: boolean; revision?: string | null }
 const realDateTime = (text: string) => {
   const [year, month, day] = text.slice(0, 10).split('-').map(Number)
+  const [hour, minute, second] = text.slice(11, 19).split(':').map(Number)
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
   const offset = /([+-])(\d{2}):(\d{2})$/.exec(text)
-  return year >= 1 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day && (!offset || Number(offset[2]) * 60 + Number(offset[3]) <= 840) && !Number.isNaN(Date.parse(text))
+  return hour < 24 && minute < 60 && second < 60 && year >= 1 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day && (!offset || Number(offset[2]) * 60 + Number(offset[3]) <= 840) && !Number.isNaN(Date.parse(text))
 }
 export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasures, refusals = [], readOnly = false, revision = null }: ReportAuthoringEditorProps) {
   const current = useRef(value)

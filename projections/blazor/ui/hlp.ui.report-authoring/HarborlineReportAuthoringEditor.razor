@@ -63,7 +63,7 @@ else {
             "boolean" when bool.TryParse(parameterDefault, out var b) => b,
             "integer" when long.TryParse(parameterDefault, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) && i is >= -9007199254740991 and <= 9007199254740991 => i,
             "float" when double.TryParse(parameterDefault, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) => d,
-            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(parameterDefault, @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$") && DateTimeOffset.TryParse(parameterDefault, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => parameterDefault,
+            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(parameterDefault, @"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$") && DateTimeOffset.TryParse(parameterDefault, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => parameterDefault,
             "string" => parameterDefault,
             _ => null,
         };

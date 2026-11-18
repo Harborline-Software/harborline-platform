@@ -419,6 +419,22 @@ public sealed class ReportAuthoringTests : BunitContext
         Assert.True(cut.Find("[aria-label='Add parameter']").HasAttribute("disabled"));
     }
 
+    [Theory(DisplayName = "reports-auth-8 refuses out-of-range datetime time parts")]
+    [InlineData("2026-01-01T24:00:00Z")]
+    [InlineData("2026-01-01T00:60:00Z")]
+    [InlineData("2026-01-01T00:00:60Z")]
+    public void RejectsOutOfRangeDatetimeTimeParts(string text)
+    {
+        var changed = false;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, _ => changed = true));
+        cut.Find("[aria-label='Parameter name']").Change("when");
+        cut.Find("[aria-label='Parameter type']").Change("date_time");
+        cut.Find("[aria-label='Parameter default']").Change(text);
+        cut.Find("[aria-label='Add parameter']").Click();
+        Assert.False(changed);
+        Assert.Equal("Enter a valid default.", cut.Find("[role='alert']").TextContent);
+    }
+
     [Theory(DisplayName = "reports-auth-8 refuses an impossible calendar datetime")]
     [InlineData("2026-02-30T00:00:00Z")]
     [InlineData("2026-02-29T00:00:00Z")]
