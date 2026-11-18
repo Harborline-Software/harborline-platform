@@ -8,6 +8,37 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class BoundedExpansionTests
 {
+    [Fact]
+    public void OldAnchorCountReturnsOnlyRemainingOccurrencesInWindow()
+    {
+        var request = Request("FREQ=DAILY;COUNT=2925");
+        request = request with
+        {
+            Series = request.Series with { LocalStart = new(2018, 1, 1, 9, 0, 0) },
+            From = new(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
+            To = new(2026, 1, 4, 23, 59, 59, TimeSpan.Zero),
+        };
+        var result = Query(request, new InMemoryRruleExpansionService());
+        Assert.Equal(2, result.Count);
+        Assert.Equal([new DateTimeOffset(2026, 1, 2, 9, 0, 0, TimeSpan.Zero),
+            new(2026, 1, 3, 9, 0, 0, TimeSpan.Zero)], result.Select(occurrence => occurrence.Due));
+        Assert.Equal([new DateTime(2026, 1, 2, 9, 0, 0), new(2026, 1, 3, 9, 0, 0)],
+            result.Select(occurrence => occurrence.RecurrenceLocal));
+    }
+
+    [Fact]
+    public void OldAnchorCountExhaustedBeforeWindowReturnsNone()
+    {
+        var request = Request("FREQ=DAILY;COUNT=2922");
+        request = request with
+        {
+            Series = request.Series with { LocalStart = new(2018, 1, 1, 9, 0, 0) },
+            From = new(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
+            To = new(2026, 1, 4, 23, 59, 59, TimeSpan.Zero),
+        };
+        Assert.Empty(Query(request, new InMemoryRruleExpansionService()));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

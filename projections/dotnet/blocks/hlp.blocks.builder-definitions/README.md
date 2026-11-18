@@ -513,7 +513,64 @@ while it holds the store's execution claim on the command. In order:
 refusals and `records.write.receipt_unsupported` stay pending, every other refusal is terminal. The three
 `records.command.*` spellings are provisional (ADR-0110 open item 7).
 
-This slice does not build Mutate, Rules or React.
+The bounded create slice built none of Mutate, Rules or React. T-616/prevalidation-mutation later built Mutate's
+creation defaults and derived fields (interface revision 31, `recordDerivedFields`), and T-616/postcommit-reactions builds
+React's committed events and reaction writes (next section). Rules is still not built here.
+
+## Records committed events and reactions (T-616/postcommit-reactions)
+
+Interface revision 37, `recordsCommittedEvents` (ADR-0038 React stage, ADR 0124 decisions 2 and 3, ADR 0131 decision 2,
+ADR-0154 decisions 1 and 3, DES-0015 `records-run-3`).
+
+**Committed events.** The committed journal is the transactional outbox.
+`FileJournalRecordWriteStore.ReadCommittedAsync(tenant, after)` returns, in commit order, one `RecordCommittedEvent` per
+committed entry of the tenant after the 1-based position `after`. The position is the file journal's own entry index,
+shared by every tenant: a private cursor with gaps per tenant, not a portable sequence. Each read returns every later
+event; there is no paging and no durable checkpoint. An event carries `Position`, `EventId` (the source operation's
+idempotency key, the consumer's dedupe key), `EventType` (`records.record.created` for revision 1,
+`records.record.updated` for a later temporal revision), `Tenant`, `RecordTypeId`, `RecordId`, `Version`, `Revision`,
+`OperationId`, `Principal` and `Executor`. Every field is read from the committed row, so a redelivery equals the first
+delivery. A refused, faulted or rolled-back write publishes nothing, and a replay publishes nothing again. `Principal` is
+an accepted command's submitter, with its worker as `Executor`; for a direct write it is the caller, with a null
+`Executor`.
+
+**Reactions.** `RecordWriteOperation.CreateReactionAsync(scope, RecordReactionCreate)` is the React stage's only write. It
+creates a new record from a committed event and never amends the event's source record. It runs the direct create's
+gate, creation gate, bind, mutate and validate path unchanged, in the event's tenant, and keeps the source
+`operation_id`.
+
+- **Identity check.** After the gate decides, the scope's caller must be the event's `Principal`, and
+  `RecordReactionCreate.Executor` (optional, null by default) must equal the event's `Executor`: the host passes the
+  event's executor back unchanged, never the reacting run's own worker. A reaction to an accepted command's event acts
+  for the submitter, with the command's worker as executor; a reaction to a direct write's event acts as its caller,
+  with no executor, even when a worker runs the reaction. Both compare ordinally, so a case variant, or an empty string
+  for a null executor, is another identity. Any other pair refuses `records.command.binding_mismatch` at bind and
+  persists nothing. Records checks the executor but does not record it yet.
+- **Key.** The operation key is the scope's tenant, caller and source operation id, with the origin `reaction:`
+  followed by these length frames: the `RecordReactionKey` (`WorkflowKey`, `WorkflowVersion`, `TriggerId`), the source
+  `EventId`, then the `RecordReactionEffect` parts `InstanceId`, `Iteration` (invariant digits), `Step` and `Purpose`.
+  The effect is the run step's `(instance, iteration, step)`, as the Workflow engine's `WorkflowStepKey` holds it
+  (`hlp.blocks.workflow` `WorkflowStepKey.cs:10`), plus the purpose that tells one step's effects apart (DES-0019 K10).
+  `WorkflowStepKey.Value` joins the three parts with `:` and no framing, so Records frames each part separately. Two
+  effects whose joined text matches never share a key.
+- **Replay.** A redelivered effect replays its record, and another body for it refuses `records.write.replay_conflict`.
+  Each of the following creates its own record: another reaction key, another effect of one run, or another committed
+  event that shares the operation id (a direct and an accepted-command create, or a reaction's own output event).
+  Direct-create and accepted-command keys are byte-unchanged.
+- **Host requirement on T-488/event-trigger-start.** The instance id must be the same on every redelivery of one source
+  event to one trigger. Derive it from that event and trigger; never mint it fresh. A fresh instance id is a new effect
+  and a second record.
+- **Bounds.** No key collision stops a reaction chain. The in-run loop bound is the Workflow engine's `MaxIterations`
+  (platform ADR 0135 A0, `WorkflowEngineOptions.cs:4`). Bounding a cascade of reactions across runs belongs to
+  T-488/event-trigger-start.
+
+Not built here:
+
+- the host composition that relays committed events to Workflow Event triggers;
+- the relay's checkpoint;
+- paging;
+- the ADR-0154 reaction identities in the row, journal binding and audit (T-616/reaction-write-identities, control
+  #1534). Today a reaction's row records only the caller.
 
 ## Configuration generations (T-459)
 
