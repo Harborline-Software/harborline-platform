@@ -15,13 +15,16 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     // between the receiver and the member (console /* x */ .log) from slipping past. The browser network sinks
     // (fetch, fetchLater, XMLHttpRequest, WebSocket, WebTransport, RTCPeerConnection, EventSource, sendBeacon, an Image
     // or src/srcset beacon, a form submit, a navigation through location or open, a CSS url() that is not one literal),
-    // the .NET network types, and a URL attribute (src, href, action, ...) whose JSX {...} or Razor @ value is not one
-    // string literal count as emits too.
+    // the .NET network types, a navigation (NavigationManager.NavigateTo, the browser Navigation API), a URL attribute
+    // (src, href, action, ...) whose JSX {...} or Razor @ value is not one string literal, and a JSX {...spread} or Razor
+    // @attributes on an element that loads a URL count as emits too.
     private static readonly Regex Emit = new(@"\b(?:console\b|Console\b|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|sendBeacon\b|fetch\b|fetchLater\b|XMLHttpRequest\b|WebSocket\b|WebTransport\b|RTCPeerConnection\b|requestSubmit\b|submit\s*\(|Image\b|using\s+static\s+System\s*\.\s*Diagnostics\s*\.\s*(?:Debug|Trace)\b"
         + @"|location\s*(?:\??\.\s*[\w$]+\s*)?(?:=(?!=)|\[)|location\s*\??\.\s*(?:assign|replace)\b|open\s*\(|(?:window|self|globalThis)\s*\??\.\s*open\b|url\s*\(\s*(?!(?<q>['""]?)[^'""$@{}()+\r\n]*\k<q>\s*\))"
-        + @"|System\s*\.\s*Net\s*\.\s*(?:Http|Sockets|WebSockets)\b|JSImport\b|JSHost\b)|Http(?:Client|MessageHandler)|WebClient|WebRequest|Socket|TcpClient|UdpClient|HttpListener"
+        + @"|System\s*\.\s*Net\s*\.\s*(?:Http|Sockets|WebSockets)\b|JSImport\b|JSHost\b|NavigateTo\b|navigation\s*\??\.\s*(?:navigate|reload|traverseTo|back|forward)\b)"
+        + @"|Http(?:Client|MessageHandler)|WebClient|WebRequest|Socket|TcpClient|UdpClient|HttpListener"
         + @"|@opentelemetry/|\.\s*src(?:set)?\s*=(?!=)|setAttribute\s*\(\s*['""`]src(?:set)?['""`]"
-        + @"|(?<![\w$.\-])(?i:src|srcset|href|action|formaction|poster|data|ping|background)\s*=\s*(?:\{(?!\s*(?:'[^'\\\r\n]*'|""[^""\\\r\n]*"")\s*\})|""[^""\r\n]*@|'[^'\r\n]*@|@)", RegexOptions.Compiled);
+        + @"|(?<![\w$.\-])(?i:src|srcset|href|action|formaction|poster|data|ping|background)\s*=\s*(?:\{(?!\s*(?:'[^'\\\r\n]*'|""[^""\\\r\n]*"")\s*\})|""[^""\r\n]*@|'[^'\r\n]*@|@)"
+        + @"|(?=\{\s*\.\.\.|@attributes\b)(?<=<(?:img|a|script|iframe|link|source|form|video|audio|object|embed)\b(?:[^<>]|=>)*)", RegexOptions.Compiled);
     // Every import, export, require or dynamic import in a JS-family file reads one string-literal specifier from the
     // comment-blanked text; a site that is neither one of these forms nor a plain declaration is a finding.
     private static readonly HashSet<string> ScriptExtensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs" };
@@ -32,8 +35,9 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static readonly Regex ImportForm = new(@"\G(?:import(?<type>\s+type(?=\s*[{*]|\s+(?!from\b)[\w$]))?\s*(?:[\w$]+\s*,?\s*)?(?:\*\s*as\s+[\w$]+\s*|\{[^}]*\}\s*)?from\s*" + Literal
         + @"|import\s*" + Literal + @"|import\s*\(\s*" + Literal + @"\s*[,)]|export(?<type>\s+type)?\s*(?:\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*" + Literal + @"|require\s*\(\s*" + Literal + @"\s*\))", RegexOptions.Compiled);
     private static readonly Regex NotAnImport = new(@"\G(?:import\s*\.\s*meta\b|import(?:\s+type)?\s+[\w$]+\s*=\s*(?=require\b)|export\s+(?:(?:default|const|let|var|function|class|async|abstract|declare|enum|interface|namespace|module)\b|type\s+[\w$]+\s*[=<])|export\s*=|export(?:\s+type)?\s*\{[^}]*\}(?!\s*from\b)|require\b(?!\s*\())", RegexOptions.Compiled);
-    // A Blazor JS interop call: its first argument names the JS function, or is not a literal at all.
-    private static readonly Regex Interop = new(@"\bInvoke(?:Void(?:Async)?|Async|\s*(?=<))\s*(?:<(?:[^<>()]|<[^<>()]*>)*>)?\s*\(\s*(?:""(?<name>[^""\\\r\n]*)""|(?<arg>[^\s)]))", RegexOptions.Compiled);
+    // A Blazor JS interop call: its first argument is one complete string literal that names the JS function, or it is
+    // anything else ("fe" + "tch", $"...", @"...", a variable), which the scan cannot read.
+    private static readonly Regex Interop = new(@"\bInvoke(?:Void(?:Async)?|Async|\s*(?=<))\s*(?:<(?:[^<>()]|<[^<>()]*>)*>)?\s*\(\s*(?:""(?<name>[^""\\\r\n]*)""(?=\s*[,)])|(?<arg>[^\s)]))", RegexOptions.Compiled);
     private static readonly Regex GlobalSink = new(@"\.|^(?:open|eval|Function|import|importScripts|setTimeout|setInterval|postMessage|location|fetch|fetchLater|sendBeacon|XMLHttpRequest|WebSocket|EventSource|WebTransport|RTCPeerConnection|Image|Reflect|globalThis|window|self|document|navigator|top|parent|opener|frames)$", RegexOptions.Compiled);
     private static readonly Regex ContentModule = new(@"\G""\s*,\s*(?:[\w.]+\s*,\s*)?""\./_content/[^""\\\r\n]*""\s*\)", RegexOptions.Compiled);
     private static readonly Regex LiteralCall = new("""^[A-Za-z_][\w.]*\s*\(\s*(?:'(?:[^'\\\r\n]|\\.)*'|"(?:[^"\\\r\n]|\\.)*")(?:\s*,\s*(?:'(?:[^'\\\r\n]|\\.)*'|"(?:[^"\\\r\n]|\\.)*"))*\s*\)\s*;?$""", RegexOptions.Compiled);
@@ -52,6 +56,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/blazor/member/GroupConditional.test.cs:1",
         "projections/blazor/member/ValueLeak.test.cs:1",
         "projections/blazor/member/WhenRemoved.test.cs:1",
+        "projections/blazor/order/Order.test.cs:1",
         "projections/blazor/pkg/Default.test.cs:1",
         "projections/react/activity.cs:1",
         "projections/react/after-hole.ts:1",
@@ -92,6 +97,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/interop.razor:6",
         "projections/react/interop.razor:7",
         "projections/react/interop.razor:8",
+        "projections/react/interop.razor:10",
+        "projections/react/interop.razor:11",
         "projections/react/interpolated.cs:1",
         "projections/react/interpolation-hole.cs:1",
         "projections/react/logger.cs:1",
@@ -120,6 +127,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/sinks.cs:4",
         "projections/react/sinks.cs:5",
         "projections/react/sinks.cs:6",
+        "projections/react/sinks.cs:7",
         "projections/react/sinks.ts:1",
         "projections/react/sinks.ts:2",
         "projections/react/sinks.ts:3",
@@ -132,7 +140,12 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/sinks.ts:10",
         "projections/react/sinks.ts:11",
         "projections/react/sinks.ts:12",
+        "projections/react/sinks.ts:14",
         "projections/react/source.cs:1",
+        "projections/react/spread.razor:1",
+        "projections/react/spread.razor:4",
+        "projections/react/spread.tsx:1",
+        "projections/react/spread.tsx:3",
         "projections/react/static.cs:1",
         "projections/react/static.cs:2",
         "projections/react/static.cs:3",
@@ -204,6 +217,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         [("projections/blazor/ui/hlp.ui.popover/wwwroot/popover.js", "// the content carries data-hl-popover-open (set last in connect(), removed first in dispose()).")] = "comment naming the data-hl-popover-open attribute",
         [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaCollection.razor", "<HarborlineSchemaItems Action=\"@Action\" ByField=\"@ByField\" Disabled=\"@Disabled\" FieldFocused=\"@FieldFocused\"")] = "Action is an EventCallback<SchemaFormAction> component parameter, not an HTML action attribute",
         [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaForm.razor", "<HarborlineSchemaSection @key=\"section.Id\" Action=\"@HandleAction\" ByField=\"@byField\"")] = "Action is an EventCallback<SchemaFormAction> component parameter, not an HTML action attribute",
+        [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaForm.razor", "@attributes=\"AdditionalAttributes\">")] = "the consumer's unmatched attributes on the form; @onsubmit:preventDefault stops native submission, so an action or formaction passed in is never requested",
         [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaItems.razor", "<HarborlineSchemaItems Action=\"@Action\" ByField=\"@ByField\" Disabled=\"@Disabled\" FieldFocused=\"@FieldFocused\"")] = "Action is an EventCallback<SchemaFormAction> component parameter, not an HTML action attribute",
         [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaItems.razor", "<HarborlineSchemaCollection @key=\"collection.Key\" Action=\"@Action\" ByField=\"@ByField\"")] = "Action is an EventCallback<SchemaFormAction> component parameter, not an HTML action attribute",
         [("projections/blazor/ui/hlp.ui.schema-form/HarborlineSchemaSection.razor", "<HarborlineSchemaItems Action=\"@Action\" ByField=\"@ByField\" Disabled=\"@Disabled\" FieldFocused=\"@FieldFocused\"")] = "Action is an EventCallback<SchemaFormAction> component parameter, not an HTML action attribute",
@@ -358,12 +372,19 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(blazor, "late", "Late.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><IsPackable>false</IsPackable></PropertyGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "late", "Directory.Build.targets"), "<Project><PropertyGroup><IsPackable>true</IsPackable></PropertyGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "late", "Late.test.cs"), "Console.WriteLine(value);\n");
+            // MSBuild assigns properties in document order: a later IsPackable, of any value or condition, replaces the false.
+            Directory.CreateDirectory(Path.Combine(blazor, "order"));
+            File.WriteAllText(Path.Combine(blazor, "order", "Order.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><IsPackable>false</IsPackable></PropertyGroup><PropertyGroup><IsPackable>true</IsPackable></PropertyGroup></Project>\n");
+            File.WriteAllText(Path.Combine(blazor, "order", "Order.test.cs"), "Console.WriteLine(value);\n");
             // A URL attribute whose value is not one string literal can carry a value off the page.
             File.WriteAllText(Path.Combine(dir, "url-attr.tsx"), "<img src={'https://x.invalid/p?v=' + value} />\n<img src={'https://x.invalid/fixed.png'} />\n<a href=\"/fixed\">x</a>\n<img srcSet={`${base}/a.png 2x`} />\n");
             File.WriteAllText(Path.Combine(dir, "url-attr.razor"), "<img src=\"https://x.invalid/p?v=@Value\" />\n<img src=\"/fixed.png\" />\n<a href=@Value>x</a>\n<form action=\"@Target\"></form>\n");
-            File.WriteAllText(Path.Combine(dir, "sinks.ts"), "fetchLater(url, { method: 'POST', body: value });\nconst transport = new WebTransport(url + value);\nconst peer = new RTCPeerConnection(config);\nconst stream = new EventSource(url + value);\nform.submit();\nform.requestSubmit();\nlocation = url + value;\nwindow.location.href = url + value;\nlocation.assign(url + value);\nlocation.replace(url + value);\nwindow.open(url + value);\nconst style = { backgroundImage: `url(${url + value})` };\nconst path = location.pathname; const css = 'url(/fixed.png)';\n");
-            File.WriteAllText(Path.Combine(dir, "sinks.cs"), "using var client = new HttpClient();\nvar web = new WebClient();\nvar request = HttpWebRequest.Create(url);\nvar socket = new Socket(family, type, protocol);\nvar tcp = new TcpClient(host, port);\nusing System.Net.Http;\n");
-            File.WriteAllText(Path.Combine(dir, "interop.razor"), "@inject IJSRuntime JS\n@code {\n  private IJSObjectReference? module;\n  async Task A() { module = await JS.InvokeAsync<IJSObjectReference>(\"import\", \"./_content/Harborline.UIAdapters.Blazor/a.js\"); }\n  async Task B() => await JS.InvokeVoidAsync(\"open\", url + value);\n  async Task C() => await module!.InvokeVoidAsync(name, value);\n  async Task D() => await JS.InvokeAsync<IJSObjectReference>(\"import\", \"https://x.invalid/m.js?v=\" + value);\n  async Task E() => await InvokeModuleAsync(js => js.InvokeVoidAsync(call, value));\n  async Task F() => await OnChange.InvokeAsync(value);\n  [Parameter] public EventCallback<string> OnChange { get; set; }\n}\n");
+            File.WriteAllText(Path.Combine(dir, "sinks.ts"), "fetchLater(url, { method: 'POST', body: value });\nconst transport = new WebTransport(url + value);\nconst peer = new RTCPeerConnection(config);\nconst stream = new EventSource(url + value);\nform.submit();\nform.requestSubmit();\nlocation = url + value;\nwindow.location.href = url + value;\nlocation.assign(url + value);\nlocation.replace(url + value);\nwindow.open(url + value);\nconst style = { backgroundImage: `url(${url + value})` };\nconst path = location.pathname; const css = 'url(/fixed.png)';\nnavigation.navigate(url + value);\n");
+            File.WriteAllText(Path.Combine(dir, "sinks.cs"), "using var client = new HttpClient();\nvar web = new WebClient();\nvar request = HttpWebRequest.Create(url);\nvar socket = new Socket(family, type, protocol);\nvar tcp = new TcpClient(host, port);\nusing System.Net.Http;\nNavigation.NavigateTo(url + value);\n");
+            // A spread on an element that loads a URL can set src, href or action from a value the scan cannot see.
+            File.WriteAllText(Path.Combine(dir, "spread.tsx"), "<img {...props} />\n<a className=\"x\" onClick={() => go()}\n  {...rest}>x</a>\n<div {...props} />\n");
+            File.WriteAllText(Path.Combine(dir, "spread.razor"), "<img @attributes=\"Extra\" />\n<div @attributes=\"Extra\"></div>\n<a href=\"/fixed\"\n   @attributes=\"Extra\">x</a>\n");
+            File.WriteAllText(Path.Combine(dir, "interop.razor"), "@inject IJSRuntime JS\n@code {\n  private IJSObjectReference? module;\n  async Task A() { module = await JS.InvokeAsync<IJSObjectReference>(\"import\", \"./_content/Harborline.UIAdapters.Blazor/a.js\"); }\n  async Task B() => await JS.InvokeVoidAsync(\"open\", url + value);\n  async Task C() => await module!.InvokeVoidAsync(name, value);\n  async Task D() => await JS.InvokeAsync<IJSObjectReference>(\"import\", \"https://x.invalid/m.js?v=\" + value);\n  async Task E() => await InvokeModuleAsync(js => js.InvokeVoidAsync(call, value));\n  async Task F() => await OnChange.InvokeAsync(value);\n  async Task G() => await JS.InvokeVoidAsync(\"fe\" + \"tch\", value);\n  async Task H() => await InvokeVoidAsync(\"fe\" + \"tch\", value);\n  [Parameter] public EventCallback<string> OnChange { get; set; }\n}\n");
 
             var findings = Scan(root);
             Assert.Equal(ExpectedFindings,findings.Select(row => $"{row.Path}:{row.Line}"));
@@ -510,7 +531,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     }
 
     // A JS interop call that names a global (window.open, a dotted path, import of anything but a _content module), or
-    // whose function name is not a literal, unless it is ComponentBase's bare InvokeAsync or an EventCallback declared beside it.
+    // whose function name is not a literal, unless it is an EventCallback declared beside it, or ComponentBase's bare,
+    // non-generic InvokeAsync passed a delegate (an identifier or a lambda, never a string).
     private static IEnumerable<int> InteropCalls(string file, string source)
     {
         foreach (Match call in Interop.Matches(source))
@@ -522,7 +544,11 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
                 continue;
             }
             var before = source[..call.Index].TrimEnd();
-            if (before.Length == 0 || before[^1] != '.') continue;
+            if (before.Length == 0 || before[^1] != '.')
+            {
+                if (!call.Value.StartsWith("InvokeAsync(", StringComparison.Ordinal) || !(char.IsLetter(call.Groups["arg"].Value[0]) || call.Groups["arg"].Value is "_" or "(")) yield return call.Index;
+                continue;
+            }
             var receiver = Regex.Match(before, @"(\w+)\s*!?\s*\??\.$");
             var callbacks = Directory.EnumerateFiles(Path.GetDirectoryName(file)!).Where(path => Path.GetExtension(path) is ".cs" or ".razor").Select(File.ReadAllText);
             if (!receiver.Success || !callbacks.Any(text => Regex.IsMatch(text, $@"\bEventCallback\b(?:\s*<[^;{{]*?>)?\s+{receiver.Groups[1].Value}\b"))) yield return call.Index;
@@ -605,7 +631,9 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         var items = files[0].Elements;
         // Directory.Build.props and Directory.Packages.props come before the project; any other chain or imported file may come after it.
         var after = files.Skip(1).Where(file => Path.GetFileName(file.Path) is not ("Directory.Build.props" or "Directory.Packages.props")).SelectMany(file => file.Elements);
-        if (items.Any(e => e.Name.LocalName == "IsPackable" && !Conditional(e) && e.Value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase)) && !SetsIsPackable(after)) return [];
+        // Properties take the last assignment in document order, so only a final, unconditional false leaves the project out.
+        var packable = items.LastOrDefault(e => e.Name.LocalName == "IsPackable");
+        if (packable is not null && !Conditional(packable) && packable.Value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase) && !SetsIsPackable(after)) return [];
         findings.AddRange(unread);
         // MSBuild keeps one list per item type, so a Remove drops paths only from its own type's list.
         HashSet<string> Defaults(string globs) => Globs(dir, globs).Except(Globs(dir, "bin/**;obj/**"), StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
