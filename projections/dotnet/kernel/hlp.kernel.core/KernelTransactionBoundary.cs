@@ -74,7 +74,7 @@ public sealed record KernelAuditEvidence(
     /// <summary>
     /// The originator's provenance (decision D6 envelope field, ADR-0110 decision 4): the principal on whose durably accepted
     /// command <see cref="ActorId"/>, the actual executor, acted. Null when the actor acted for itself, as every existing
-    /// producer does. It is provenance only: it authorizes nothing, the authority snapshot stays the actor's own decision, and
+    /// producer does. It is provenance only: it authorizes nothing, the authority snapshot stays the enforcing decision, and
     /// a host port persists it beside the audit in the same transaction and never substitutes it for the actor. When
     /// present it is nonblank, never trimmed, and differs ordinally from <see cref="ActorId"/>, because an executor that names
     /// itself as its own originator is not recovering anyone's command.

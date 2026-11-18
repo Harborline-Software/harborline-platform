@@ -75,7 +75,7 @@ public sealed record RecordWriteOperationKey(string Tenant, string CallerId, str
 /// <param name="Version">The published version the write was bound to.</param>
 /// <param name="DefinitionDigest">The catalogue digest of that published body.</param>
 /// <param name="Schema">The registered schema the body was validated against.</param>
-/// <param name="ActorId">The caller the gate decided for.</param>
+/// <param name="ActorId">The executor when present; otherwise the caller the gate decided for.</param>
 /// <param name="OperationId">The caller's stable operation id.</param>
 /// <param name="RequestedVersion">The explicit pin the caller sent, or null for an unpinned request.</param>
 /// <param name="IntentEncodingVersion">The <see cref="RecordWriteIntent.EncodingVersion"/> the intent digest was computed under.</param>
@@ -103,8 +103,8 @@ public sealed record RecordWriteRow(
     public string? PublicationVersionId { get; init; }
 
     /// <summary>
-    /// For a completed accepted command, the submitter the command was accepted for (provenance only, ADR-0110 decision 4);
-    /// <see cref="ActorId"/> is then the worker that executed it. Null for a direct create. The audit carries the same value
+    /// The submitter for a completed accepted command or its reaction (provenance only); <see cref="ActorId"/> is the
+    /// source worker. Null for a direct create or a reaction without a source executor. The audit carries the same value
     /// as <see cref="KernelAuditEvidence.OriginatorId"/>.
     /// </summary>
     public string? OriginatorId { get; init; }
@@ -868,7 +868,7 @@ public sealed class RecordWriteOperation
         {
             var transaction = await KernelTransactionBoundary.ExecutePreparedAsync(async token =>
             {
-                var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, recordId, operationId,
+                var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, scope.Tenant, scope.ActorId, null, null, recordId, operationId,
                     digest, instant, evidence, contentPort.Session, basis, token).ConfigureAwait(false);
                 if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
                     throw new RefusedWriteException(mutateRefusal);
@@ -1269,7 +1269,7 @@ public sealed class RecordWriteOperation
             transaction = await KernelTransactionBoundary.ExecutePreparedAsync(
                 async token =>
                 {
-                    var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.DelegatedActor is null ? plan.ExecutorId : plan.OriginatorId ?? plan.ExecutorId, plan.DelegatedActor is null ? plan.OriginatorId : null, recordId, request.OperationId,
+                    var lockedReferences = await ResolveAttachmentsAsync(definition, candidate, plan.Tenant, plan.ExecutorId, plan.OriginatorId, plan.DelegatedActor, recordId, request.OperationId,
                         intentDigest, instant, evidence, contentPort.Session, null, token).ConfigureAwait(false);
                     if (Mutate(definition, candidate, instant, out var derived) is { } mutateRefusal)
                         throw new RefusedWriteException(mutateRefusal);
@@ -1467,7 +1467,7 @@ public sealed class RecordWriteOperation
     }
 
     private async ValueTask<HashSet<(string, long, string, string, string)>> ResolveAttachmentsAsync(RecordTypeDocument definition, JsonObject candidate,
-        string tenant, string actor, string? originator, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
+        string tenant, string actor, string? originator, KernelDelegatedActor? delegatedActor, string recordId, string operationId, string fingerprint, DateTimeOffset instant,
         AuthorizationDecisionEvidence evidence, IContentBookkeepingSession? session, RecordTemporalBasis? priorBasis, CancellationToken cancellationToken)
     {
         var contentTenant = Harborline.Foundation.Assets.Common.TenantId.FromString(tenant);
@@ -1493,7 +1493,7 @@ public sealed class RecordWriteOperation
             // ADR-0110 d4 / ADR-0142 d3: the worker acts; the command's server-bound submitter is provenance only.
             ContentStoreWrite Write() => new(new(recordId, operationId, fingerprint),
                 new(Guid.NewGuid().ToString("N"), actor, instant, ReadOnlyMemory<byte>.Empty)
-                { AuthoritySnapshot = AuthoritySnapshotOf(evidence) }, session) { Originator = originator };
+                { AuthoritySnapshot = AuthoritySnapshotOf(evidence), DelegatedActor = delegatedActor }, session) { Originator = originator };
             // Read committed predecessor authority before taking content locks; commit still checks the basis atomically.
             JsonElement priorBody = default;
             if (priorBasis is not null && lists.Any(list => list.Entries.ValueKind == JsonValueKind.Array && list.Entries.EnumerateArray().Any(entry => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("content_id", out _))))
