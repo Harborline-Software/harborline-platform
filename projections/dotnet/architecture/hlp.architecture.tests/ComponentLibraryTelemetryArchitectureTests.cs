@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Xunit;
@@ -11,15 +12,22 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
     // Raw source text, no comment or string stripping: a mention in a comment or string is a finding too,
     // and only an exact allow-list row admits it. Bare console/Console/sendBeacon tokens keep a comment
-    // between the receiver and the member (console /* x */ .log) from slipping past.
-    private static readonly Regex Emit = new(@"\b(?:console\b|Console\b|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|sendBeacon\b|using\s+static\s+System\s*\.\s*Diagnostics\s*\.\s*(?:Debug|Trace)\b)|@opentelemetry/", RegexOptions.Compiled);
+    // between the receiver and the member (console /* x */ .log) from slipping past. The browser network sinks
+    // (fetch, XMLHttpRequest, WebSocket, EventSource, sendBeacon, an Image or src/srcset beacon) count as emits too.
+    private static readonly Regex Emit = new(@"\b(?:console\b|Console\b|ILogger(?:Factory)?\b|LoggerMessage\b|ActivitySource\b|System\s*\.\s*Diagnostics\s*\.\s*Metrics\b|new\s+Meter\s*\(|Debug\s*\.\s*(?:Write\w*|Print)\b|Trace\s*\.\s*(?:Write\w*|Trace\w*)\b|EventSource\b|sendBeacon\b|fetch\b|XMLHttpRequest\b|WebSocket\b|Image\b|using\s+static\s+System\s*\.\s*Diagnostics\s*\.\s*(?:Debug|Trace)\b)|@opentelemetry/|\.\s*src(?:set)?\s*=(?!=)|setAttribute\s*\(\s*['""`]src(?:set)?['""`]", RegexOptions.Compiled);
+    // An import specifier; the type group marks a type-only import or re-export, which esbuild erases.
+    private static readonly Regex Specifier = new(@"(?<type>\b(?:import|export)\s+type\s+(?:\*(?:\s+as\s+\w+)?|\w+|\{[^}]*\})\s*)?(?:\bfrom|\bimport\s*\(?|\brequire\s*\()\s*(?<q>['""`])(?<spec>(?:(?!\k<q>)[^\r\n])*)\k<q>", RegexOptions.Compiled);
     private static readonly Regex LiteralCall = new("""^[A-Za-z_][\w.]*\s*\(\s*(?:'(?:[^'\\\r\n]|\\.)*'|"(?:[^"\\\r\n]|\\.)*")(?:\s*,\s*(?:'(?:[^'\\\r\n]|\\.)*'|"(?:[^"\\\r\n]|\\.)*"))*\s*\)\s*;?$""", RegexOptions.Compiled);
 
     private static readonly string[] ExpectedFindings = [
+        "projections/blazor/cond/Cond.test.cs:1",
         "projections/blazor/emit.ts:1",
+        "projections/blazor/member/Conditional.test.cs:1",
         "projections/blazor/member/ContentRemoved.test.cs:1",
         "projections/blazor/member/CrossType.test.cs:1",
+        "projections/blazor/member/GroupConditional.test.cs:1",
         "projections/blazor/member/ValueLeak.test.cs:1",
+        "projections/blazor/member/WhenRemoved.test.cs:1",
         "projections/blazor/pkg/Default.test.cs:1",
         "projections/react/activity.cs:1",
         "projections/react/after-hole.ts:1",
@@ -67,6 +75,12 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/nested-follow.ts:1",
         "projections/react/nested-interpolation.cs:1",
         "projections/react/nested-template.ts:1",
+        "projections/react/network.ts:1",
+        "projections/react/network.ts:2",
+        "projections/react/network.ts:3",
+        "projections/react/network.ts:4",
+        "projections/react/network.ts:5",
+        "projections/react/network.ts:6",
         "projections/react/otel-dynamic.mjs:1",
         "projections/react/otel-from.ts:1",
         "projections/react/otel-require.cjs:1",
@@ -89,6 +103,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/verbatim-interpolation.cs:1",
         "projections/react/verbatim.cs:1",
         "projections/shared/emit.ts:1",
+        "projections/typescript/foundation/lib/src/leak.ts:1",
     ];
 
     private static readonly string[] ExpectedAllowListErrors = [
@@ -206,6 +221,24 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(blazor, "member", "ContentRemoved.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "pkg.tests", "Pkg.Tests.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><IsPackable>false</IsPackable></PropertyGroup><ItemGroup><Compile Include=\"../member.tests/**/*.cs\" /></ItemGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "member.tests", "Probe.test.cs"), "Console.WriteLine(value);\n");
+            // A Remove, or an IsPackable, under a Condition (on itself, its group, or a Choose branch) may not apply.
+            File.WriteAllText(Path.Combine(blazor, "pkg", "Pkg.csproj"), File.ReadAllText(Path.Combine(blazor, "pkg", "Pkg.csproj")).Replace("</ItemGroup></Project>", "<Compile Remove=\"../member/Conditional.test.cs\" Condition=\"false\" /></ItemGroup><ItemGroup Condition=\"'$(Undefined)' == 'yes'\"><Compile Remove=\"../member/GroupConditional.test.cs\" /></ItemGroup><Choose><When Condition=\"false\"><ItemGroup><Compile Remove=\"../member/WhenRemoved.test.cs\" /></ItemGroup></When></Choose></Project>", StringComparison.Ordinal));
+            foreach (var name in new[] { "Conditional", "GroupConditional", "WhenRemoved" }) File.WriteAllText(Path.Combine(blazor, "member", name + ".test.cs"), "Console.WriteLine(value);\n");
+            Directory.CreateDirectory(Path.Combine(blazor, "cond"));
+            File.WriteAllText(Path.Combine(blazor, "cond", "Cond.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup Condition=\"false\"><IsPackable>false</IsPackable></PropertyGroup></Project>\n");
+            File.WriteAllText(Path.Combine(blazor, "cond", "Cond.test.cs"), "Console.WriteLine(value);\n");
+            // A React package's build.mjs bundles what its entry points import, through esbuild aliases, into other projections.
+            File.WriteAllText(Path.Combine(dir, "network.ts"), "fetch('https://x.invalid', { method: 'POST', body: value });\nconst request = new XMLHttpRequest();\nconst socket = new WebSocket(url);\nnew Image().src = url + value;\npixel.src = url + value;\npixel.setAttribute('src', url + value);\n");
+            Directory.CreateDirectory(Path.Combine(dir, "pkg", "scripts"));
+            File.WriteAllText(Path.Combine(dir, "pkg", "scripts", "build.mjs"), "import { build } from 'esbuild'\nconst root = resolve(import.meta.dirname, '..')\nconst libRoot = resolve(root, '../../typescript/foundation/lib')\ncompile(libRoot, ['-p', 'tsconfig.build.json'])\nconst external = [\n  'react',\n]\nconst alias = {\n  // the compiled library\n  '@x/lib': resolve(libRoot, 'dist/index.js'),\n}\nawait build({ entryPoints: [resolve(root, 'scripts/entry.ts')], bundle: true, external, alias, format: 'esm' })\n");
+            File.WriteAllText(Path.Combine(dir, "pkg", "scripts", "entry.ts"), "import 'react';\nexport { leak } from '@x/lib';\n");
+            var lib = Path.Combine(root, "projections", "typescript", "foundation", "lib");
+            Directory.CreateDirectory(Path.Combine(lib, "src"));
+            File.WriteAllText(Path.Combine(lib, "tsconfig.json"), "{\n  // shared options\n  \"compilerOptions\": { \"outDir\": \"dist\", },\n}\n");
+            File.WriteAllText(Path.Combine(lib, "tsconfig.build.json"), "{ \"extends\": \"./tsconfig.json\", \"compilerOptions\": { \"rootDir\": \"src\" } }\n");
+            File.WriteAllText(Path.Combine(lib, "src", "index.ts"), "import type { Shape } from '@x/types';\nexport { leak } from './leak.js';\n");
+            File.WriteAllText(Path.Combine(lib, "src", "leak.ts"), "export const leak = (draft: string) => console.log(draft);\n");
+            File.WriteAllText(Path.Combine(lib, "src", "unused.ts"), "console.log(draft);\n");
 
             var findings = Scan(root);
             Assert.Equal(ExpectedFindings, findings.Select(row => $"{row.Path}:{row.Line}"));
@@ -241,8 +274,10 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         return errors;
     }
 
-    // The walk skips test-like names, so every file a packable project compiles is added back from its own items.
+    // The walk skips test-like names, so every file a packable project compiles is added back from its own items,
+    // and every file a React package's bundle pulls in, from inside the lanes or out of them, is added from its build.
     private static Finding[] Scan(string root) => Roots.SelectMany(lane => Files(root, lane).Concat(PackageInputs(Path.Combine(root, "projections", lane))))
+        .Concat(BundleInputs(root))
         .Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase)
         .SelectMany(file => ScanFile(root, file))
         .OrderBy(row => row.Path, StringComparer.Ordinal).ThenBy(row => row.Line).ToArray();
@@ -278,7 +313,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     // Compile, RazorComponent and Content items of every packable project (IsPackable is not false), read with
     // MSBuild's semantics: Include and Exclude are ;-separated globs relative to the project, Remove applies in
     // document order to its own item type, and the SDK defaults (Compile **/*.cs; Content **/*.razor and wwwroot/**;
-    // minus bin and obj) come first.
+    // minus bin and obj) come first. Conditions are not evaluated: a Remove or an IsPackable under one (on itself,
+    // an ancestor, or a Choose branch) is ignored, so the scan set only ever grows.
     // ponytail: no property or import evaluation; an Include that needs one fails the test instead of being skipped.
     private static IEnumerable<string> PackageInputs(string scanRoot)
     {
@@ -292,7 +328,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     {
         var dir = Path.GetDirectoryName(project)!;
         var items = XDocument.Load(project).Descendants().ToArray();
-        if (items.Any(e => e.Name.LocalName == "IsPackable" && e.Value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase))) return [];
+        static bool Conditional(XElement element) => element.AncestorsAndSelf().Any(e => e.Attribute("Condition") is not null || e.Name.LocalName is "When" or "Otherwise");
+        if (items.Any(e => e.Name.LocalName == "IsPackable" && !Conditional(e) && e.Value.Trim().Equals("false", StringComparison.OrdinalIgnoreCase))) return [];
         // MSBuild keeps one list per item type, so a Remove drops paths only from its own type's list.
         HashSet<string> Defaults(string globs) => Globs(dir, globs).Except(Globs(dir, "bin/**;obj/**"), StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var inputs = new Dictionary<string, HashSet<string>>
@@ -312,9 +349,116 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
                 var excluded = Globs(dir, (string?)item.Attribute("Exclude")).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 list.UnionWith(Globs(dir, include).Where(file => !excluded.Contains(file)));
             }
-            if (remove is not null) list.ExceptWith(Globs(dir, remove));
+            if (remove is not null && !Conditional(item)) list.ExceptWith(Globs(dir, remove));
         }
         return inputs.Values.SelectMany(list => list);
+    }
+
+    // Each React package's build.mjs bundles its entry points with esbuild, which follows imports out of the lanes
+    // (into projections/typescript, say). This walks the same graph: an alias applies first, an external stays out,
+    // a relative or aliased path resolves with esbuild's default extensions, its .js-to-.ts rewrite and index files,
+    // and a path into a tsconfig outDir the script compiles maps back to that tsconfig's rootDir.
+    // ponytail: regex reads of build.mjs and of import specifiers, not a JS parser; what it cannot read fails the test.
+    private static List<string> BundleInputs(string root)
+    {
+        var react = Path.Combine(root, "projections", "react");
+        if (!Directory.Exists(react)) return [];
+        var reached = new List<string>();
+        var scripts = Directory.EnumerateFiles(react, "build.mjs", new EnumerationOptions { RecurseSubdirectories = true })
+            .Where(path => !path.Replace('\\', '/').Split('/').Contains("node_modules"));
+        foreach (var script in scripts)
+        {
+            var text = File.ReadAllText(script);
+            var bindings = new Dictionary<string, string>(StringComparer.Ordinal) { ["import.meta.dirname"] = Path.GetDirectoryName(script)! };
+            string Evaluate(string call)
+            {
+                var m = Regex.Match(call, @"^resolve\(\s*([\w.]+)\s*,\s*'([^']*)'\s*\)$");
+                Assert.True(m.Success && bindings.ContainsKey(m.Groups[1].Value), $"{script}: evaluate {call} before scanning");
+                return Path.GetFullPath(Path.Combine(bindings[m.Groups[1].Value], m.Groups[2].Value));
+            }
+            foreach (Match m in Regex.Matches(text, @"(?m)^const\s+(\w+)\s*=\s*(resolve\([^)]*\))\s*$")) bindings[m.Groups[1].Value] = Evaluate(m.Groups[2].Value);
+            var outDirs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (Match m in Regex.Matches(text, @"\bcompile\(\s*(\w+)\s*,\s*\[\s*'-p'\s*,\s*'([^']+)'\s*\]\s*\)"))
+            {
+                if (!bindings.TryGetValue(m.Groups[1].Value, out var cwd)) continue;
+                var tsconfig = Path.Combine(cwd, m.Groups[2].Value);
+                var (outDir, rootDir) = (CompilerOption(tsconfig, "outDir"), CompilerOption(tsconfig, "rootDir"));
+                Assert.True(outDir is not null && rootDir is not null, $"{tsconfig}: set outDir and rootDir before scanning");
+                outDirs[Path.GetFullPath(Path.Combine(outDir.Value.Dir, outDir.Value.Value.GetString()!))] = Path.GetFullPath(Path.Combine(rootDir.Value.Dir, rootDir.Value.Value.GetString()!));
+            }
+            string FromOutDir(string path) => outDirs.Where(pair => path.StartsWith(pair.Key + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                .Select(pair => Path.Combine(pair.Value, Path.GetRelativePath(pair.Key, path))).FirstOrDefault(path);
+            string[] Rows(string block, string pattern) => block.Split('\n').Select(line => line.Trim()).Where(line => line.Length > 0 && !line.StartsWith("//", StringComparison.Ordinal))
+                .Select(line => { var m = Regex.Match(line, pattern); Assert.True(m.Success, $"{script}: read this row before scanning: {line}"); return m.Value; }).ToArray();
+            var aliasBlock = Regex.Match(text, @"(?ms)^const alias = \{(.*?)^\}");
+            Assert.True(aliasBlock.Success || !Regex.IsMatch(text, @"\balias\b"), $"{script}: read its alias before scanning");
+            var alias = Rows(aliasBlock.Groups[1].Value, @"^'[^']+'\s*:\s*resolve\([^)]*\),?$")
+                .Select(row => Regex.Match(row, @"^'([^']+)'\s*:\s*(resolve\([^)]*\))")).ToDictionary(m => m.Groups[1].Value, m => Evaluate(m.Groups[2].Value), StringComparer.Ordinal);
+            var external = Rows(Regex.Match(text, @"(?ms)^const external = \[(.*?)^\]").Groups[1].Value, @"^'[^']+',?$").Select(row => row.Trim(',', '\'')).ToArray();
+            var builds = Regex.Matches(text, @"\bbuild\(\s*\{([^}]*)\}\s*\)");
+            Assert.True(builds.Count == Regex.Count(text, @"\bbuild\("), $"{script}: read every build() call before scanning");
+            var pending = new Stack<string>();
+            foreach (Match build in builds)
+            {
+                var options = build.Groups[1].Value;
+                Assert.False(Regex.IsMatch(options, @"\b(?:alias|external|plugins|tsconfig\w*|stdin|resolveExtensions|nodePaths|packages|mainFields|conditions|inject)\s*:"), $"{script}: read these build options before scanning: {options}");
+                var entries = Regex.Match(options, @"\bentryPoints:\s*\[((?:\s*resolve\([^)]*\)\s*,?)+)\s*\]");
+                Assert.True(entries.Success, $"{script}: read these entry points before scanning: {options}");
+                foreach (Match call in Regex.Matches(entries.Groups[1].Value, @"resolve\([^)]*\)")) pending.Push(Evaluate(call.Value));
+            }
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            while (pending.TryPop(out var target))
+            {
+                var file = ResolveModule(FromOutDir(target));
+                Assert.True(file is not null, $"{script}: resolve {target} before scanning");
+                if (!seen.Add(file) || !Extensions.Contains(Path.GetExtension(file))) continue;
+                reached.Add(file);
+                foreach (Match m in Specifier.Matches(File.ReadAllText(file)))
+                {
+                    var spec = m.Groups["spec"].Value;
+                    Assert.False(spec.Contains("${", StringComparison.Ordinal), $"{file}: esbuild bundles this template import as a glob; read it before scanning: {spec}");
+                    var key = alias.Keys.FirstOrDefault(name => spec == name || spec.StartsWith(name + "/", StringComparison.Ordinal));
+                    if (key is not null) pending.Push(Path.GetFullPath(alias[key] + spec[key.Length..]));
+                    else if (spec.StartsWith('.', StringComparison.Ordinal)) pending.Push(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(file)!, spec)));
+                    else if (!m.Groups["type"].Success && !external.Any(name => spec == name || spec.StartsWith(name + "/", StringComparison.Ordinal)))
+                        Assert.False(TsconfigPathsMap(file, spec), $"{file}: esbuild resolves {spec} through tsconfig paths; follow it before scanning");
+                }
+            }
+        }
+        return reached;
+    }
+
+    // esbuild's default resolveExtensions, then its TypeScript rewrite of a .js-family specifier, then directory index files.
+    private static string? ResolveModule(string path)
+    {
+        string[] extensions = [".tsx", ".ts", ".jsx", ".js", ".css", ".json"];
+        var stem = Path.ChangeExtension(path, null);
+        string[] rewrites = Path.GetExtension(path).ToUpperInvariant() switch { ".JS" or ".JSX" => [stem + ".ts", stem + ".tsx"], ".MJS" => [stem + ".mts"], ".CJS" => [stem + ".cts"], _ => [] };
+        return new[] { path }.Concat(extensions.Select(ext => path + ext)).Concat(rewrites).Concat(extensions.Select(ext => Path.Combine(path, "index" + ext))).FirstOrDefault(File.Exists);
+    }
+
+    // Before node_modules, esbuild resolves a bare specifier through the paths of the importing file's nearest tsconfig.json.
+    private static bool TsconfigPathsMap(string file, string spec)
+    {
+        for (var dir = Path.GetDirectoryName(file); dir is not null; dir = Path.GetDirectoryName(dir))
+        {
+            var tsconfig = Path.Combine(dir, "tsconfig.json");
+            if (!File.Exists(tsconfig)) continue;
+            return CompilerOption(tsconfig, "paths") is { } paths && paths.Value.EnumerateObject()
+                .Any(entry => entry.Name == spec || (entry.Name.EndsWith('*', StringComparison.Ordinal) &&spec.StartsWith(entry.Name[..^1], StringComparison.Ordinal)));
+        }
+        return false;
+    }
+
+    // A compilerOptions value and the directory of the tsconfig that sets it, following relative extends.
+    private static (JsonElement Value, string Dir)? CompilerOption(string tsconfig, string name)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(tsconfig), new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+        var dir = Path.GetDirectoryName(tsconfig)!;
+        if (document.RootElement.TryGetProperty("compilerOptions", out var options) && options.TryGetProperty(name, out var value)) return (value.Clone(), dir);
+        if (!document.RootElement.TryGetProperty("extends", out var parent)) return null;
+        Assert.True(parent.ValueKind == JsonValueKind.String && parent.GetString()!.StartsWith('.', StringComparison.Ordinal), $"{tsconfig}: follow this extends before scanning");
+        return CompilerOption(Path.GetFullPath(Path.Combine(dir, parent.GetString()!)), name);
     }
 
     private static IEnumerable<string> Globs(string dir, string? list) =>
