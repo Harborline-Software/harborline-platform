@@ -39,6 +39,7 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
             settlements.Add((await store.FindAsync(key))!);
             AssertOriginalReceipt(entry.GetProperty("Receipt"), settlements[^1].Receipt);
             rows.Add((await store.FindAsync(row.GetProperty("Tenant").GetString()!, row.GetProperty("RecordId").GetString()!))!);
+            Assert.Null(rows[^1].DelegatedActor);
         }
         Assert.Equal(original, File.ReadAllBytes(PathName)); // Open/read/receipt lookup did not convert.
         for (var append = 0; append < 3; append++)

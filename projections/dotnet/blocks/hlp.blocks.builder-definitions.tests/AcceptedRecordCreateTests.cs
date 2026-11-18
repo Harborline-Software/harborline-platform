@@ -611,6 +611,10 @@ public sealed class AcceptedRecordCreateTests
             Assert.Equal(Submitter, (string?)entry["Row"]!["OriginatorId"]);
             Assert.Equal(Worker, (string?)entry["Audit"]!["ActorId"]);
             Assert.Equal(Submitter, (string?)entry["Audit"]!["OriginatorId"]);
+            var replay = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(source, reaction, effect, "eam.meter", Body(), Executor: Worker));
+            Assert.True(replay.Replayed);
+            Assert.Equal(allowed.Receipt, replay.Receipt);
+            Assert.Equal(entry.ToJsonString(), JsonNode.Parse(File.ReadAllText(path))!["Entries"]![1]!.ToJsonString());
         }
         finally { Directory.Delete(directory, true); }
     }

@@ -47,6 +47,9 @@ public sealed record KernelOperationIdentity(
     }
 }
 
+/// <summary>A delegated workflow actor, identified by its definition and version.</summary>
+public sealed record KernelDelegatedActor(string DefinitionKey, string DefinitionVersion);
+
 /// <summary>The audit record committed atomically with a command's record.</summary>
 /// <param name="AuditId">The unique identifier of this audit entry.</param>
 /// <param name="ActorId">The actor the command is attributed to.</param>
@@ -78,6 +81,9 @@ public sealed record KernelAuditEvidence(
     /// </summary>
     public string? OriginatorId { get; init; }
 
+    /// <summary>The delegated actor, recorded as provenance and never as authority.</summary>
+    public KernelDelegatedActor? DelegatedActor { get; init; }
+
     /// <summary>
     /// Returns this evidence; throws <see cref="ArgumentException"/> when the audit or actor id is null or blank, or when an
     /// originator is present but blank or equal to the actor.
@@ -86,6 +92,11 @@ public sealed record KernelAuditEvidence(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(AuditId);
         ArgumentException.ThrowIfNullOrWhiteSpace(ActorId);
+        if (DelegatedActor is { } delegated)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(delegated.DefinitionKey);
+            ArgumentException.ThrowIfNullOrWhiteSpace(delegated.DefinitionVersion);
+        }
         if (OriginatorId is not null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(OriginatorId);

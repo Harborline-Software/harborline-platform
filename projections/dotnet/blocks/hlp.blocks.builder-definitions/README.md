@@ -545,7 +545,9 @@ gate, creation gate, bind, mutate and validate path unchanged, in the event's te
   for the submitter, with the command's worker as executor; a reaction to a direct write's event acts as its caller,
   with no executor, even when a worker runs the reaction. Both compare ordinally, so a case variant, or an empty string
   for a null executor, is another identity. Any other pair refuses `records.command.binding_mismatch` at bind and
-  persists nothing. Records checks the executor but does not record it yet.
+  persists nothing. The row and audit record the worker as `ActorId`, the submitter as `OriginatorId`, and the workflow
+  key and version as `DelegatedActor`. Without a source executor the principal remains `ActorId` and the originator is null.
+  Delegated actor provenance grants no authority.
 - **Key.** The operation key is the scope's tenant, caller and source operation id, with the origin `reaction:`
   followed by these length frames: the `RecordReactionKey` (`WorkflowKey`, `WorkflowVersion`, `TriggerId`), the source
   `EventId`, then the `RecordReactionEffect` parts `InstanceId`, `Iteration` (invariant digits), `Step` and `Purpose`.
@@ -568,9 +570,7 @@ Not built here:
 
 - the host composition that relays committed events to Workflow Event triggers;
 - the relay's checkpoint;
-- paging;
-- the ADR-0154 reaction identities in the row, journal binding and audit (T-616/reaction-write-identities, control
-  #1534). Today a reaction's row records only the caller.
+- paging.
 
 ## Configuration generations (T-459)
 
