@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.forms",
-  "interfaceRevision": 10,
+  "interfaceRevision": 11,
   "status": "frozen",
   "purpose": "Own complete caller-backed Dynamic Forms definition, immutable version, bounded reuse, authenticated draft, and pre-auth capture state without exposing persistence choreography or executable engine behavior.",
   "dependencies": [
@@ -19,6 +19,7 @@
   "invariants": [
     "Every definition and reusable unit is isolated by exact TenantId and immutable by (tenant,id,version).",
     "Lifecycle transitions are explicit and fail closed; ordinary withdrawn revisions cannot be republished.",
+    "Revision 11 (T-1187): System-owned restore-as-draft and illegal lifecycle transitions throw FormDefinitionLifecycleException, an InvalidOperationException carrying definition id, version, original message and respectively form.lifecycle.system_owned or form.lifecycle.transition_illegal. RestorePackProjectionAsync retains its existing ownership refusal.",
     "Lineage cannot cross tenants or reference an absent revision.",
     "Concurrent create operations for one tenant and definition id admit exactly one first revision.",
     "Register-and-publish makes the admitted immutable revision visible as Published atomically or leaves no revision visible; request cancellation before the commit persists nothing, an identical ambiguous retry returns the committed revision, and different content at the same identity conflicts.",

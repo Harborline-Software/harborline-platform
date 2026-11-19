@@ -1,6 +1,9 @@
 using System.Text.Json.Nodes;
+using Harborline.Blocks.BuilderDefinitions;
 using Microsoft.Extensions.DependencyInjection;
 using Harborline.Foundation.Assets.Common;
+using Harborline.Foundation.Authorization;
+using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
 using Harborline.Foundation.Forms.Engine.DependencyInjection;
@@ -21,6 +24,7 @@ public sealed class AuthoringHostIntegrationTests
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
         services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
         services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         await using var scope = provider.CreateAsyncScope();
@@ -162,6 +166,7 @@ public sealed class AuthoringHostIntegrationTests
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
         services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
         services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
     }
@@ -176,11 +181,12 @@ public sealed class AuthoringHostIntegrationTests
         var source = new ImpactFixture.Source(_ => { read = true; return ValueTask.FromResult<FormPublishedSurfaceRead>(new FormPublishedSurfaceRead.Complete("tenant-a", [])); });
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
-        await Assert.ThrowsAsync<FormDefinitionValidationException>(() => publisher.RegisterAndPublishWithImpactAsync(definition,
+        await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishWithImpactAsync(definition,
             fixture.Context with { Surfaces = source }).AsTask());
         Assert.False(read);
         var store = provider.GetRequiredService<IFormDefinitionStore>();
@@ -197,6 +203,7 @@ public sealed class AuthoringHostIntegrationTests
         await fixture.Store.RegisterAndPublishAsync(conflicting);
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -214,6 +221,7 @@ public sealed class AuthoringHostIntegrationTests
         var fixture = await ImpactFixture.CreateAsync();
         var services = new ServiceCollection();
         services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
         services.AddHarborlineFormsAuthoringPublisher();
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
@@ -259,10 +267,10 @@ public sealed class AuthoringHostIntegrationTests
         var store = provider.GetRequiredService<IFormDefinitionStore>();
         var definition = Definition("malformed", "{not-json");
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Equal(FormDefinitionCodes.RulesUncompilable, exception.Code);
+        Assert.Equal("form.rules.uncompilable", Assert.Single(exception.Refusals).Code);
         Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
@@ -280,10 +288,10 @@ public sealed class AuthoringHostIntegrationTests
             """{"var":"b"}""",
             new RuleDefinition("compute-b", RuleTier.JsonLogic, RuleScope.Field, "b", """{"var":"a"}""", RuleActionKind.Compute));
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Equal(FormDefinitionCodes.RulesUncompilable, exception.Code);
+        Assert.Equal("form.rules.uncompilable", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -297,11 +305,117 @@ public sealed class AuthoringHostIntegrationTests
         var store = provider.GetRequiredService<IFormDefinitionStore>();
         var definition = Definition("already-published", "true") with { Status = FormDefinitionStatus.Published };
 
-        await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("save-next")]
+    public async Task Draft_save_refuses_a_non_Draft_definition_without_a_write(string entry)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var draft = Definition("non-draft-save", "true");
+        var seeded = entry == "save-next";
+        if (seeded) await store.CreateAsync(draft);
+        var published = draft with { Status = FormDefinitionStatus.Published };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (seeded ? publisher.SaveNextAsync(published) : publisher.CreateAsync(published)).AsTask());
+
+        Assert.Equal("author", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        var revisions = new List<FormDefinition>();
+        await foreach (var revision in store.ListByTenantAsync(draft.Tenant)) revisions.Add(revision);
+        Assert.Equal(seeded ? 1 : 0, revisions.Count);
+        Assert.Null(await store.GetCurrentPublishedAsync(draft.Tenant, draft.Id));
+    }
+
+    [Theory]
+    [InlineData("pages", "form.pages.duplicate_page_id", "/overlay/pages")]
+    [InlineData("guard", "form.rules.guard_uncompilable", "/overlay/pages")]
+    [InlineData("layout", "form.layout.unknown_density", "/overlay/sections")]
+    [InlineData("checks", "form.checks.bad_id", "/overlay/asyncChecks")]
+    [InlineData("sensitive", "aspect.sensitive_input_unacknowledged", "/overlay/asyncChecks")]
+    [InlineData("submit-gate", "form.submit_gate.form_invalid", "/submit_gate")]
+    [InlineData("tree", "form.tree.unknown_field", "/overlay/sections")]
+    [InlineData("record-type", "form.record_type.required", "/record_type_id")]
+    public async Task Validation_refusal_points_at_the_overlay_member_its_code_names(string fault, string code, string pointer)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var definition = Definition("pointer-" + fault, "true");
+        var overlay = definition.Overlay;
+        var title = InternationalizedText.FromInvariant("P");
+        if (fault == "sensitive")
+            overlay = WithFieldAspect(definition, new AspectOverlay(new ClassificationAspect(
+                [new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "pii")]))).Overlay;
+        definition = fault switch
+        {
+            "pages" => definition with { Overlay = overlay with { Pages = [new("p1", title, ["main"]), new("p1", title, ["main"])] } },
+            "guard" => definition with { Overlay = overlay with { Pages = [new("p1", title, ["main"], "{not-json")] } },
+            "layout" => definition with { Overlay = overlay with { Sections =
+                [overlay.Sections[0] with { Layout = new SectionLayout(SectionLayoutKind.Stack, Density: "bogus") }] } },
+            "checks" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("", "registry", "a", "lookup.failed")] } },
+            "sensitive" => definition with { Overlay = overlay with { AsyncChecks = [new AsyncValidationCheck("lookup", "registry", "a", "lookup.failed")] } },
+            "submit-gate" => definition with { SubmitGate = new Harborline.Contracts.Authorization.SubmitGate() },
+            "tree" => definition with { Overlay = overlay with { Sections =
+                [overlay.Sections[0] with { Items = [new FormItem(FormItemKind.Field, "undeclared")] }] } },
+            "record-type" => definition with { RecordTypeId = " " },
+            _ => throw new InvalidOperationException("Unknown fault."),
+        };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(definition).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal(pointer, refusal.Pointer);
+    }
+
+    [Theory]
+    [InlineData("store")]
+    [InlineData("policyAdmission")]
+    [InlineData("fieldBindings")]
+    [InlineData("fieldKinds")]
+    [InlineData("fieldDomains")]
+    public async Task Publisher_refuses_a_null_port_at_construction(string port)
+    {
+        await using var provider = BuildHost();
+        var services = provider.GetRequiredService<IServiceProvider>();
+        T Port<T>(string name) where T : class => name == port ? null! : services.GetRequiredService<T>();
+
+        var exception = Assert.Throws<ArgumentNullException>(() => new FormDefinitionAuthoringPublisher(
+            Port<IFormDefinitionStore>("store"), Port<IFormDefinitionPolicyAdmission>("policyAdmission"),
+            Port<IFormFieldBindingSource>("fieldBindings"), Port<Harborline.Contracts.Fields.IFieldKindRuntime>("fieldKinds"),
+            Port<Harborline.Contracts.Fields.IFieldDomainRuntime>("fieldDomains")));
+
+        Assert.Equal(port, exception.ParamName);
+    }
+
+    [Fact]
+    public async Task Page_id_shaped_like_a_pointer_is_not_echoed_as_the_pointer()
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var definition = Definition("pointer-shaped-page", "true");
+        definition = definition with { Overlay = definition.Overlay with
+            { Pages = [new("/submit_gate", InternationalizedText.FromInvariant("P"), ["main"], "{not-json")] } };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.CreateAsync(definition).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form.rules.guard_uncompilable", refusal.Code);
+        Assert.Equal("/overlay/pages", refusal.Pointer);
     }
 
     [Fact]
@@ -316,10 +430,10 @@ public sealed class AuthoringHostIntegrationTests
             new AspectOverlay(new ClassificationAspect(
                 [new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "piii")])));
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.policy_unresolved", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.policy_unresolved", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -343,10 +457,10 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.sensitive_input_unacknowledged", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.sensitive_input_unacknowledged", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -373,10 +487,10 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.relax_forbidden", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.relax_forbidden", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
@@ -403,19 +517,270 @@ public sealed class AuthoringHostIntegrationTests
             },
         };
 
-        var exception = await Assert.ThrowsAsync<FormDefinitionValidationException>(
+        var exception = await Assert.ThrowsAsync<DefinitionRefusalException>(
             () => publisher.RegisterAndPublishAsync(definition).AsTask());
 
-        Assert.Contains("aspect.residency_unsatisfiable", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("aspect.residency_unsatisfiable", Assert.Single(exception.Refusals).Code);
         await Assert.ThrowsAsync<FormDefinitionNotFoundException>(
             () => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
     }
 
-    private static ServiceProvider BuildHost()
+    [Theory]
+    [InlineData("create", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("create", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("create", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("save-next", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("save-next", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("save-next", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("restore", "author", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("restore", "author", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("restore", "author", "reference", "field.binding_unresolved", "")]
+    [InlineData("register-publish", "publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("register-publish", "publish", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("register-publish", "publish", "reference", "field.binding_unresolved", "")]
+    [InlineData("publish-stored", "publish", "rule", "form.rules.uncompilable", "/overlay/rules")]
+    [InlineData("publish-stored", "publish", "policy", "aspect.policy_unresolved", "/overlay")]
+    [InlineData("publish-stored", "publish", "reference", "field.binding_unresolved", "")]
+    public async Task Every_validate_gate_refuses_before_write_with_its_boundary(string entry, string phase, string gate, string code, string pointer)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("gate-test", gate == "rule" ? "{not-json" : "true") with { Owner = new("user", "alice") };
+        if (gate == "policy") definition = WithFieldAspect(definition,
+            new AspectOverlay(new ClassificationAspect([new Tag(DefaultFormFieldGovernanceResolver.DataClassificationSystem, "piii")])));
+        if (gate == "reference") definition = definition with { SchemaRef = new("sha256:unknown") };
+        var seeded = entry is "restore" or "publish-stored";
+        if (seeded) await store.CreateAsync(definition);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            "register-publish" => publisher.RegisterAndPublishAsync(definition),
+            "publish-stored" => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+            _ => throw new InvalidOperationException("Unknown entry."),
+        }).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal(pointer, refusal.Pointer);
+        if (seeded) Assert.Equal(definition, await store.GetAsync(definition.Tenant, definition.Id, definition.Version));
+        else await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+        var revisions = new List<FormDefinition>();
+        await foreach (var revision in store.ListByTenantAsync(definition.Tenant)) revisions.Add(revision);
+        Assert.Equal(seeded ? 1 : 0, revisions.Count);
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
+    [Theory]
+    [InlineData("author")]
+    [InlineData("publish")]
+    public async Task Store_invariant_refusal_uses_boundary_phase_without_a_write(string phase)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var original = Definition("duplicate-section", "true");
+        var definition = original with { Overlay = original.Overlay with { Sections = [original.Overlay.Sections[0], original.Overlay.Sections[0]] } };
+        var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(phase == "author" ? "CreateAsync" : "RegisterAndPublishAsync");
+        Assert.NotNull(method);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(async () =>
+            await ((ValueTask<FormDefinition>)method.Invoke(publisher, [definition, CancellationToken.None])!).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        await Assert.ThrowsAsync<FormDefinitionNotFoundException>(() => store.GetAsync(definition.Tenant, definition.Id, definition.Version).AsTask());
+    }
+
+    [Fact]
+    public async Task Authoring_lifecycle_saves_publishes_and_restores_without_rewriting_history()
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("lifecycle", "true") with { Owner = new("user", "alice") };
+        async Task<FormDefinition> Invoke(string name, params object?[] args)
+        {
+            var method = typeof(IFormDefinitionAuthoringPublisher).GetMethod(name);
+            Assert.NotNull(method);
+            return await ((ValueTask<FormDefinition>)method.Invoke(publisher, args)!).AsTask();
+        }
+        var first = await Invoke("CreateAsync", definition, CancellationToken.None);
+        var second = await Invoke("SaveNextAsync", definition, CancellationToken.None);
+        Assert.Equal("1.0.0", first.Version.ToString());
+        Assert.Equal("1.0.1", second.Version.ToString());
+        var published = await Invoke("PublishAsync", definition.Tenant, definition.Id, second.Version, CancellationToken.None);
+        Assert.Equal(FormDefinitionStatus.Published, published.Status);
+        var restored = await Invoke("RestoreAsDraftAsync", definition.Tenant, definition.Id, first.Version, CancellationToken.None);
+        Assert.Equal("1.0.2", restored.Version.ToString());
+        Assert.Equal(FormDefinitionStatus.Draft, restored.Status);
+        Assert.Equal("1.0.0", restored.DerivedFrom!.ToString());
+        Assert.Equal(first, await store.GetAsync(definition.Tenant, definition.Id, first.Version));
+        Assert.Equal(published, await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
+    [Theory]
+    [InlineData("restore", "author", "form.lifecycle.system_owned")]
+    [InlineData("publish", "publish", "form.lifecycle.transition_illegal")]
+    public async Task Lifecycle_store_refusals_keep_code_and_phase(string operation, string phase, string code)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var definition = Definition("lifecycle-refusal", "true");
+        await store.CreateAsync(definition);
+        if (operation == "publish") await store.WithdrawAsync(definition.Tenant, definition.Id, definition.Version);
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (operation == "restore"
+                ? publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version)
+                : publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version)).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(await store.GetCurrentPublishedAsync(definition.Tenant, definition.Id));
+    }
+
+    [Theory]
+    [InlineData("foreign-tenant", "restore", "author", true, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "restore", "author", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "publish", "publish", true, "field.value_domain_tenant_mismatch")]
+    [InlineData("foreign-tenant", "publish", "publish", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("blank-principal", "restore", "author", true, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "restore", "author", false, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "publish", "publish", true, "field.value_domain_principal_required")]
+    [InlineData("blank-principal", "publish", "publish", false, "field.value_domain_principal_required")]
+    public async Task Refused_caller_gets_one_refusal_whether_or_not_the_entry_exists(
+        string caller, string operation, string phase, bool exists, string code)
+    {
+        var blank = caller == "blank-principal";
+        await using var provider = BuildHost(actor: blank ? new BlankPrincipal() : null);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var store = provider.GetRequiredService<IFormDefinitionStore>();
+        var entry = Definition("refused-caller-entry", "{not-json");
+        if (!blank) entry = entry with { Tenant = new TenantId("tenant-other") };
+        if (exists) await store.CreateAsync(entry);
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            (operation == "restore"
+                ? publisher.RestoreAsDraftAsync(entry.Tenant, entry.Id, entry.Version)
+                : publisher.PublishAsync(entry.Tenant, entry.Id, entry.Version)).AsTask());
+
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+    }
+
+    [Fact]
+    public async Task Publication_refuses_a_non_Draft_before_the_store_is_called()
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var published = Definition("non-draft-publication", "true") with { Status = FormDefinitionStatus.Published };
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishAsync(published).AsTask());
+
+        Assert.Equal("publish", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.validation_refused", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Fact]
+    public async Task Gate_code_with_a_non_pointer_target_points_at_the_overlay()
+    {
+        var store = new RecordingStore(new FormDefinitionValidationException(
+            new("gate-node-target"), "refused", "form.submit_gate.form_invalid", "gate-node"));
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            publisher.RegisterAndPublishAsync(Definition("gate-node-target", "true")).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form.submit_gate.form_invalid", refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+        Assert.Equal(1, store.Calls);
+    }
+
+    private sealed class BlankPrincipal : IAuthenticatedActorContext
+    {
+        public string UserId => " ";
+        public IReadOnlyList<string> Roles => ["author"];
+        public TenantMetadata Tenant { get; } = new() { Id = new("tenant-authoring-host"), Name = "Test tenant", Status = TenantStatus.Active };
+    }
+
+    // Accepts any status and records each publication call, so only the publisher's own checks can refuse.
+    private sealed class RecordingStore(FormDefinitionValidationException? refusal = null) : IFormDefinitionStore
+    {
+        public int Calls { get; private set; }
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default)
+        {
+            Calls++;
+            return refusal is null ? ValueTask.FromResult(definition) : throw refusal;
+        }
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task Plain_store_invalid_operation_propagates_unchanged()
+    {
+        var failure = new InvalidOperationException("adapter failure");
+        var services = new ServiceCollection();
+        services.AddSingleton<IFormDefinitionStore>(new FailureStore(failure));
+        AuthoringFieldFixture.Add(services, new("tenant-authoring-host"), "sha256:authoring-host", "a", "b");
+        services.AddHarborlineFormsAuthoringPublisher();
+        await using var provider = services.BuildServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => scope.ServiceProvider
+            .GetRequiredService<IFormDefinitionAuthoringPublisher>().CreateAsync(Definition("adapter-failure", "true")).AsTask());
+        Assert.Same(failure, error);
+    }
+
+    private sealed class FailureStore(InvalidOperationException failure) : IFormDefinitionStore
+    {
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => throw failure;
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    private static ServiceProvider BuildHost(IFormDefinitionStore? store = null, IAuthenticatedActorContext? actor = null)
     {
         var services = new ServiceCollection();
         services.AddFormGateRegisters();
-        services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        if (store is null) services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+        else services.AddSingleton(store);
+        AuthoringFieldFixture.Add(services, new("tenant-authoring-host"), "sha256:authoring-host", "a", "b");
+        if (actor is not null) services.AddSingleton(actor);
         services.AddHarborlineFormsAuthoringPublisher();
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

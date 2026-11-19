@@ -1,4 +1,5 @@
 using Harborline.Foundation.Forms.Models;
+using Harborline.Foundation.Assets.Common;
 
 namespace Harborline.Foundation.Forms.Engine.Authoring;
 
@@ -14,6 +15,22 @@ public interface IFormDefinitionAuthoringPublisher
     ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition definition,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Admits and creates a draft.</summary>
+    ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Draft creation is not supported by this publisher.");
+
+    /// <summary>Admits and saves the next draft revision.</summary>
+    ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Draft saving is not supported by this publisher.");
+
+    /// <summary>Admits and restores an existing revision as a new draft.</summary>
+    ValueTask<FormDefinition> RestoreAsDraftAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Draft restoration is not supported by this publisher.");
+
+    /// <summary>Admits and publishes an existing draft.</summary>
+    ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Stored draft publication is not supported by this publisher.");
 
     /// <summary>Publishes through the same admission boundary and returns compute-only impact evidence.</summary>
     /// <param name="definition">The Draft revision to admit and atomically publish.</param>

@@ -576,6 +576,14 @@ if (typeof(FormsState.IFormDefinitionStore).Assembly.GetName().Name != "Harborli
 var formsStateStore = new FormsState.InMemoryFormDefinitionStore(TimeProvider.System, roles: Harborline.Contracts.Authorization.RoleVocabulary.FromApi([new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000031"), Harborline.Contracts.Authorization.RoleReference.Domain("inspector"), "Inspector", new(Harborline.Contracts.Authorization.RoleOwnerKind.Package, "nuget-consumer"), IsSealed: false)]));
 var formsHostServices = new ServiceCollection();
 formsHostServices.AddSingleton<FormsState.IFormDefinitionStore>(formsStateStore);
+// The publisher requires the field-binding source, both field runtimes and an authenticated actor (T-1187).
+var formsHostFields = new ConsumerFormFields(new TenantId("tenant-consumer"), "sha256:consumer-inspection", "condition");
+formsHostServices.AddSingleton<IAuthenticatedActorContext>(actor);
+formsHostServices.AddSingleton<Harborline.Foundation.Forms.Engine.IFormFieldBindingSource>(formsHostFields);
+formsHostServices.AddSingleton<FieldContracts.IFieldKindRuntime>(new FieldRuntime.FieldKindRuntime(new FieldRuntime.FieldKindRegistry(
+    [new FieldContracts.AdmittedFieldKind("text", "1", null, FieldContracts.FieldScalarValueShape.Text)])));
+formsHostServices.AddSingleton<FieldContracts.IFieldDomainRuntime>(
+    new FieldRuntime.ValueDomainRuntime(formsHostFields, formsHostFields, TimeProvider.System));
 formsHostServices.AddHarborlineFormsAuthoringPublisher();
 await using var formsHostProvider = formsHostServices.BuildServiceProvider(
     new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
@@ -646,8 +654,11 @@ try
     await formsAuthoringPublisher.RegisterAndPublishAsync(rejectedDefinition);
     throw new InvalidOperationException("Packed Forms Engine authoring boundary persisted an uncompilable rule.");
 }
-catch (FormsState.Exceptions.FormDefinitionValidationException error)
-    when (error.Code == FormsState.FormDefinitionCodes.RulesUncompilable)
+catch (BuilderDefinitions.DefinitionRefusalException error)
+    when (error.Stage == BuilderDefinitions.DefinitionAdmissionPhase.Publish
+        && error.Refusals.Count == 1
+        && error.Refusals[0].Code == "form.rules.uncompilable"
+        && error.Refusals[0].Pointer == "/overlay/rules")
 {
 }
 try
@@ -835,6 +846,34 @@ sealed record ConsumerActorContext(
     TenantMetadata? Tenant,
     string UserId,
     IReadOnlyList<string> Roles) : IAuthenticatedActorContext;
+
+sealed class ConsumerFormFields(TenantId tenant, string schema, params string[] names)
+    : Harborline.Foundation.Forms.Engine.IFormFieldBindingSource, FieldRuntime.IFieldDomainSource,
+        FieldRuntime.IFieldDomainSnapshot, FieldRuntime.IFieldDomainReadAuthority
+{
+    public ValueTask<Harborline.Foundation.Forms.Engine.FormSchemaFieldBindings?> ResolveAsync(
+        TenantId requestedTenant, string schemaRef, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(requestedTenant != tenant || schemaRef != schema ? null
+            : new Harborline.Foundation.Forms.Engine.FormSchemaFieldBindings(tenant, schema, names.ToDictionary(
+                name => name,
+                _ => new FieldContracts.FieldBindingDefinition(
+                    new("text", "1", new Dictionary<string, string>()),
+                    new(false, 0, 1, Array.Empty<string>(), null)),
+                StringComparer.Ordinal)));
+
+    public TenantId Tenant => tenant;
+    public string Revision => "consumer-fields-1";
+    public bool IsComplete => true;
+    public IReadOnlyList<FieldRuntime.FieldDomainMember>? GetTaxonomyScheme(FieldContracts.TaxonomySchemeReference scheme) => null;
+    public IReadOnlyList<FieldRuntime.FieldDomainMember>? GetRecords(string recordTypeId) => null;
+    public ValueTask<FieldRuntime.IFieldDomainSnapshot> OpenSnapshotAsync(TenantId requestedTenant, CancellationToken cancellationToken = default)
+        => requestedTenant == tenant
+            ? ValueTask.FromResult<FieldRuntime.IFieldDomainSnapshot>(this)
+            : throw new InvalidOperationException("Unexpected package-consumer tenant.");
+    public ValueTask<bool> CanReadAsync(FieldContracts.FieldDomainScope scope, FieldContracts.ValueDomainDefinition domain,
+        FieldRuntime.FieldDomainMember member, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(scope.Tenant == tenant);
+}
 
 sealed class ConsumerRequester(Guid partyId) : IPartyContext
 {
