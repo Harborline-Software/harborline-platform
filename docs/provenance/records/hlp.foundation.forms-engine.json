@@ -6,7 +6,7 @@
   "contentHashes": {
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Program.cs": "3202f8f4e5dc168c2df5bccf3fc4375b305bdcc3270e6be7ed03e2d8e8b73d96",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj": "c7614aceefb947714ae0179900373e0e49db9864759c180bf239a32c2766c716",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "4c1dbc362a039a56f0c3e51d9ad9df2dd4b9cbe760d3c618e5b397616f63aa4e",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "5161cbc5528d3da362252d55b7fff85bd4249b44764d6fa6b3645e83f1dfb728",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/CurrentFormExecutionContextProviderTests.cs": "e5821b4853cff14b3d9afb04c1122363b2a5a6bc733a1fe43412fc1a98314949",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/DecryptOnRenderTests.cs": "b75f89a56683585cc96ce8f83a6e9935b0907d68ea2cb1ecf5971094fb5e39d6",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FileJournalFormSubmissionStoreTests.cs": "7122d1ce130e6f9f9638f73b14aa8e4b90cd9dfb9ea338c276085a6deee08a87",
@@ -28,7 +28,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/SubmissionTransactionStoreTests.cs": "e465d9bd4c67601cca2cd94d180b8d3c17d804e04c0bad0a068907f720cb078d",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/ValidationParityCorpus/cases.json": "f4e19124c9b67929204d1422a92c92354f5406ca3d65d982392073c336ffcef8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/ValidationParityCorpusTests.cs": "547d2d1acdef1cdbe4fd64eabb467a151653aa6803d719a01c03408c732f4644",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine/Authoring/FormDefinitionAuthoringPublisher.cs": "671ac5729c35ce754788bdcf22f119dbb728317ed3de79d05f9a891c9fff6234",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine/Authoring/FormDefinitionAuthoringPublisher.cs": "4102a835162f9148771fae260977e7c9e1ddf336e3da4a0004af928564d6ddd8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Authoring/FormDefinitionPolicyAdmission.cs": "f4a3e1170691d7ced96574c551afff1af8332ae7b6a1d4ee8af3568647b85e11",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Authoring/IFormDefinitionAuthoringPublisher.cs": "b7451725e9f95dcc85efe596718fc91ee0ab773426560d648f4ee7bc5a1ac7a5",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Capabilities/FormCapabilityContracts.cs": "a7b05858f49c3db3d9eec1f4911bed45cc1316baa39556630551caf5527efe41",
