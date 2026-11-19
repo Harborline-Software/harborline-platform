@@ -1,5 +1,33 @@
 # T-493 answer-contract mutation dispositions
 
+## Integration follow-up (2026-11-19)
+
+Merged main `4f3f912c47959ff54ceef6570672b60d7bf32ea9` into this slice at
+`090c207f47e21e34facf27ac281fcb2e23af0263`. The inventory below is historical
+evidence for production `62227059`, not a fresh measurement of the merged tree.
+Main includes T-588/native-money-parity (`8d95fbdf`), which replaces both numeric
+fences identified below. Its retained `Money_record_oracle_probes_resolve_the_exact_fence_integer`
+test passes both direct and arithmetic routes with the independent literal
+`"9007000000000001"`; `Money_integer_inputs_match_literal_parity_matrix` covers
+the surrounding integer boundaries. Their oracle is README Decision DI,
+MoneyDecimal's integer-input contract, DES-0018 rules-ck-8 and independently
+calculated decimal literals. These are regression results, not new mutant kills.
+
+T-1172 keeps full mutation runs and baseline enforcement paused until M11 is
+finished. The permitted `node tooling/stryker.mjs run hlp.foundation.rule-runtime.tests`
+passed configuration checks and skipped this test-only diff against origin/main.
+The TypeScript PR runner likewise selected no changed mutable source. Neither
+produced a fresh mutation report; no new score, killing-test claim or baseline
+update follows from those skips. Historical spans and report hashes below remain
+bound to their original revision. Current-main mutation acceptance remains open.
+
+Focused verification after the merge: native Rule Runtime 679 passed, Taxonomy
+130 passed, TypeScript Rule Runtime 699 passed, TypeScript typecheck passed after
+building the existing contracts declarations. No test expectation or production
+code was changed in this integration follow-up.
+
+## Historical mutation inventory
+
 Production revision: `62227059c3ec14fbe452cf8df7a00b182da16b76` (current origin/main at final fetch). Every production file was restored byte-identically after hand seeding and matches that revision. Test source hashes below bind the measured test tree. Mutation runs used the repository's existing runners and configurations, with no full-project run or baseline/threshold change.
 
 This inventory disposes every originally reported survivor/uncovered mutant in the four requested files. The owner's v1 ruling resolves the 42 previous design-call marks: 29 are now killed, 11 exception-prose mutants are ignored as non-contract text, and two numeric-fence mutants contradict documented tier parity. No open design-call mark remains. Contradictions are not equivalence or acceptance. Compile errors and timeouts are reported separately. Mutants are matched by file, source span, mutator and replacement, never by run-specific id.
