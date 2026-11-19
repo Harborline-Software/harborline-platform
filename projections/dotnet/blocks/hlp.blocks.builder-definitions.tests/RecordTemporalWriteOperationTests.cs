@@ -993,7 +993,7 @@ public sealed class RecordTemporalWriteOperationTests
             ? new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains, store, store, store) { Calculations = Calculations }
             : new(new AccessProvider(Access), Types, Schemas, store, store, OperationClock, Kinds, Domains) { Calculations = Calculations };
         internal static async Task<Fixture> Create(bool mode = true, bool clock = true, bool opaque = false, string key = "status",
-            NamedCalculation? derived = null, bool composeCalculations = true)
+            NamedCalculation? derived = null, bool composeCalculations = true, string? otherTenant = null)
         {
             var kinds = new FieldKindRuntime(new FieldKindRegistry([
                 new("text", "1.0.0", null, FieldScalarValueShape.Text),
@@ -1011,21 +1011,27 @@ public sealed class RecordTemporalWriteOperationTests
                 [DefinitionKind.Classes] = ClassDefinitionStore.Admission(window),
             });
             var classes = new ClassDefinitionStore(definitions);
-            await classes.CreateDraftAsync(new(Tenant, "temporal", "Items", "1.0.0", new(1, 0), "temporal-tests"), "class-create");
-            await classes.PublishAsync(Tenant, "temporal.items", "1.0.0", 1, "class-publish");
-            var publisher = new RecordTypeDefinitionStore(definitions, compiler, defaults, registry, window,
-                new(TenantId.FromString(Tenant), "type-author"), CreationRoles);
             List<FieldDefinition> fields =
                 [new("value", "Value", new(new("amount", "1.0.0", new Dictionary<string, string>()), new(true, 1, 1, [], null))),
                  new(key, "Status", new(new("text", "1.0.0", new Dictionary<string, string>()), new(false, 0, 1, [], new(LiteralValues: ["A", "B"]))))];
             if (derived is not null)
                 fields.Add(new FieldDefinition("doubled", "Doubled", new(new("amount", "1.0.0", new Dictionary<string, string>()), new(true, 1, 1, [], null)))
                     { Calculation = new(derived.Pin.Name, derived.Pin.Version, derived.Pin.Digest) });
-            await publisher.CreateDraftAsync(new(Tenant, "temporal", "Entry", "1.0.0", fields,
-                new(1, 0), ClassId: "temporal.items", RecordClass: RecordClass.Master, PackageId: "temporal-tests",
-                CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author")
-                { AmendmentPolicy = new(true) { Mode = mode ? RecordAmendmentMode.Supersession : null }, HistoryPolicy = RecordHistoryPolicy.Enabled }, "type-create");
-            await publisher.PublishAsync(Tenant, Type, "1.0.0", 1, "type-publish");
+            async Task<RecordTypeDefinitionStore> PublishFor(string tenant)
+            {
+                await classes.CreateDraftAsync(new(tenant, "temporal", "Items", "1.0.0", new(1, 0), "temporal-tests"), "class-create");
+                await classes.PublishAsync(tenant, "temporal.items", "1.0.0", 1, "class-publish");
+                var store = new RecordTypeDefinitionStore(definitions, compiler, defaults, registry, window,
+                    new(TenantId.FromString(tenant), "type-author"), CreationRoles);
+                await store.CreateDraftAsync(new(tenant, "temporal", "Entry", "1.0.0", fields,
+                    new(1, 0), ClassId: "temporal.items", RecordClass: RecordClass.Master, PackageId: "temporal-tests",
+                    CreationGate: RecordCreationGate.Role, CreationRoleId: "asset-author")
+                    { AmendmentPolicy = new(true) { Mode = mode ? RecordAmendmentMode.Supersession : null }, HistoryPolicy = RecordHistoryPolicy.Enabled }, "type-create");
+                await store.PublishAsync(tenant, Type, "1.0.0", 1, "type-publish");
+                return store;
+            }
+            var publisher = await PublishFor(Tenant);
+            if (otherTenant is not null) _ = await PublishFor(otherTenant);
             var observed = new Catalogue(definitions);
             var fixture = new Fixture
             {

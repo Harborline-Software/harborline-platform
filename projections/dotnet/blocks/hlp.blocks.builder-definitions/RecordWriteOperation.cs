@@ -64,7 +64,7 @@ public sealed record RecordWriteOperationKey(string Tenant, string CallerId, str
     /// </summary>
     public string IdempotencyKey => Framed(Tenant) + Framed(CallerId) + Framed(OperationId) + (Origin is null ? string.Empty : Framed(Origin));
 
-    private static string Framed(string value) => value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
+    internal static string Framed(string value) => value.Length.ToString(CultureInfo.InvariantCulture) + ":" + value;
 }
 
 /// <summary>The record row the operation stages into the host's transaction, exactly as it was validated.</summary>
@@ -604,7 +604,9 @@ public static class RecordCreationAuthorization
 /// allowed decision (DES-0032: the trace equals enforcement). A form invoking a <c>role</c> type's create uses this same operation and adds no
 /// creation gate. The form-origin entry for <c>form_only</c> types is <see cref="CompleteAcceptedAsync"/> (plan W8,
 /// ADR-0110): it completes a durably accepted command as the host's worker, keyed by the submitter and the original
-/// operation id. Mutate, Rules and React are not in this slice; T-616 still owns them.</para>
+/// operation id. React (ADR-0038, ADR 0124 decisions 2 and 3) runs after commit and outside the write: the committed journal
+/// is the outbox Records publishes <see cref="RecordCommittedEvent"/> from, and a reaction's work is a new record through
+/// <see cref="CreateReactionAsync"/>, never a change to the record it reacts to.</para>
 /// </remarks>
 public sealed class RecordWriteOperation
 {
@@ -1015,8 +1017,14 @@ public sealed class RecordWriteOperation
     /// except <c>records.write.receipt_unsupported</c> after a Created commit with an unreadable receipt (see
     /// <see cref="RecordWriteOutcome"/>).
     /// </summary>
-    public async ValueTask<RecordWriteOutcome> CreateAsync(RecordWriteScope scope, RecordCreateRequest request,
+    public ValueTask<RecordWriteOutcome> CreateAsync(RecordWriteScope scope, RecordCreateRequest request,
         CancellationToken cancellationToken = default)
+        => CreateKeyedAsync(scope, request, null, true, cancellationToken);
+
+    // A principal's direct create; a reaction's carries its reaction key as the operation key's origin, and is bound only when
+    // it acts as its source event's principal and executor.
+    private async ValueTask<RecordWriteOutcome> CreateKeyedAsync(RecordWriteScope scope, RecordCreateRequest request, string? origin,
+        bool bound, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentNullException.ThrowIfNull(request);
@@ -1039,9 +1047,10 @@ public sealed class RecordWriteOperation
         if (!access.Check.Allowed) return Refused(AuthorizeStage, access.Check.Reason, []) with { Decision = access.Evidence };
         // AccessProvider allows only with evidence that matched every context field.
         var evidence = access.Evidence ?? throw new InvalidOperationException("The gate allowed without its evidence.");
+        if (!bound) return Refused(BindStage, BindingMismatch, []) with { Decision = evidence };
 
         var plan = new WritePlan(scope.Tenant, scope.ActorId, null, null, null,
-            new RecordWriteOperationKey(scope.Tenant, scope.ActorId, request.OperationId), request);
+            new RecordWriteOperationKey(scope.Tenant, scope.ActorId, request.OperationId) { Origin = origin }, request);
         var (outcome, evidenceCommitted) = await WriteAsync(plan, bodySnapshot, recordId, instant, evidence, cancellationToken)
             .ConfigureAwait(false);
         // A Created commit already committed the evidence with its record, even when its receipt is unreadable; anything else
@@ -1135,6 +1144,48 @@ public sealed class RecordWriteOperation
         var (outcome, evidenceCommitted) = await WriteAsync(plan, bodySnapshot, recordId, instant, evidence, cancellationToken)
             .ConfigureAwait(false);
         return evidenceCommitted ? outcome : outcome with { Decision = evidence };
+    }
+
+    /// <summary>
+    /// Creates a reaction's new record from a committed event (ADR-0038 React stage, ADR 0124 decision 3, records-run-3):
+    /// after the source write committed and outside its transaction, so it never amends the source record. It is a
+    /// principal's direct create in every other respect: the gate decides <paramref name="scope"/>'s create of the requested
+    /// type first, and the bind, creation policy and validation are <see cref="CreateAsync"/>'s, so reaction provenance
+    /// bypasses no gate. After the gate, <paramref name="scope"/> must be the source event's principal and
+    /// <see cref="RecordReactionCreate.Executor"/> its executor (ADR-0154 decisions 1 and 3); otherwise
+    /// <c>records.command.binding_mismatch</c> at bind, and nothing is written. The row keeps the source <c>operation_id</c>,
+    /// and the operation key adds an origin framing the reaction key, the source event id and each part of the effect, so a
+    /// redelivered effect replays its record and every other effect creates its own: two reactions to one source write, two
+    /// effects of one run, two committed events that share an operation id, and a reaction to a reaction's own output event.
+    /// No key collision stops a reaction chain; bounding a cascade across reactions is the Workflow event-trigger start's
+    /// (T-488/event-trigger-start), and the in-run loop bound is the Workflow engine's <c>MaxIterations</c>
+    /// (platform ADR 0135 A0, <c>WorkflowEngineOptions.cs:4</c>).
+    /// </summary>
+    public async ValueTask<RecordWriteOutcome> CreateReactionAsync(RecordWriteScope scope, RecordReactionCreate reaction,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        ArgumentNullException.ThrowIfNull(reaction);
+        ArgumentNullException.ThrowIfNull(reaction.Source);
+        ArgumentNullException.ThrowIfNull(reaction.Reaction);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Reaction.WorkflowKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Reaction.WorkflowVersion);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Reaction.TriggerId);
+        ArgumentNullException.ThrowIfNull(reaction.Source.OperationId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Source.EventId);
+        ArgumentNullException.ThrowIfNull(reaction.Effect);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Effect.InstanceId);
+        ArgumentOutOfRangeException.ThrowIfNegative(reaction.Effect.Iteration);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Effect.Step);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reaction.Effect.Purpose);
+        // A reaction works in its source write's tenant only.
+        if (!StringComparer.Ordinal.Equals(scope.Tenant, reaction.Source.Tenant))
+            throw new ArgumentException("A reaction writes in its source event's tenant.", nameof(scope));
+        // ADR-0154 decisions 1 and 3: the reaction acts for its source event's principal, with that event's executor.
+        var bound = StringComparer.Ordinal.Equals(scope.ActorId, reaction.Source.Principal)
+            && StringComparer.Ordinal.Equals(reaction.Executor, reaction.Source.Executor);
+        return await CreateKeyedAsync(scope, new(reaction.RecordTypeId, reaction.Source.OperationId, reaction.Body, reaction.Version),
+            reaction.Origin, bound, cancellationToken).ConfigureAwait(false);
     }
 
     // One write after the gate allowed it: a principal's direct create (no originator) or an accepted command's completion
