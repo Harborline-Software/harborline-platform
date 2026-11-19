@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -284,8 +286,12 @@ internal static class HarborlineJsonLogic
             if (v.TryGetValue<long>(out var l)) return MoneyDecimal.FromInteger(l);
             if (v.TryGetValue<int>(out var iv)) return MoneyDecimal.FromInteger(iv);
             // Reject non-integer JSON numbers: float parsing cannot recover exact decimal cross-tier.
-            if (v.TryGetValue<double>(out var d) && d == Math.Floor(d) && Math.Abs(d) < 9.007e15)
-                return MoneyDecimal.FromInteger((long)d);
+            if (v.TryGetValue<double>(out var d) && double.IsFinite(d) && d == Math.Floor(d))
+            {
+                // The upper bound is exclusive: (double)long.MaxValue rounds up to 2^63.
+                if (d >= long.MinValue && d < 9223372036854775808d) return MoneyDecimal.FromInteger((long)d);
+                return MoneyDecimal.Parse(new BigInteger(d).ToString(CultureInfo.InvariantCulture));
+            }
         }
         throw new FormatException("money operand must be a decimal string or an integer");
     }
@@ -420,7 +426,7 @@ internal static class HarborlineJsonLogic
     internal static JsonNode NumNode(double d)
     {
         if (!double.IsFinite(d)) throw new RuleEvalException(RuleError.Of(RuleEngineCodes.TypeError, "reason", "non-finite"));
-        if (d == Math.Floor(d) && Math.Abs(d) < 9.007e15) return JsonValue.Create((long)d);
+        if (d == Math.Floor(d) && d >= long.MinValue && d < 9223372036854775808d) return JsonValue.Create((long)d);
         return JsonValue.Create(d);
     }
 

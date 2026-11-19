@@ -139,8 +139,46 @@ public sealed class InMemoryRruleExpansionService : IRruleExpansionService
         }
     }
 
+    private static DateOnly EffectiveEnd(DateOnly horizon, ParsedRrule parsed, string? timezone = null)
+    {
+        if (parsed.Until is not { } until) return horizon;
+        var date = until.Date;
+        if (until.Instant is { } instant && timezone is not null)
+        {
+            var zone = DateTimeZoneProviders.Tzdb[timezone];
+            // A pre-rollback occurrence can have a later local date; MaxOffset bounds every possible nominal date.
+            var localTicks = instant.UtcTicks + zone.MaxOffset.Ticks;
+            if (localTicks > DateTime.MaxValue.Ticks) return horizon;
+            if (localTicks < DateTime.MinValue.Ticks) return DateOnly.MinValue;
+            date = DateOnly.FromDateTime(new DateTime(localTicks, DateTimeKind.Unspecified));
+        }
+        return date < horizon ? date : horizon;
+    }
+
+    /// <inheritdoc />
+    public void VisitZonedOccurrences(string rrule, DateOnly start, TimeOnly startTime, string timezone,
+        DateOnly end, DateOnly requestedRangeStart, Action<DateOnly> visit, int candidateLimit = 50_000,
+        RruleExpansionBudget? budget = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rrule);
+        ArgumentNullException.ThrowIfNull(visit);
+        budget ??= new RruleExpansionBudget(rrule, start, requestedRangeStart, end, candidateLimit);
+        if (budget.RecurrenceId != rrule || budget.Anchor != start || budget.RequestedRangeStart != requestedRangeStart || budget.RequestedRangeEnd != end)
+            throw new ArgumentException("The work budget belongs to a different expansion.", nameof(budget));
+        if (DateTimeZoneProviders.Tzdb.GetZoneOrNull(timezone) is null)
+            throw new ArgumentException($"'{timezone}' is not an IANA time zone id.", nameof(timezone));
+        var parsed = RruleSubset.Parse(rrule);
+        foreach (var occurrence in RruleCandidateWalker.Walk(parsed, new CalDateTime(start, startTime, null),
+            EffectiveEnd(end, parsed, timezone), budget))
+        {
+            if (parsed.Until is { Instant: { } instant } && WallClockResolver.ToUtcInstant(occurrence.Date, startTime, timezone) > instant)
+                break;
+            visit(occurrence.Date);
+        }
+    }
+
     /// <summary>
-    /// Walks ascending occurrences from the anchor. COUNT is applied by the engine and counts from the anchor; UNTIL, the
+    /// Walks ascending occurrences from the anchor. COUNT counts matches across engine periods from the anchor; UNTIL, the
     /// explicit end, the lookahead horizon and the lead filter bound the walk here, exactly as DES-0057 ck-4 to ck-6 state.
     /// </summary>
     private static List<DateOnly> Collect(

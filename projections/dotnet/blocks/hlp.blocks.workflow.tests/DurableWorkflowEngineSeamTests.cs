@@ -419,6 +419,24 @@ public sealed class DurableWorkflowEngineSeamTests
             await dispatcher.DispatchAsync(WorkflowTrigger.For(WorkflowTriggerKind.Event, "inst-terminal", "done"), Authorized("inst-terminal")));
     }
 
+    [Theory]
+    [InlineData(WorkflowStatus.Cancelled, WorkflowDispatchResult.Terminal)]
+    [InlineData(WorkflowStatus.Terminated, WorkflowDispatchResult.Terminal)]
+    [InlineData(WorkflowStatus.Suspended, WorkflowDispatchResult.Discarded)]
+    public async Task Inactive_run_refuses_dispatch_without_changing_state_or_history(
+        WorkflowStatus status, WorkflowDispatchResult expected)
+    {
+        using var fixture = new JournalFixture();
+        using var store = fixture.Open();
+        await CreateAsync(store, "inactive", step: "step-1", status: status);
+        var dispatcher = new WorkflowTriggerDispatcher(store, [new AdvanceOnceHandler()], definitionStore: AdmittedDefinitionStore);
+        Assert.Equal(expected, await dispatcher.DispatchAsync(
+            WorkflowTrigger.For(WorkflowTriggerKind.Event, "inactive", "step-1"), Authorized("inactive")));
+        Assert.Equal(status, (await store.LoadAsync("inactive"))!.Status);
+        Assert.Empty(await store.EventsAsync("inactive"));
+        Assert.Empty(await store.CommittedEffectPayloadsAsync("inactive"));
+    }
+
     [Fact]
     public async Task ScheduleDaemon_Tick_AdvancesDueInstances_AtLeastOnceSafe()
     {

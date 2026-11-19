@@ -811,7 +811,7 @@ public sealed class ContentStoreEpochTests
         await rewrap.RunAsync(async session =>
         {
             Assert.Equal(1, await store.RewrapEpochAsync(Tenant, rotation.From!.Value, rotation.To, 5, Write("joined", Scheduler, session)));
-            commit = OnAnotherRequest(async () => await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("commit")));
+            commit = OnAnotherRequest(async () => await store.CommitReferenceAsync(Tenant, stage, new("record-1", "0"), "a.txt", Write("commit", ContentStoreWriteEvidence.Actor)));
             await Task.Delay(100);
             Assert.False(commit.IsCompleted); // the staged row is held by the rewrap
         });

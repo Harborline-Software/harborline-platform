@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.workflow/interface.yaml",
-      "revision": 14
+      "revision": 16
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -13,7 +13,8 @@
     "owner": "platform-blocks",
     "dependencies": [
       "hlp.contracts.identities",
-      "hlp.foundation.definitions"
+      "hlp.foundation.definitions",
+      "hlp.foundation.rule-runtime"
     ],
     "status": "implemented-engine-substrate-package-green",
     "depth": {
@@ -36,7 +37,8 @@
           "manifest": "projections/dotnet/blocks/hlp.blocks.workflow/Harborline.Blocks.Workflow.csproj",
           "dependencies": [
             "Harborline.Contracts",
-            "Harborline.Foundation.Definitions"
+            "Harborline.Foundation.Definitions",
+            "Harborline.Foundation.RuleEngine"
           ],
           "identityAuthority": "Harborline",
           "producerRepository": "harborline-platform",

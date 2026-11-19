@@ -285,7 +285,9 @@ public sealed class ValueDomainRuntime : IFieldDomainRuntime
 
         void ValidateScalar(JsonElement item, string pointer)
         {
-            refusals.AddRange(kind.Validate(item, pointer));
+            // A submitted attachment list may name staged uploads (ADR-0142 decision 1); Records swaps them before commit.
+            refusals.AddRange(kind is ICompiledAttachmentFieldKind attachment
+                ? attachment.ValidateSubmission(item, pointer) : kind.Validate(item, pointer));
             var member = item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText();
             if (membership is not null && (member is null || !membership.Contains(member)))
                 refusals.Add(new("field.value_outside_domain", pointer, "The value is outside the permitted field domain."));

@@ -15,6 +15,8 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 
 The shared catalogue validator refuses before storing a draft. Unsupported JSON configurations retain `scheduling.definition.body_invalid`; unadmitted modules retain `scheduling.definition.module_unsupported`. A `fixed_calendar` rule is checked at save by the recurrence producer's own `ValidateRule` parser (DES-0057 ck-1/cc-1).
 
+`ScheduleDefinition.Solver` keeps the backend id, parameters object, guarantee and work budget with the pinned definition. Planning requires this binding; a schedule without a problem class does not. Static admission checks its shape, while the catalogue checks the host's `IPlanningSolver` declarations on save and publish. Supply that same set to the catalogue and planner, or use `AddHarborlineSchedulingPlanner` with the shared definition store. `PlanAsync` retains its explicit arguments.
+
 Three nullable init-only intent properties preserve the existing 14-argument constructor and `Deconstruct`, participate in record equality and round-trip under the same JSON wire names. They make excluded planning requests explicit, with stable codes at their own pointers:
 
 - `recovery_replanning: true` refuses `scheduling.definition.recovery_replanning_unsupported` (auth-21, L463). Absent/false leaves ordinary `record_and_replan` admitted.
@@ -53,7 +55,7 @@ The due seam, queue, completion models, generators and chain ledger types live i
 
 ## Typed module admission and planning (T-491/module-admission)
 
-`AddHarborlineSchedulingPlanner` registers `SchedulePlanner` and the two existing finite backends. The host supplies `ScheduleDefinitionCatalogue` and `Harborline.Foundation.Scheduling.Services.IAvailabilityRuntime`. Reservation and due-query registrations remain independent.
+`AddHarborlineSchedulingPlanner` registers `ScheduleDefinitionCatalogue`, `SchedulePlanner` and the two existing finite backends. The host supplies the versioned definition store and `Harborline.Foundation.Scheduling.Services.IAvailabilityRuntime`. Direct catalogue construction requires the host's solver set. Reservation and due-query registrations remain independent.
 
 `PlanAsync` resolves an exact published `ScheduleDefinitionPin`. The declared `Project` or `JobShop` class compiles to `time_windows`, `resource_requirements`, `no_overlap` and `precedence`; the seven authored class names are Harborline rulings (DES-0022 open item 6), not a standard taxonomy. Other classes refuse. Every module advances `Elicited -> ShapeCandidate -> Admitted -> BackendSupported`, and every nonadjacent transition refuses `MODULE_ADMISSION_SKIP`. Unknown modules and parameter members refuse `MODULE_UNSUPPORTED` before candidate enumeration. Save and publish use the same admitted set and refuse `scheduling.definition.module_unsupported` at `/modules/{i}/module`, recording nothing.
 

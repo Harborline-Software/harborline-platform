@@ -825,6 +825,8 @@ function verifyNuget() {
   const definitions = 'projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj'
   const documents = 'projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj'
   const foundationScheduling = 'projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj'
+  const executionRuntime = 'projections/dotnet/foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj'
+  const contentStore = 'projections/dotnet/foundation/hlp.foundation.content-store/Harborline.Foundation.ContentStore.csproj'
   const fieldRuntime = 'projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj'
   const blocksScheduling = 'projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj'
   const blocksCalendar = 'projections/dotnet/blocks/hlp.blocks.calendar/Harborline.Blocks.Calendar.csproj'
@@ -856,6 +858,8 @@ function verifyNuget() {
   run(dotnet.executable, ['pack', definitions, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', documents, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', foundationScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', executionRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
+  run(dotnet.executable, ['pack', contentStore, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', fieldRuntime, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksScheduling, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
   run(dotnet.executable, ['pack', blocksCalendar, '--configuration', 'Release', '--output', nugetArtifacts, '-v:minimal'])
@@ -877,6 +881,8 @@ function verifyNuget() {
   })
   const expectedIds = ['Harborline.Blocks.ActivityTimeline', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.Calendar', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.InspectionReview', 'Harborline.Blocks.Reports', 'Harborline.Blocks.Scheduling', 'Harborline.Blocks.Workflow', 'Harborline.Blocks.Workflow.Interpreter', 'Harborline.Foundation', 'Harborline.Foundation.DataExchange', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.Documents', 'Harborline.Foundation.Forms.Engine', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Scheduling', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation', 'Harborline.Kernel.WorkItems', 'Harborline.UIAdapters.Blazor', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Forms', 'Harborline.Foundation.Session']
   const actualIds = packageMetadata.map(entry => entry.id).sort()
+  expectedIds.push('Harborline.Foundation.ExecutionRuntime')
+  expectedIds.push('Harborline.Foundation.ContentStore')
   expectedIds.push('Harborline.Foundation.FieldRuntime')
   expectedIds.push('Harborline.Foundation.Taxonomy')
   if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds.sort())) {
@@ -1152,6 +1158,8 @@ function verifyNuget() {
     'Harborline.Blocks.Workflow.Interpreter',
     'Harborline.Contracts',
     'Harborline.Foundation.Definitions',
+    'Harborline.Foundation.RuleEngine',
+    'Harborline.Kernel.SchemaValidation',
   ]
   const workflowExpectedNodes = inspections
     .filter(entry => workflowExpectedIds.includes(entry.id))
@@ -1340,6 +1348,10 @@ function verifyCalculationsCapability() {
     'Harborline.Foundation.Authorization',
     'Harborline.Foundation.MultiTenancy',
     'Harborline.Kernel.Core',
+    // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+    'Harborline.Foundation.FieldRuntime',
+    'Harborline.Foundation.ContentStore',
+    'Harborline.Foundation.ExecutionRuntime',
   ], 'Calculations engine')
 
   return {
@@ -1408,7 +1420,9 @@ function verifyViewsCapability() {
     // platform seed's window (BuilderDefinitions' PlatformPackageSeed, which brings RuleAuthoring).
     // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
     // T-616: BuilderDefinitions' Records write commits through Kernel.Core.
-    ['Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Taxonomy', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
+    // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages
+    // through ContentStore on ExecutionRuntime.
+    ['Harborline.Blocks.Aggregates', 'Harborline.Blocks.BuilderDefinitions', 'Harborline.Blocks.EntityViews', 'Harborline.Blocks.MeasureCatalogue', 'Harborline.Contracts', 'Harborline.Foundation.Authorization', 'Harborline.Foundation.ContentStore', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime', 'Harborline.Foundation.MultiTenancy', 'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Taxonomy', 'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
     'Views engine',
     /Forms.*(?:Builder|Authoring)|(?:Builder|Authoring).*Forms/i,
   )
@@ -1472,7 +1486,9 @@ function verifySchedulingCapability() {
       'Harborline.Kernel.Core',
       'Harborline.Blocks.BuilderDefinitions', 'Harborline.Foundation.Definitions', 'Harborline.Foundation.RuleAuthoring',
       // T-493 S7: BuilderDefinitions binds DefinitionKind.Taxonomy through Foundation.Taxonomy.
-      'Harborline.Foundation.Taxonomy'],
+      'Harborline.Foundation.Taxonomy',
+      // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+      'Harborline.Foundation.ContentStore', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime'],
     'Scheduling',
     // T-732: RuleEngine's own Kernel.SchemaValidation dependency (compiling the JsonSchema tier
     // against the kernel's dialect) is now an expected, always-present part of the RuleEngine
@@ -1511,7 +1527,9 @@ function verifyReportsCapability() {
       // reports its stage with the shared DefinitionAdmissionPhase, both from Foundation.Definitions.
       'Harborline.Foundation.Definitions', 'Harborline.Blocks.BuilderDefinitions',
       'Harborline.Foundation.RuleAuthoring', 'Harborline.Foundation.RuleEngine', 'Harborline.Foundation.Taxonomy',
-      'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation'],
+      'Harborline.Kernel.Core', 'Harborline.Kernel.SchemaValidation',
+      // T-521: BuilderDefinitions' attachment field kind binds through FieldRuntime, which stages through ContentStore on ExecutionRuntime.
+      'Harborline.Foundation.ContentStore', 'Harborline.Foundation.ExecutionRuntime', 'Harborline.Foundation.FieldRuntime'],
     'Reports',
     // T-732: see the identical note in verifySchedulingCapability.
     /(?:Financial|Tax(?!onomy\b)|Forms|Workflows|EntityViews|Kernel(?!\.(?:SchemaValidation|Core)\b)|Blazor|React)/i,

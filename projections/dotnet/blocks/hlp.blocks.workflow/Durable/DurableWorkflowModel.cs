@@ -104,6 +104,15 @@ public enum WorkflowStatus
 
     /// <summary>Terminal — the instance failed and will not advance further without operator action.</summary>
     Failed = 3,
+
+    /// <summary>Stopped gracefully.</summary>
+    Cancelled = 4,
+
+    /// <summary>Stopped forcibly.</summary>
+    Terminated = 5,
+
+    /// <summary>Paused until resumed.</summary>
+    Suspended = 6,
 }
 
 /// <summary>
