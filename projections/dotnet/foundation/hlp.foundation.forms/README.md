@@ -7,3 +7,6 @@ Publication resolves a submit gate against the host's registers: the capability 
 through Access's role vocabulary and the standing arm through the standings installed standing rules declare; publication refuses an arm whose
 register the host did not supply.
 Executable render/validate/submit orchestration remains in the separate Forms Engine module.
+
+Revision 11 gives System-owned draft restoration and illegal transitions a typed
+`FormDefinitionLifecycleException`, retaining `InvalidOperationException` compatibility and the original message.
