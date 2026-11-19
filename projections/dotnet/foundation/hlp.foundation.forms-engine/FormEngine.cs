@@ -614,7 +614,7 @@ public sealed class FormEngine : IFormEngine
         try
         {
             var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
-            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, instant, cancellationToken).ConfigureAwait(false);
+            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, instant, cancellationToken, bindings).ConfigureAwait(false);
             if (bindings is null || evaluation.AcceptedCandidate.RootElement.ValueKind != JsonValueKind.Object) return evaluation;
             var errors = evaluation.Errors.ToList();
             foreach (var (name, binding) in bindings)
