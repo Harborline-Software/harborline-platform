@@ -92,23 +92,23 @@ public sealed class ExecutionRuntimeTests
         var run = await lifecycle.StartAsync(new StartRun(WorkflowRun, Tenant, ExternalApi));
         var failure = new RunFailure("upstream.timeout", Retryable: true);
 
-        // external-api-standard: three attempts, waiting 2s then 4s between them.
+        // external-api-standard: three attempts, fixed half-jitter waits 1s then 2s between them.
         await lifecycle.BeginAttemptAsync(Tenant, run.Id);
         var first = await lifecycle.FailAttemptAsync(Tenant, run.Id, failure);
         Assert.Equal(RunStatus.AwaitingRetry, first.Status);
-        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(2), first.NextAttemptDueUtc);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(1), first.NextAttemptDueUtc);
 
         var early = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => lifecycle.BeginAttemptAsync(Tenant, run.Id).AsTask());
         Assert.Equal(ExecutionRuntimeRefusals.RetryNotDue, early.Code);
 
-        clock.Advance(TimeSpan.FromSeconds(2));
+        clock.Advance(TimeSpan.FromSeconds(1));
         await lifecycle.BeginAttemptAsync(Tenant, run.Id);
         var second = await lifecycle.FailAttemptAsync(Tenant, run.Id, failure);
         Assert.Equal(RunStatus.AwaitingRetry, second.Status);
-        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(4), second.NextAttemptDueUtc);
+        Assert.Equal(clock.GetUtcNow() + TimeSpan.FromSeconds(2), second.NextAttemptDueUtc);
         Assert.Empty(await lifecycle.DeadLetteredAsync(Tenant));
 
-        clock.Advance(TimeSpan.FromSeconds(4));
+        clock.Advance(TimeSpan.FromSeconds(2));
         await lifecycle.BeginAttemptAsync(Tenant, run.Id);
         var exhausted = await lifecycle.FailAttemptAsync(Tenant, run.Id, failure);
 
@@ -506,6 +506,7 @@ public sealed class ExecutionRuntimeTests
         Assert.Throws<ArgumentNullException>(() => new RunLifecycle(null!, new InMemoryRunStore(), TimeProvider.System));
         Assert.Throws<ArgumentNullException>(() => new RunLifecycle(new RunKindRegistry(), null!, TimeProvider.System));
         Assert.Throws<ArgumentNullException>(() => new RunLifecycle(new RunKindRegistry(), new InMemoryRunStore(), null!));
+        Assert.Throws<ArgumentNullException>(() => new RunLifecycle(new RunKindRegistry(), new InMemoryRunStore(), TimeProvider.System, null!));
         Assert.Throws<ArgumentNullException>(() => new CapabilityRetryPolicy(RetryProfileName.ImmediateOrFail, null!));
     }
 
@@ -516,7 +517,7 @@ public sealed class ExecutionRuntimeTests
         registry.Register(PlanRun, "scheduling");
         var store = new InMemoryRunStore();
         var clock = new ManualClock();
-        return (new RunLifecycle(registry, store, clock), store, clock);
+        return (new RunLifecycle(registry, store, clock, new FixedRandom(0.5)), store, clock);
     }
 
     private sealed class ManualClock : TimeProvider
