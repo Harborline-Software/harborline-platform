@@ -1,0 +1,673 @@
+{
+  "_comment": "T-1194 / ADR-0153 decisions 1-4. Literal oracles: Enumerable.Any/All and !Any; String.StartsWith/EndsWith with StringComparison.Ordinal. https://learn.microsoft.com/dotnet/api/system.linq.enumerable.all ; https://learn.microsoft.com/dotnet/api/system.string.startswith ; https://learn.microsoft.com/dotnet/api/system.string.endswith . Local data binding uses JsonLogic array-operation shape; existing Rules truthiness and error codes apply.",
+  "cases": [
+    {
+      "name": "array-string/some-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"some": [[], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/some-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[-2, 0], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"some": [[-2, 0], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/some-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[-2, 1], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"some": [[-2, 1], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/some-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[1, -2], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"some": [[1, -2], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/some-not-array-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [null, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/some-not-array-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [0, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/some-not-array-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [false, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/some-not-array-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": ["abc", true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/some-not-array-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [{"a": 1, "b": 2}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/some-missing-array",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [{"var": "absent"}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/all-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"all": [[], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/all-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[1, 2], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"all": [[1, 2], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/all-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[1, 0], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"all": [[1, 0], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/all-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[0, 1], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"all": [[0, 1], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/all-not-array-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [null, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/all-not-array-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [0, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/all-not-array-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [false, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/all-not-array-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": ["abc", true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/all-not-array-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [{"a": 1, "b": 2}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/all-missing-array",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [{"var": "absent"}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "all"}}}}}
+    },
+    {
+      "name": "array-string/none-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"none": [[], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/none-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[-2, 0], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "expectedAst": {"c.result": {"none": [[-2, 0], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/none-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[-2, 1], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"none": [[-2, 1], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/none-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[1, -2], {">": [{"var": ""}, 0]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}},
+      "expectedAst": {"c.result": {"none": [[1, -2], {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/none-not-array-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [null, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/none-not-array-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [0, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/none-not-array-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [false, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/none-not-array-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": ["abc", true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/none-not-array-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [{"a": 1, "b": 2}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/none-missing-array",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [{"var": "absent"}, true]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "none"}}}}}
+    },
+    {
+      "name": "array-string/object-local-path",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{"score": 2}, {"score": 3}], {">": [{"var": "score"}, 1]}]}}],
+      "instance": {"score": 0},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/nested-quantifier",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[[1, 2], [3]], {"some": [{"var": ""}, {">": [{"var": ""}, 0]}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/nested-empty",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[[], []], {"some": [{"var": ""}, true]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/nested-none",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[[-1], [-2]], {"some": [{"var": ""}, {">": [{"var": ""}, 0]}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/nested-not-array",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[[1], null], {"some": [{"var": ""}, true]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "some"}}}}}
+    },
+    {
+      "name": "array-string/local-no-outer-fallback",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"other": 0}], {"var": ["secret", false]}]}}],
+      "instance": {"secret": true},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-default-expression",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{}, {}], {"var": ["missing", {"==": [{"var": ""}, {}]}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-missing",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{"name": "a"}], {"!": [{"missing": ["name"]}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-missing-some",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{"name": "a"}], {"!": [{"missing_some": [1, ["name", "other"]]}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-array-index",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[[2], [3]], {">": [{"var": "0"}, 1]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-prefixed-path",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"field": {"result": true}}], {"var": "field.result"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-null",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[null], {"==": [{"var": ""}, null]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/outer-scope-restored",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"and": [{"some": [[1], true]}, {"var": "flag"}]}}],
+      "instance": {"flag": true},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/some-short-circuit",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[1, 0], {"/": [1, {"var": ""}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/all-short-circuit",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[0, 1], {"if": [{"var": ""}, {"/": [1, 0]}, false]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/none-short-circuit",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"none": [[1, 0], {"/": [1, {"var": ""}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/quantifier-budget",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[1, 2, 3], true]}}],
+      "instance": {},
+      "limits": {"stepBudget": 7},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/startsWith-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["pump-1", "pump"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/startsWith-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["pump-1", "Pump"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/startsWith-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["éclair", "é"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/startsWith-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["éclair", "é"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/startsWith-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["a", "ab"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/startsWith-5",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["abc", ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/startsWith-6",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["", ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/startsWith-7",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["", "a"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/startsWith-8",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["😀x", "😀"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/startsWith-9",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["xabc", "abc"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": [null, "x"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["x", null]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": [1, "1"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["1", 1]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": [[], ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-5",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["", {}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-not-string-6",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": [false, ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "startsWith"}}}}}
+    },
+    {
+      "name": "array-string/startsWith-budget",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["abcdef", "abc"]}}],
+      "instance": {},
+      "limits": {"stepBudget": 12},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/endsWith-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["1-pump", "pump"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/endsWith-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["1-pump", "Pump"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/endsWith-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["café", "é"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/endsWith-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["café", "é"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/endsWith-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["a", "ab"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/endsWith-5",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["abc", ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/endsWith-6",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["", ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/endsWith-7",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["", "a"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/endsWith-8",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["x😀", "😀"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/endsWith-9",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["abcx", "abc"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-0",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": [null, "x"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-1",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["x", null]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-2",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": [1, "1"]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-3",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["1", 1]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-4",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": [[], ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-5",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["", {}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-not-string-6",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": [false, ""]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Error", "error": {"code": "rule.type_error", "params": {"op": "endsWith"}}}}}
+    },
+    {
+      "name": "array-string/endsWith-budget",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["abcdef", "abc"]}}],
+      "instance": {},
+      "limits": {"stepBudget": 12},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/excluded-map",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"map": [[], true]}}],
+      "instance": {},
+      "expectedCompileError": {"code": "rule.compile.invalid_expression"}
+    },
+    {
+      "name": "array-string/excluded-filter",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"filter": [[], true]}}],
+      "instance": {},
+      "expectedCompileError": {"code": "rule.compile.invalid_expression"}
+    },
+    {
+      "name": "array-string/excluded-reduce",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"reduce": [[], true]}}],
+      "instance": {},
+      "expectedCompileError": {"code": "rule.compile.invalid_expression"}
+    },
+    {
+      "name": "array-string/excluded-merge",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"merge": [[], true]}}],
+      "instance": {},
+      "expectedCompileError": {"code": "rule.compile.invalid_expression"}
+    },
+    {
+      "name": "array-string/formula-local-input",
+      "instance": {"values": [1, 2]},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}},
+      "skin": {"kind": "formula", "ruleId": "c.result", "scope": "Field", "scopeTarget": "result", "action": "Compute", "inputs": [{"ref": "values", "type": "array"}], "expression": {"all": [{"var": "values"}, {">": [{"var": ""}, 0]}]}}
+    },
+    {
+      "name": "array-string/local-nested-object",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{"details": {"label": "pump"}}], {"startsWith": [{"var": "details.label"}, "p"]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-missing-default",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[{"fallback": true}], {"var": ["absent", {"var": "fallback"}]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-reserved-root",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"caller": {"active": true}}], {"var": "caller.active"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/local-no-prototype",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{}], {"var": "constructor"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-index-out-of-range",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[[1]], {"var": "1"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-index-leading-zero",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[[1]], {"var": "00"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-index-negative",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[[1]], {"var": "-1"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-path-through-null",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"value": null}], {"var": "value.name"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/local-path-through-scalar",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"value": "abc"}], {"var": "value.length"}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/generated-array",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [{"missing": ["a", "b"]}, {"endsWith": [{"var": ""}, "b"]}]}}],
+      "instance": {},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": false}}}
+    },
+    {
+      "name": "array-string/source-variable",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [{"var": "values"}, {">": [{"var": ""}, 0]}]}}],
+      "instance": {"values": [1, 2]},
+      "expectedOutcomes": {"c.result": {"ruleId": "c.result", "target": "field:result", "outputType": "Value", "value": {"state": "Resolved", "value": true}}}
+    },
+    {
+      "name": "array-string/quantifier-budget-equality",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"all": [[1, 2, 3], true]}}],
+      "instance": {},
+      "limits": {"stepBudget": 8},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Resolved", "value": true}
+    },
+    {
+      "name": "array-string/startsWith-budget-equality",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"startsWith": ["abcdef", "abc"]}}],
+      "instance": {},
+      "limits": {"stepBudget": 13},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Resolved", "value": true}
+    },
+    {
+      "name": "array-string/endsWith-budget-equality",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"endsWith": ["abcdef", "abc"]}}],
+      "instance": {},
+      "limits": {"stepBudget": 13},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Resolved", "value": false}
+    },
+    {
+      "name": "array-string/local-read-budget",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[true], {"var": ""}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 5},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/local-read-budget-equality",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[true], {"var": ""}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 6},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Resolved", "value": true}
+    },
+    {
+      "name": "array-string/local-named-read-budget",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"flag": true}], {"var": "flag"}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 9},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/local-named-read-budget-equality",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"flag": true}], {"var": "flag"}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 10},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Resolved", "value": true}
+    }
+  ]
+}

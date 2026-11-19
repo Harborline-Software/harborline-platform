@@ -125,7 +125,7 @@ internal static class CoreWorkDerivation
     }
 
     private static NodeProof Visit(JsonNode? node, BigInteger dependencyResult, BigInteger aggregateResult,
-        Func<string, BigInteger?>? staticReference, bool coding)
+        Func<string, BigInteger?>? staticReference, bool coding, bool element = false)
     {
         if (node is not JsonObject expression || expression.Count != 1)
         {
@@ -135,7 +135,15 @@ internal static class CoreWorkDerivation
 
         var (op, raw) = expression.First();
         var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
-        var children = args.Select(arg => Visit(arg, dependencyResult, aggregateResult, staticReference, coding)).ToArray();
+        if (op is "some" or "all" or "none")
+        {
+            var source = Visit(args[0], dependencyResult, aggregateResult, staticReference, coding, element);
+            var predicate = Visit(args[1], BigInteger.Max(InputBytes, source.Result), aggregateResult, null, coding, element: true);
+            // Result bytes bound even generated arrays' cardinality; nesting multiplies this transfer.
+            var count = BigInteger.Max(InputNodes, source.Result);
+            return new(5, 1 + source.Work + count * (1 + predicate.Work), source.Reads, source.AggregateReads);
+        }
+        var children = args.Select(arg => Visit(arg, dependencyResult, aggregateResult, staticReference, coding, element)).ToArray();
         var childWork = children.Aggregate(BigInteger.Zero, (total, child) => total + child.Work);
         var childReads = children.Aggregate(BigInteger.Zero, (total, child) => total + child.Reads);
         var aggregateReads = children.Aggregate(BigInteger.Zero, (total, child) => total + child.AggregateReads);
@@ -147,6 +155,7 @@ internal static class CoreWorkDerivation
         return op switch
         {
             // Both interpreters eagerly evaluate var's fallback; every resolver call has work.
+            "var" when element => Base(BigInteger.Max(dependencyResult, childResult), childBytes + dependencyResult + 1, 0, 0),
             "var" => Var(raw, childResult, childWork, childBytes, childReads, aggregateReads, dependencyResult, staticReference),
             "missing" => Missing(args, children, childWork, childReads, aggregateReads, childResult),
             "missing_some" => MissingSome(children, childWork, childReads, aggregateReads, childBytes),
@@ -157,6 +166,7 @@ internal static class CoreWorkDerivation
             "and" or "or" or "if" => Base(BigInteger.Max(5, childResult), 0),
             "+" or "-" or "*" or "/" or "%" or "min" or "max" => Base(NumberBytes, childBytes),
             "in" => Base(5, InputNodes * (childBytes + 1)),
+            "startsWith" or "endsWith" => Base(5, childBytes + 1),
             "cat" => Cat(args.Count, children, childWork, childReads, aggregateReads),
             "agg" => Base(AggregateResult(raw, aggregateResult, staticReference), childBytes + 1, childReads + 1, aggregateReads + 1),
             // Parsing scans complete input before refusal; accepted decimal digit/scale and

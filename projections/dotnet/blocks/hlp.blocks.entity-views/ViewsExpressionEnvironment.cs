@@ -10,7 +10,7 @@ public static class ViewsExpressionEnvironment
         Borrower: "views-ck-14",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string> { ["field"] = "typed record field", ["caller"] = "authenticated-principal", ["clock"] = "evaluated-at" },
-        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "startsWith", "endsWith", "some", "all", "none", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "evaluated-at",

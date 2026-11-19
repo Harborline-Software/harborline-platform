@@ -1,5 +1,4 @@
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 
 namespace Harborline.Blocks.LayoutRuntime;
 
@@ -14,7 +13,7 @@ public static class LayoutExpressionEnvironment
         Borrower: "layout-block-guard",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string> { ["field"] = "layout root value", ["row"] = "repeating-collection row value" },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "render-clock",

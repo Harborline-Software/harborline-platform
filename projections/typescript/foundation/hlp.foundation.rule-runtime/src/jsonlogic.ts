@@ -11,12 +11,14 @@ import { MoneyDecimal } from './money-decimal.js'
 import { dateAdd, dateDiffDays, today } from './date-math.js'
 import {
   EvalContext,
+  EvalBudget,
   RefValue,
   RuleBudget,
   RuleEvalError,
   RulePending,
   RuleTimeout,
   err,
+  unavailableAggregate,
 } from './eval-support.js'
 import type { Json } from './model.js'
 
@@ -71,6 +73,11 @@ export const builtInRegister = {
 
   in: def('membership', 2, 2, (_a, _c, ev) => evalIn(ev(0), ev(1))),
   cat: def('text', 0, -1, (a, c) => evalCat(a, c)),
+  startsWith: def('text', 2, 2, (_a, c, ev) => evalStringTest(ev(0), ev(1), c, true)),
+  endsWith: def('text', 2, 2, (_a, c, ev) => evalStringTest(ev(0), ev(1), c, false)),
+  some: def('collection', 2, 2, (a, c) => evalQuantifier(a, c, 'some')),
+  all: def('collection', 2, 2, (a, c) => evalQuantifier(a, c, 'all')),
+  none: def('collection', 2, 2, (a, c) => evalQuantifier(a, c, 'none')),
 
   agg: def('fold', 3, 3, (_a, c, ev) => evalAgg(ev(0), ev(1), ev(2), c)),
   'money.add': def('money', 1, -1, (a, c, ev) => money(all(a, ev), '+', c)),
@@ -118,7 +125,7 @@ export function evaluate(node: Json, ctx: EvalContext): Json {
 
 function evalVar(args: Json[], ctx: EvalContext): Json {
   const path = asString(args.length > 0 ? evaluate(args[0], ctx) : null) ?? ''
-  if (path.length === 0) return null
+  if (path.length === 0 && !(ctx.resolver instanceof ElementResolver)) return null
   const fallback = args.length > 1 ? evaluate(args[1], ctx) : null
   return unwrap(ctx.resolver.resolveVar(path), fallback)
 }
@@ -163,6 +170,49 @@ function evalMissingSome(args: Json[], ctx: EvalContext): Json {
     else present++
   }
   return present >= min ? [] : missing
+}
+
+class ElementResolver {
+  constructor(private readonly element: Json, private readonly budget: EvalBudget) {}
+
+  resolveVar(path: string): RefValue {
+    this.budget.chargeSize(path.length + 1)
+    let value = this.element
+    if (path.length === 0) return { state: 'Resolved', value }
+    for (const part of path.split('.')) {
+      if (Array.isArray(value)) {
+        const index = Number(part)
+        if (!Number.isInteger(index) || index < 0 || String(index) !== part || index >= value.length) return { state: 'Resolved', value: null }
+        value = value[index]
+      } else if (value !== null && typeof value === 'object' && Object.hasOwn(value, part)) value = value[part]
+      else return { state: 'Resolved', value: null }
+    }
+    return { state: 'Resolved', value }
+  }
+
+  resolveAgg(fn: string, section: string, col: string): RefValue {
+    return unavailableAggregate(fn, section, col)
+  }
+}
+
+function evalQuantifier(args: Json[], ctx: EvalContext, op: 'some' | 'all' | 'none'): Json {
+  const values = evaluate(args[0], ctx)
+  if (!Array.isArray(values)) throw new RuleEvalError(err(Codes.typeError, 'op', op))
+  for (const element of values) {
+    ctx.budget.charge()
+    const local = { ...ctx, resolver: new ElementResolver(element, ctx.budget) }
+    const matched = isTruthy(evaluate(args[1], local))
+    if (op === 'all') {
+      if (!matched) return false
+    } else if (matched) return op === 'some'
+  }
+  return op !== 'some'
+}
+
+function evalStringTest(text: Json, part: Json, ctx: EvalContext, prefix: boolean): Json {
+  if (typeof text !== 'string' || typeof part !== 'string') throw new RuleEvalError(err(Codes.typeError, 'op', prefix ? 'startsWith' : 'endsWith'))
+  ctx.budget.chargeSize(text.length + part.length + 1)
+  return prefix ? text.startsWith(part) : text.endsWith(part)
 }
 
 // ── logic ─────────────────────────────────────────────────────────────────────
