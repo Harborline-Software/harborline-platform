@@ -9,3 +9,6 @@ overrides:
   "source-map-js@>=1.0.0 <1.2.2": ">=1.2.2" # GHSA-68fv-2mgg-jv7q
   "@joshwooding/vite-plugin-react-docgen-typescript>glob@>=13.0.0 <14.0.2": "14.0.2" # GHSA-3g3m-2fjr-6pw4, major jump approved by the owner 2026-11-05
   "glob>minimatch@^11.0.0": "11.0.1" # GHSA-g3hv-75wg-m249, holds glob 14 at the approved version, major jump approved by the owner 2026-11-05
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf # picomatch ReDoS; no fixed release; dev tooling only; ADR-0086 exception; remove when picomatch ships the fix.
