@@ -4,6 +4,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Fields;
+using Harborline.Foundation.Authorization;
+using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.Forms.Engine;
+using Harborline.Foundation.MultiTenancy;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Authoring;
@@ -17,6 +23,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(Harborline.Contracts.Authorization.RoleVocabulary.FromApi([new(Guid.Parse("4f0c2b8e-0000-4000-8000-000000000033"), Harborline.Contracts.Authorization.RoleReference.Domain("inspector"), "Inspector", new(Harborline.Contracts.Authorization.RoleOwnerKind.Package, "forms-engine-consumer"), IsSealed: false)]));
 builder.Services.AddSingleton<IFormDefinitionStore, InMemoryFormDefinitionStore>();
+var fields = new ConsumerFields(new TenantId("tenant-package-host"), "sha256:package-host");
+builder.Services.AddSingleton<IAuthenticatedActorContext>(new ConsumerActor(fields.Tenant));
+builder.Services.AddSingleton<IFormFieldBindingSource>(fields);
+builder.Services.AddSingleton<IFieldKindRuntime>(new FieldKindRuntime(new FieldKindRegistry([new("text", "1", null)])));
+builder.Services.AddSingleton<IFieldDomainRuntime>(new ValueDomainRuntime(fields, fields, TimeProvider.System));
 builder.Services.AddHarborlineFormsAuthoringPublisher();
 var app = builder.Build();
 
@@ -33,9 +44,13 @@ app.MapPut("/api/forms/{id}", async (
             cancellationToken);
         return Results.Ok(new { id = published.Id.Value, status = published.Status.ToString() });
     }
-    catch (FormDefinitionValidationException exception)
+    catch (DefinitionRefusalException exception)
     {
-        return Results.UnprocessableEntity(new { code = exception.Code, error = exception.Message });
+        return Results.UnprocessableEntity(new
+        {
+            phase = exception.Stage.ToString(),
+            refusals = exception.Refusals.Select(refusal => new { code = refusal.Code, pointer = refusal.Pointer }),
+        });
     }
 });
 
@@ -130,3 +145,30 @@ static FormDefinition BuildDefinition(string id, AuthoringRequest request) =>
         SubmitGate: new(Role: Harborline.Contracts.Authorization.RoleReference.Domain("inspector")));
 
 sealed record AuthoringRequest(string Expression, string? ClassificationCode = null);
+
+sealed class ConsumerActor(TenantId tenant) : IAuthenticatedActorContext
+{
+    public string UserId => "package-author";
+    public IReadOnlyList<string> Roles => ["inspector"];
+    public TenantMetadata Tenant { get; } = new() { Id = tenant, Name = "Package tenant", Status = TenantStatus.Active };
+}
+
+sealed class ConsumerFields(TenantId tenant, string schema)
+    : IFormFieldBindingSource, IFieldDomainSource, IFieldDomainSnapshot, IFieldDomainReadAuthority
+{
+    public ValueTask<FormSchemaFieldBindings?> ResolveAsync(TenantId requestedTenant, string schemaRef, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(requestedTenant != tenant || schemaRef != schema ? null
+            : new FormSchemaFieldBindings(tenant, schema, new Dictionary<string, FieldBindingDefinition>
+            {
+                ["condition"] = new(new("text", "1", new Dictionary<string, string>()), new(false, 0, 1, [], null)),
+            }));
+    public TenantId Tenant => tenant;
+    public string Revision => "consumer-fields-1";
+    public bool IsComplete => true;
+    public IReadOnlyList<FieldDomainMember>? GetTaxonomyScheme(TaxonomySchemeReference scheme) => null;
+    public IReadOnlyList<FieldDomainMember>? GetRecords(string recordTypeId) => null;
+    public ValueTask<IFieldDomainSnapshot> OpenSnapshotAsync(TenantId requestedTenant, CancellationToken cancellationToken = default)
+        => requestedTenant == tenant ? ValueTask.FromResult<IFieldDomainSnapshot>(this) : throw new InvalidOperationException("Unexpected package-consumer tenant.");
+    public ValueTask<bool> CanReadAsync(FieldDomainScope scope, ValueDomainDefinition domain, FieldDomainMember member, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(scope.Tenant == tenant);
+}

@@ -51,7 +51,7 @@ public sealed class DefaultFormDefinitionPolicyAdmission(
                 {
                     throw new FormDefinitionValidationException(
                         definition.Id,
-                        $"aspect.sensitive_input_unacknowledged: async check '{check.Id}' feeds classified field '{fieldName}' to connector '{check.Connector}' without allowsSensitiveInputs.");
+                        $"aspect.sensitive_input_unacknowledged: async check '{check.Id}' feeds classified field '{fieldName}' to connector '{check.Connector}' without allowsSensitiveInputs.", "aspect.sensitive_input_unacknowledged");
                 }
             }
         }
@@ -173,5 +173,5 @@ public sealed class DefaultFormDefinitionPolicyAdmission(
         FormDefinition definition,
         string fieldName,
         string code) =>
-        new(definition.Id, $"{code}: field '{fieldName}' failed publish policy admission.");
+        new(definition.Id, $"{code}: field '{fieldName}' failed publish policy admission.", code);
 }

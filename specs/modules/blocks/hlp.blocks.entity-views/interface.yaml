@@ -69,6 +69,7 @@
     "views.type.inspection_form_discipline_required",
     "views.type.inspection_form_ref_required",
     "views.type.seed_exists_use_put",
+    "field.binding_unresolved",
     "view_definition.not_found",
     "view_definition.body_invalid",
     "view_definition.record_type_unresolved",

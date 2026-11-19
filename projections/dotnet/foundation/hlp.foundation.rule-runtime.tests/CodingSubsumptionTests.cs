@@ -289,6 +289,201 @@ public sealed class CodingSubsumptionTests
     }
 
     [Fact]
+    public void Flat_strict_equality_does_not_coerce_zero_string_to_number()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"===":["0",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.False(result.Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_strict_and_loose_equality_respect_null_and_boolean_values()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"===":[true,true]}""", """{"===":[null,null]}""", """{"==":[null,null]}""" })
+            Assert.True(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        foreach (var expression in new[] { """{"===":[true,false]}""", """{"===":[true,"true"]}""", """{"===":["true",true]}""", """{"===":[null,0]}""", """{"===":[0,null]}""", """{"==":[null,0]}""", """{"==":[0,null]}""" })
+            Assert.False(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_strict_equality_distinguishes_equal_and_unequal_numbers()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"===":[5,5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"===":[5,2]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_loose_equality_coerces_numeric_strings_but_not_other_strings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["5",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["05",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"==":["not numeric",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Theory]
+    [InlineData("""{"!!":[{}]}""", "false")]
+    [InlineData("""{"!":[{}]}""", "true")]
+    [InlineData("""{"and":[{},true]}""", "{}")]
+    [InlineData("""{"or":[{},true]}""", "true")]
+    [InlineData("""{"if":[{},true,false]}""", "false")]
+    public void V1_empty_object_is_falsy_in_every_logical_operator(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void Missing_operators_preserve_pending_dependencies()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"missing":["coding"]}""", """{"missing_some":[1,["coding"]]}""" })
+            Assert.Equal(ValueState.Pending, evaluator.EvaluateValue(Rule(expression), Facts("""{"@pending":true}"""), RuleEvalScope.Root, TestAdmission.Any).State);
+    }
+
+    [Theory]
+    [InlineData("""{"missing_some":[1,[null,false,3,[],{}]]}""", """["","false","3","[]","{}"]""")]
+    [InlineData("""{"!!":[""]}""", "false")]
+    [InlineData("""{"!!":["0"]}""", "true")]
+    [InlineData("""{"!!":[0]}""", "false")]
+    [InlineData("""{"!!":[2]}""", "true")]
+    [InlineData("""{"+":[true,2]}""", "3")]
+    [InlineData("""{"+":[false,2]}""", "2")]
+    [InlineData("""{"==":[true,1]}""", "true")]
+    [InlineData("""{"==":[false,0]}""", "true")]
+    [InlineData("""{"===":[[1],[1]]}""", "true")]
+    [InlineData("""{"===":[[1],[2]]}""", "false")]
+    [InlineData("""{"==":[[1],[1]]}""", "true")]
+    [InlineData("""{"==":[[1],[2]]}""", "false")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"date.add":["2026-01-01",1,{"var":"coding"}]}""", "\"2026-01-02\"")]
+    [InlineData("""{"money.mul":["0.005","3"]}""", "\"0.015\"")]
+    public void V1_agreed_operator_semantics_match_literal_parity_corpus(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Null(result.Error);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "\"invalid\"", "op", "money")]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "1.5", "op", "money")]
+    [InlineData("""{"date.add":[{"var":"coding"},1,"day"]}""", "\"invalid\"", "op", "date.add")]
+    [InlineData("""{"date.diff":[{"var":"coding"},"2026-01-01"]}""", "\"invalid\"", "op", "date.diff")]
+    [InlineData("""{"+":[{"var":"coding"},1]}""", "null", "reason", "null-as-number")]
+    [InlineData("""{"*":[{"var":"coding"},{"var":"coding"}]}""", "1e308", "reason", "non-finite")]
+    public void V1_error_values_match_literal_parity_corpus(string expression, string input, string parameter, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        var pair = Assert.Single(result.Error.Params);
+        Assert.Equal(parameter, pair.Key);
+        Assert.Equal(expected, pair.Value);
+    }
+
+    [Fact]
+    public void V1_numeric_money_accepts_an_exact_small_integer()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts("1.0"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal("2", result.Value!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":["12345"]}""", 7, "12345")]
+    [InlineData("""{"money.add":["12345"]}""", 6, null)]
+    [InlineData("""{"money.mul":["123","456"]}""", 14, "56088")]
+    [InlineData("""{"money.mul":["123","456"]}""", 13, null)]
+    public void V1_money_charges_each_operand_and_result_mantissa(string expression, int steps, string? expected)
+    {
+        var evaluator = new GuardEvaluator(Clock, RuleEngineLimits.Default with { StepBudget = steps });
+        var rule = RuleDefinitionFactory.Create("v1-money-budget", RuleTier.JsonLogic, RuleScope.Field, "out", expression, RuleActionKind.Compute);
+        var result = evaluator.EvaluateValue(rule, Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        if (expected is null)
+        {
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.budget_exceeded", result.Error!.Code);
+            var pair = Assert.Single(result.Error.Params);
+            Assert.Equal("rule", pair.Key);
+            Assert.Equal("v1-money-budget", pair.Value);
+        }
+        else
+        {
+            Assert.Equal(ValueState.Resolved, result.State);
+            Assert.Equal(expected, result.Value!.GetValue<string>());
+        }
+    }
+
+    [Fact]
+    public void Missing_some_preserves_the_bad_reference_identity()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(
+            Rule("""{"missing_some":[1,["row.coding"]]}""", RuleScope.Row, "items/out"), Facts("null"), new RuleEvalScope("items", "r1"), TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.bad_reference", result.Error!.Code);
+        Assert.Equal("row.coding", result.Error.Params["path"]);
+    }
+
+    [Fact]
+    public void Legacy_coding_coercion_keeps_boolean_and_numeric_spellings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","false"]}"""), Facts("""{"system":"sys","code":false}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","true"]}"""), Facts("""{"system":"sys","code":true}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","0.5"]}"""), Facts("""{"system":"sys","code":0.5}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","1e+30"]}"""), Facts("""{"system":"sys","code":1e30}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Numeric_operations_preserve_the_recorded_nonnumeric_refusal()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"+":[{"var":"coding"},1]}"""), Facts("{}"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("not-a-number", result.Error.Params["reason"]);
+    }
+
+    [Fact]
+    public void Nonfinite_arithmetic_fails_closed()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"*":[{"var":"coding"},{"var":"coding"}]}"""), Facts("1e308"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+    }
+
+    [Fact]
+    public void Money_refuses_non_decimal_values_instead_of_coercing_them()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var input in new[] { "true", "null", "{}", "[]", "\"not money\"" })
+        {
+            var result = evaluator.EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
+    }
+
+    [Fact]
+    public void Date_operators_refuse_invalid_dates_instead_of_returning_a_value()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"date.add":[{"var":"coding"},1,"day"]}""", """{"date.diff":[{"var":"coding"},"2026-01-01"]}""" })
+        {
+            var result = evaluator.EvaluateValue(Rule(expression), Facts("\"not a date\""), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
+    }
+
+    [Fact]
     public void Answers_may_not_carry_more_or_fewer_bindings_than_the_expected_manifest()
     {
         static string Answers(string bindings) => "[\"harborline-taxonomy-coding-answers/1\",\"tenant-a\",[" + bindings + "],[[\"s\",\"a\",\"d\",true]]]";

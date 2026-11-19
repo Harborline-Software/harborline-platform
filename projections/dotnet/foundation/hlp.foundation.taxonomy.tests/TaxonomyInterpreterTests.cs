@@ -6,6 +6,122 @@ namespace Harborline.Foundation.Taxonomy.Tests;
 
 public sealed class TaxonomyInterpreterTests
 {
+    [Fact]
+    public void Public_argument_guards_name_the_rejected_parameter()
+    {
+        var definition = Definition();
+        var interpreter = Interpreter(definition);
+        Assert.Equal("definitions", Assert.Throws<ArgumentNullException>(() => new TaxonomyInterpreter(null!)).ParamName);
+        Assert.Throws<ArgumentNullException>(() => new TaxonomyInterpreter([null!]));
+        Assert.Equal("coordinates", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveDefinition(null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassification(null!, Reference("root"))).ParamName);
+        Assert.Equal("reference", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassification(definition, null!)).ParamName);
+        Assert.Equal("references", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveClassifications(definition, null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.GetAncestors(definition, null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.GetDescendants(definition, null!)).ParamName);
+        Assert.Equal("ancestorCode", Assert.Throws<ArgumentNullException>(() => interpreter.Subsumes(definition, null!, "root")).ParamName);
+        Assert.Equal("descendantCode", Assert.Throws<ArgumentNullException>(() => interpreter.Subsumes(definition, "root", null!)).ParamName);
+        Assert.Equal("code", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveSuccession(definition, null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandWholeScheme(null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(null!, "branch")).ParamName);
+        Assert.Equal("collectionName", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(definition, null!)).ParamName);
+        Assert.Equal("definition", Assert.Throws<ArgumentNullException>(() => interpreter.ExpandCollection(null!, null!)).ParamName);
+        Assert.Equal("overlay", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(null!, definition)).ParamName);
+        Assert.Equal("vendor", Assert.Throws<ArgumentNullException>(() => interpreter.ResolveOverlayDesignations(definition, null!)).ParamName);
+        Assert.Equal("previous", Assert.Throws<ArgumentNullException>(() => interpreter.Diff(null!, definition)).ParamName);
+        Assert.Equal("current", Assert.Throws<ArgumentNullException>(() => interpreter.Diff(definition, null!)).ParamName);
+    }
+
+    [Fact]
+    public void Expansion_refuses_malformed_inventories_and_collection_members()
+    {
+        var malformed = Definition() with { Nodes = null! };
+        var interpreter = Interpreter();
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandWholeScheme(malformed)).Code);
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandCollection(malformed, "branch")).Code);
+        var missingMembers = Definition() with { Collections = [new("branch", null!)] };
+        Assert.Equal("taxonomy.definition_malformed", Assert.Throws<TaxonomyTraversalException>(() => interpreter.ExpandCollection(missingMembers, "branch")).Code);
+        var noCollections = Definition() with { Collections = null };
+        Assert.Equal("branch", Assert.IsType<TaxonomyCollectionExpansionNotFound>(interpreter.ExpandCollection(noCollections, "branch")).CollectionName);
+    }
+
+    [Fact]
+    public void Known_vendor_designations_do_not_block_overlay_expansion()
+    {
+        var vendorId = new TaxonomyDefinitionId("vendor", "health", "scheme");
+        var overlayId = new TaxonomyDefinitionId("tenant", "health", "scheme-overlay");
+        var vendor = Definition("vendor-registry", vendorId, "1.0.0", [Node("root")]);
+        var overlay = Definition("tenant-a", overlayId, "1.0.0", [Node("extra")], Overlay: new(vendorId, "1.0.0")) with
+        {
+            OverlayDesignations = [new("root", "Tenant label", null)],
+        };
+        var result = new TaxonomyInterpreter([vendor, overlay]).ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "1.0.0");
+        Assert.Equal(["root", "extra"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(result).Codes);
+    }
+
+    [Fact]
+    public void Overlay_without_a_vendor_reference_keeps_its_refusal_identity()
+    {
+        var definition = Definition();
+        Assert.Equal("taxonomy.overlay_reference_missing", Assert.Throws<TaxonomyOverlayException>(() => Interpreter(definition).ExpandOverlay(Coordinates, "1.0.0")).Code);
+    }
+
+    [Fact]
+    public void A_missing_parent_keeps_its_refusal_identity()
+    {
+        var definition = Definition([Node("root", "missing")]);
+        Assert.Equal("taxonomy.parent_unknown", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(definition).GetAncestors(definition, "root")).Code);
+    }
+
+    [Fact]
+    public void Diff_refuses_mismatching_tenant_or_definition_identity()
+    {
+        var definition = Definition();
+        Assert.Throws<ArgumentException>(() => Interpreter(definition).Diff(definition, definition with { Tenant = "tenant-b" }));
+        Assert.Throws<ArgumentException>(() => Interpreter(definition).Diff(definition, definition with { DefinitionId = new("other", "health", "scheme") }));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_stream_refuses_overflow_before_growing(bool spanWrite)
+    {
+        var streamType = typeof(TaxonomyInterpreter).GetNestedType("CaptureStream", System.Reflection.BindingFlags.NonPublic)!;
+        using var stream = (Stream)Activator.CreateInstance(streamType, nonPublic: true)!;
+        var bytes = new byte[262145];
+        var refusal = Assert.Throws<TaxonomyCodingCaptureException>(() =>
+        {
+            if (spanWrite) stream.Write(bytes.AsSpan());
+            else stream.Write(bytes, 0, bytes.Length);
+        });
+        Assert.Equal("taxonomy.coding_capture_too_large", refusal.Code);
+        Assert.Equal(0, stream.Length);
+    }
+
+    [Fact]
+    public void Duplicate_pinned_sources_refuse_instead_of_selecting_the_first()
+    {
+        var definition = Definition();
+        Assert.Throws<ArgumentException>(() => new TaxonomyInterpreter([definition, definition]));
+    }
+
+    [Fact]
+    public void Descendants_admit_64_edges_and_refuse_the_65th()
+    {
+        var admitted = Definition(Enumerable.Range(0, 65).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal(64, Interpreter(admitted).GetDescendants(admitted, "n0").Count);
+        var refused = Definition(Enumerable.Range(0, 66).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal("taxonomy.traversal_depth_exceeded", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(refused).GetDescendants(refused, "n0")).Code);
+    }
+
+    [Fact]
+    public void A_descendant_cycle_at_the_depth_boundary_keeps_its_cycle_identity()
+    {
+        var cycle = Definition(Enumerable.Range(0, 64).Select(index => Node($"n{index}", index == 0 ? "n63" : $"n{index - 1}")).ToArray());
+        Assert.Equal("taxonomy.parent_cycle", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetDescendants(cycle, "n0")).Code);
+        Assert.Equal("taxonomy.parent_cycle", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetAncestors(cycle, "n0")).Code);
+    }
+
     [Fact] public void Resolves_pinned_definition_or_returns_typed_not_found()
     {
         var interpreter = Interpreter();
@@ -383,6 +499,7 @@ public sealed class TaxonomyInterpreterTests
         var interpreter = new TaxonomyInterpreter([vendorV1, overlay]);
 
         var vendorMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "1.0.0"), "9.9.9"));
+        Assert.Equal("", vendorMissing.Coordinates.Tenant);
         Assert.Equal("9.9.9", vendorMissing.Coordinates.Version);
 
         var overlayMissing = Assert.IsType<TaxonomyOverlayExpansionNotFound>(interpreter.ExpandOverlay(new("tenant-a", overlayId, "9.9.9"), "1.0.0"));

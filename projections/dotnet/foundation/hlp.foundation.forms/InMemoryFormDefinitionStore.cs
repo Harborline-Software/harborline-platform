@@ -276,7 +276,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
         // tenant Draft would let tenant content claim System ownership, which RestorePackProjectionAsync trusts.
         if (source.Owner == IdentityRef.System)
         {
-            throw new InvalidOperationException(
+            throw new FormDefinitionLifecycleException(id, version, "form.lifecycle.system_owned",
                 $"'{id}' v{version} is a System-owned pack projection; restore it through RestorePackProjectionAsync, not as a tenant Draft.");
         }
 
@@ -475,7 +475,7 @@ public sealed class InMemoryFormDefinitionStore : IFormDefinitionStore, IDisposa
 
             if (!allowedFrom.Contains(existing.Status))
             {
-                throw new InvalidOperationException(
+                throw new FormDefinitionLifecycleException(id, version, "form.lifecycle.transition_illegal",
                     $"FormDefinition '{id}' v{version} cannot transition from {existing.Status} to {target}; allowed source statuses are [{string.Join(", ", allowedFrom)}].");
             }
 

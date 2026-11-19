@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml",
-      "revision": 20
+      "revision": 21
     },
     "moduleKind": "runtime",
     "presentation": {
@@ -17,6 +17,7 @@
       "hlp.contracts.fields",
       "hlp.foundation.actor",
       "hlp.foundation.forms",
+      "hlp.foundation.definitions",
       "hlp.foundation.rule-runtime",
       "hlp.foundation.tenancy",
       "hlp.kernel.core",
@@ -45,6 +46,7 @@
             "Harborline.Contracts",
             "Harborline.Foundation.Authorization",
             "Harborline.Foundation.Forms",
+            "Harborline.Foundation.Definitions",
             "Harborline.Foundation.RuleEngine",
             "Harborline.Foundation.MultiTenancy",
             "Harborline.Kernel.Core",
