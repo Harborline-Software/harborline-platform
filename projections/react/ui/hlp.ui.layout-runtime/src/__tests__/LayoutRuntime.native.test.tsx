@@ -428,6 +428,58 @@ describe('LayoutRuntime React projection', () => {
     ])
   })
 
+  // Oracles: DES-0052 layout-auth-3/layout-ck-7; layout-auth-18 and T-724 ruling 41.
+  it('layout-auth-3: two blocks added from nothing form a nested stack', () => {
+    const drafts: LayoutAuthoringDraft[] = []
+    render(<Authoring initial={emptyLayoutAuthoringDraft()} onDraft={draft => drafts.push(draft)} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add block' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add block' }))
+    fireEvent.change(screen.getByLabelText('Block 2 parent'), { target: { value: 'block-1' } })
+    expect(drafts.at(-1)!.blocks).toStrictEqual([
+      { id: 'block-1', kind: 'layout.table', container: 'stack' },
+      { id: 'block-2', kind: 'layout.table', parentId: 'block-1' },
+    ])
+  })
+
+  it.each([
+    ['layout.list', 'layout.list'],
+    ['layout.retired', ''],
+    [null, ''],
+  ])('layout-auth-3: Add block names only an offered canonical kind (%s)', (offered, expected) => {
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={emptyLayoutAuthoringDraft()} catalogue={{ blockKinds: offered === null ? [] : [{ id: offered, label: offered }], zones: [] }} onChange={changed} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add block' }))
+    expect(changed.mock.lastCall![0].blocks).toStrictEqual([{ id: 'block-1', kind: expected }])
+  })
+
+  // Oracles: DES-0052 :537/:546, DES-0053 layout-runtime-eng-8, shared refusal fixture (T-583 item 2).
+  it('layout-ck-7: a missing kind stays visible and unchanged beside the verbatim refusal', () => {
+    const refusal = refusalEnvelope as LayoutRefusalEnvelope
+    let value: LayoutAuthoringDraft = { ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'block-1', kind: 'layout.retired' }] }
+    const catalogue = { blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: ['header.center'] }
+    const onChange = (next: LayoutAuthoringDraft) => { value = next }
+    const { container, rerender } = render(<LayoutAuthoringEditor value={value} catalogue={catalogue} onChange={onChange} refusal={refusal} />)
+    const select = screen.getByLabelText('Block 1 kind')
+    expect(select).toHaveValue('layout.retired')
+    const option = within(select).getByRole('option', { name: 'layout.retired' })
+    expect(option).toHaveAttribute('data-kind-offered', 'false')
+    expect(option).toHaveProperty('selected', true)
+    expect(within(select).getByRole('option', { name: 'Choose a block' })).toHaveProperty('selected', false)
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveAttribute('data-refusal-stage', refusal.stage)
+    const items = within(alert).getAllByRole('listitem')
+    expect(items.map(item => item.textContent)).toEqual(refusal.refusals.map(item => `${refusal.stage}: ${item.code} at ${item.pointer} (${item.target})`))
+    expect(items[0]).toHaveAttribute('data-refusal-code', 'layout.block.kind_unknown')
+    expect(items[0]).toHaveAttribute('data-refusal-pointer', '/blocks/0/kind')
+    expect([...container.querySelectorAll('*')].filter(node => node.children.length === 0 && /layout\.retired|kind_unknown/.test(node.textContent ?? '')).map(node => node.textContent)).toEqual([
+      'install: layout.block.kind_unknown at /blocks/0/kind (surface.orders@1.0.0)', 'layout.retired',
+    ])
+    fireEvent.change(screen.getByLabelText('Block 1 zone'), { target: { value: 'header.center' } })
+    rerender(<LayoutAuthoringEditor value={value} catalogue={catalogue} onChange={onChange} refusal={refusal} />)
+    expect(value.blocks).toStrictEqual([{ id: 'block-1', kind: 'layout.retired', zone: 'header.center' }])
+    expect(screen.getByLabelText('Block 1 kind')).toHaveValue('layout.retired')
+  })
+
   it('authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
