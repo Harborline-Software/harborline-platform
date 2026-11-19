@@ -154,6 +154,7 @@ public sealed class ViewsEngineContractTests
     [InlineData("definition", "NotFound", "view_definition.not_found")]
     [InlineData("definition", "RevisionConflict", "view_definition.revision_conflict")]
     [InlineData("definition", "VersionInvalid", "view_definition.version_invalid")]
+    [InlineData("query", "BindingUnresolved", "field.binding_unresolved")]
     [InlineData("query", "FilterKindUnknown", "view.filter.kind_unknown")]
     [InlineData("query", "FilterOperandUnknown", "view.filter.operand_unknown")]
     [InlineData("query", "FilterFunctionUnknown", "view.filter.function_unknown")]
@@ -164,12 +165,6 @@ public sealed class ViewsEngineContractTests
         Assert.NotNull(field);
         Assert.True(field.IsLiteral);
         Assert.Equal(wire, field.GetValue(null));
-    }
-
-    [Fact(DisplayName = "views-eng-1: the field binding refusal has a named constant with its wire spelling")]
-    public void Views_eng_1_FieldBindingRefusalHasNamedConstant()
-    {
-        Assert.Equal("field.binding_unresolved", typeof(ViewQueryCodes).GetField("BindingUnresolved")?.GetRawConstantValue());
     }
 
     [Fact(DisplayName = "T-486 engine-gaps: the evaluation-time and admission-time unknown-function codes stay distinct")]
