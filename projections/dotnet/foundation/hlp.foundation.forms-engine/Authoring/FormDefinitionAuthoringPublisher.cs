@@ -1,4 +1,6 @@
+using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Foundation.Forms;
+using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Forms.Exceptions;
 using Harborline.Foundation.Forms.Models;
 using Harborline.Contracts.Fields;
@@ -10,15 +12,105 @@ namespace Harborline.Foundation.Forms.Engine.Authoring;
 /// <summary>
 /// Fail-closed implementation of the Harborline App authoring-host save-and-publish sequence.
 /// </summary>
-public sealed class FormDefinitionAuthoringPublisher(
-    IFormDefinitionStore store,
-    IFormDefinitionPolicyAdmission policyAdmission,
-    IFormFieldBindingSource? fieldBindings = null,
-    IFieldKindRuntime? fieldKinds = null,
-    IFieldDomainRuntime? fieldDomains = null,
-    IAuthenticatedActorContext? actor = null)
-    : IFormDefinitionAuthoringPublisher
+public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringPublisher
 {
+    private readonly IFormDefinitionStore store;
+    private readonly IFormDefinitionPolicyAdmission policyAdmission;
+    private readonly IFormFieldBindingSource fieldBindings;
+    private readonly IFieldKindRuntime fieldKinds;
+    private readonly IFieldDomainRuntime fieldDomains;
+    private readonly IAuthenticatedActorContext? actor;
+
+    /// <summary>Creates the publisher; every port but the actor is required.</summary>
+    public FormDefinitionAuthoringPublisher(
+        IFormDefinitionStore store,
+        IFormDefinitionPolicyAdmission policyAdmission,
+        IFormFieldBindingSource fieldBindings,
+        IFieldKindRuntime fieldKinds,
+        IFieldDomainRuntime fieldDomains,
+        IAuthenticatedActorContext? actor = null)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(policyAdmission);
+        ArgumentNullException.ThrowIfNull(fieldBindings);
+        ArgumentNullException.ThrowIfNull(fieldKinds);
+        ArgumentNullException.ThrowIfNull(fieldDomains);
+        (this.store, this.policyAdmission, this.fieldBindings, this.fieldKinds, this.fieldDomains, this.actor)
+            = (store, policyAdmission, fieldBindings, fieldKinds, fieldDomains, actor);
+    }
+
+    /// <inheritdoc />
+    public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => SaveAsync(definition, store.CreateAsync, cancellationToken);
+
+    /// <inheritdoc />
+    public ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken cancellationToken = default)
+        => SaveAsync(definition, store.SaveNextAsync, cancellationToken);
+
+    private async ValueTask<FormDefinition> SaveAsync(FormDefinition definition,
+        Func<FormDefinition, CancellationToken, ValueTask<FormDefinition>> write, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(definition);
+            if (definition.Status != FormDefinitionStatus.Draft)
+                throw new FormDefinitionValidationException(definition.Id, "authoring save requires a Draft definition.");
+            await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
+            return await write(definition, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> RestoreAsDraftAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Caller(tenant);
+            var source = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+            await ValidateAsync(source with { Status = FormDefinitionStatus.Draft }, cancellationToken).ConfigureAwait(false);
+            return await store.RestoreAsDraftAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Caller(tenant);
+            var draft = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+            await ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
+            return await store.PublishAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]); }
+        catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception); }
+        catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception); }
+    }
+
+    private static DefinitionRefusalException ValidationRefusal(DefinitionAdmissionPhase phase, FormDefinitionValidationException exception)
+    {
+        var code = exception.Code ?? "form_definition.validation_refused";
+        // Target holds a pointer only where the submit-gate and record-type checks throw; elsewhere it is an
+        // author-chosen node id, so the code picks the pointer and Target is never echoed for those codes.
+        var pointer = code.StartsWith("form.pages.", StringComparison.Ordinal) || code == "form.rules.guard_uncompilable" ? "/overlay/pages"
+            : code.StartsWith("form.rules.", StringComparison.Ordinal) ? "/overlay/rules"
+            : code.StartsWith("form.tree.", StringComparison.Ordinal) || code.StartsWith("form.layout.", StringComparison.Ordinal) ? "/overlay/sections"
+            : code.StartsWith("form.checks.", StringComparison.Ordinal) || code == "aspect.sensitive_input_unacknowledged" ? "/overlay/asyncChecks"
+            : (code.StartsWith("form.submit_gate.", StringComparison.Ordinal) || code.StartsWith("form.record_type.", StringComparison.Ordinal))
+                && exception.Target?.StartsWith('/') == true ? exception.Target
+            : "/overlay";
+        return new(phase, [new(code, pointer)]);
+    }
+
+    private static DefinitionRefusalException FieldRefusal(DefinitionAdmissionPhase phase, FieldAdmissionException exception)
+        => new(phase, exception.Refusals.Select(refusal => new DefinitionRefusal(refusal.Code, refusal.JsonPointer)));
+
     /// <inheritdoc />
     public async ValueTask<FormDefinition> RegisterAndPublishAsync(
         FormDefinition definition,
@@ -37,6 +129,24 @@ public sealed class FormDefinitionAuthoringPublisher(
     private async ValueTask<FormDefinitionPublicationResult> PublishAsync(FormDefinition definition,
         FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
     {
+        try { return await PublishCoreAsync(definition, context, cancellationToken).ConfigureAwait(false); }
+        catch (FormDefinitionLifecycleException exception)
+        {
+            throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]);
+        }
+        catch (FieldAdmissionException exception)
+        {
+            throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception);
+        }
+        catch (FormDefinitionValidationException exception)
+        {
+            throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception);
+        }
+    }
+
+    private async ValueTask<FormDefinitionPublicationResult> PublishCoreAsync(FormDefinition definition,
+        FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
+    {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -47,24 +157,7 @@ public sealed class FormDefinitionAuthoringPublisher(
                 $"authoring publication requires a Draft definition, but '{definition.Id}' v{definition.Version} is {definition.Status}.");
         }
 
-        // This must remain before the first store mutation. It is the destination equivalent of
-        // Harborline App's FormDefinitionPublishAdmission call in the authoring endpoint.
-        RuleCompileAdmission.ValidateOrThrow(definition);
-        policyAdmission.ValidateOrThrow(definition);
-        if (fieldBindings is not null || fieldKinds is not null || fieldDomains is not null)
-        {
-            if (fieldBindings is null || fieldKinds is null || fieldDomains is null)
-                throw FormFieldBinding.Refuse("field.binding_unresolved", "");
-            if (string.IsNullOrWhiteSpace(actor?.UserId))
-                throw FormFieldBinding.Refuse("field.value_domain_principal_required", "");
-            var tenant = actor.Tenant;
-            if (tenant is null || tenant.Id.IsSystemSentinel || tenant.Status != TenantStatus.Active)
-                throw FormFieldBinding.Refuse("field.value_domain_tenant_required", "");
-            if (tenant.Id != definition.Tenant)
-                throw FormFieldBinding.Refuse("field.value_domain_tenant_mismatch", "");
-            await new FormFieldBinding(fieldBindings, fieldKinds, fieldDomains)
-                .ResolveAsync(new FieldDomainScope(tenant.Id, actor.UserId), definition, cancellationToken).ConfigureAwait(false);
-        }
+        await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
 
         var assessment = context is null ? FormPublicationAssessment.Unavailable("publication_basis_unavailable")
             : await new FormPublicationImpactAssessment().AssessAsync(definition, store, context, cancellationToken)
@@ -73,4 +166,29 @@ public sealed class FormDefinitionAuthoringPublisher(
         var published = await store.RegisterAndPublishAsync(definition, cancellationToken).ConfigureAwait(false);
         return new(published, assessment);
     }
+    private async ValueTask ValidateAsync(FormDefinition definition, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
+        // This must remain before the first store mutation. It is the destination equivalent of
+        // Harborline App's FormDefinitionPublishAdmission call in the authoring endpoint.
+        RuleCompileAdmission.ValidateOrThrow(definition);
+        policyAdmission.ValidateOrThrow(definition);
+        await new FormFieldBinding(fieldBindings, fieldKinds, fieldDomains)
+            .ResolveAsync(Caller(definition.Tenant), definition, cancellationToken).ConfigureAwait(false);
+    }
+
+    // Stored-entry paths call this before the store read, so a refused caller cannot tell a stored entry from a missing one.
+    private FieldDomainScope Caller(TenantId tenant)
+    {
+        if (string.IsNullOrWhiteSpace(actor?.UserId))
+            throw FormFieldBinding.Refuse("field.value_domain_principal_required", "");
+        var current = actor.Tenant;
+        if (current is null || current.Id.IsSystemSentinel || current.Status != TenantStatus.Active)
+            throw FormFieldBinding.Refuse("field.value_domain_tenant_required", "");
+        if (current.Id != tenant)
+            throw FormFieldBinding.Refuse("field.value_domain_tenant_mismatch", "");
+        return new FieldDomainScope(current.Id, actor.UserId);
+    }
+
 }

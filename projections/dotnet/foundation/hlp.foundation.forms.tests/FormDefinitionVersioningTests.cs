@@ -248,8 +248,12 @@ public sealed class FormDefinitionVersioningTests
         using var store = FormGateRegisters.Store(new FixedClock(Now));
         await store.RegisterAsync(Form("1.0.0", FormDefinitionStatus.Published, owner: IdentityRef.System));
 
-        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(
+        var refusal = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
             async () => await store.RestoreAsDraftAsync(Tenant, Id, SemanticVersion.Parse("1.0.0")));
+        Assert.Equal("form.lifecycle.system_owned", refusal.Code);
+        Assert.Equal(Id, refusal.SchemaId);
+        Assert.Equal(SemanticVersion.Parse("1.0.0"), refusal.Version);
+        Assert.IsAssignableFrom<InvalidOperationException>(refusal);
         Assert.Equal(
             "'property.intake' v1.0.0 is a System-owned pack projection; restore it through RestorePackProjectionAsync, not as a tenant Draft.",
             refusal.Message);
