@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.forms/interface.yaml",
-      "revision": 10
+      "revision": 11
     },
     "moduleKind": "runtime",
     "presentation": {

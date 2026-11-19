@@ -25,15 +25,17 @@ public sealed class ViewFieldDomainTests
     }
 
     [Theory]
-    [InlineData("tenant")]
-    [InlineData("schema")]
-    [InlineData("field")]
-    [InlineData("runtime")]
-    public async Task Invalid_bound_descriptor_refuses(string mismatch)
+    [InlineData("tenant", "")]
+    [InlineData("schema", "")]
+    [InlineData("field", "/name")]
+    [InlineData("runtime", "")]
+    public async Task Invalid_bound_descriptor_refuses(string mismatch, string expectedPointer)
     {
         var host = new Host { Mismatch = mismatch };
         var error = await Assert.ThrowsAsync<FieldAdmissionException>(async () => await host.Runtime().ExecuteAsync(Host.Request(" Actor/A ")));
-        Assert.Equal("field.binding_unresolved", Assert.Single(error.Refusals).Code);
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(("field.binding_unresolved", expectedPointer, "The selected column has no admitted field binding."),
+            (refusal.Code, refusal.JsonPointer, refusal.Message));
     }
 
     [Fact]

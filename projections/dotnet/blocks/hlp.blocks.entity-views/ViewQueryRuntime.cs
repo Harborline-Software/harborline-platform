@@ -15,6 +15,8 @@ public static class ViewQueryCodes
     /// refuses exactly as a missing one does, with <see cref="ViewDefinitionCodes.NotFound"/> (CWE-203).
     /// </summary>
     public const string OpenForbidden = "view.open_forbidden";
+    /// <summary>A selected column has no admitted field binding.</summary>
+    public const string BindingUnresolved = "field.binding_unresolved";
     /// <summary>A filter node's kind is not in the closed filter grammar.</summary>
     public const string FilterKindUnknown = "view.filter.kind_unknown";
     /// <summary>A filter operand's kind is not in the closed filter grammar.</summary>
@@ -725,5 +727,5 @@ public sealed class ViewQueryRuntime
         new(ViewDefinitionCodes.NotFound, "The published view definition does not exist.");
 
     private static FieldAdmissionException BindingRefusal(string pointer)
-        => new([new("field.binding_unresolved", pointer, "The selected column has no admitted field binding.")]);
+        => new([new(ViewQueryCodes.BindingUnresolved, pointer, "The selected column has no admitted field binding.")]);
 }

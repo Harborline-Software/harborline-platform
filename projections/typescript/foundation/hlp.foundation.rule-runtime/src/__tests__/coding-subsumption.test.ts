@@ -96,6 +96,42 @@ describe('T-588 native money parity', () => {
 })
 
 describe('T-493 finite pinned coding reader', () => {
+  it('pins the malformed binding diagnostic without a foreign iteration cause', () => {
+    let failure: unknown
+    try { read(wire({})) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(TypeError)
+    expect(failure).toMatchObject({ message: 'Invalid pinned Taxonomy coding capture' })
+    expect(failure).not.toHaveProperty('cause')
+  })
+
+  it('refuses nontext capture arguments before reading caller properties', () => {
+    let reads = 0
+    const nontext = new Proxy({}, { get() { reads++; throw new Error('caller property read') } })
+    const pair = wire()
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(nontext as never, pair.expected)).toThrow(TypeError)
+    expect(() => CodingSubsumptionSnapshot.fromJsonText(pair.actual, nontext as never)).toThrow(TypeError)
+    expect(reads).toBe(0)
+  })
+
+  it('refuses trailing members on every tuple', () => {
+    const pair = wire()
+    const expected = JSON.parse(pair.expected) as Json[]
+    const actual = JSON.parse(pair.actual) as Json[]
+    expect(() => read({ ...pair, expected: JSON.stringify([...expected, false]) })).toThrow(TypeError)
+    expect(() => read({ ...pair, actual: JSON.stringify([...actual, false]) })).toThrow(TypeError)
+    expect(() => read(wire([[...binding, false]]))).toThrow(TypeError)
+    expect(() => read(wire([binding], [['s', 'a', 'd', true, false]]))).toThrow(TypeError)
+  })
+
+  it('requires a string tenant even when both documents agree', () => {
+    expect(() => read(wire([binding], [['s', 'a', 'd', true]], 1 as never))).toThrow(TypeError)
+    expect(() => read(wire([binding], [['s', 'a', 'd', true]], true as never))).toThrow(TypeError)
+  })
+
+  it('compares an earlier tuple component before a later reversed component', () => {
+    expect(() => read(wire([binding], [['s', 'z', 'a', true], ['s', 'a', 'z', false]]))).toThrow(TypeError)
+  })
+
   it('owns the shared literal hierarchy answers and changes pins only on a new evaluator', () => {
     const first = capture()
     expect(Object.isFrozen(first)).toBe(true)
@@ -177,6 +213,13 @@ describe('T-493 finite pinned coding reader', () => {
     try { read({ ...pair, actual: huge }) } catch (error) { thrown = error }
     expect((thrown as Error).cause).toBeInstanceOf(RangeError)
     expect(() => read({ ...pair, actual: 'not json' })).toThrow('coding answers is not valid JSON')
+  })
+
+  it('preserves the JSON parser error as the cause of an invalid document', () => {
+    let thrown: unknown
+    try { read({ ...wire(), actual: 'not json' }) } catch (error) { thrown = error }
+    expect(thrown).toBeInstanceOf(TypeError)
+    expect((thrown as Error).cause).toBeInstanceOf(SyntaxError)
   })
 
   it('compares every binding row of the expected manifest', () => {
@@ -274,6 +317,68 @@ describe('T-493 coding evaluation', () => {
     [{ cat: [null, 'a'] }, 'a'],
   ])('flat evaluator matches the native literal for %j', (expression, expected) => {
     expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
+  })
+
+  it.each<[Json, Json]>([
+    [{ '!!': [{}] }, false],
+    [{ '!': [{}] }, true],
+    [{ and: [{}, true] }, {}],
+    [{ or: [{}, true] }, true],
+    [{ if: [{}, true, false] }, false],
+  ])('v1 empty object is falsy in every logical operator: %j', (expression, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(expression), context(null), admission)).toEqual({ state: 'Resolved', value: expected })
+  })
+
+  it.each([
+    ['{"missing_some":[1,[null,false,3,[],{}]]}', '["","false","3","[]","{}"]'],
+    ['{"!!":[""]}', 'false'],
+    ['{"!!":["0"]}', 'true'],
+    ['{"!!":[0]}', 'false'],
+    ['{"!!":[2]}', 'true'],
+    ['{"+":[true,2]}', '3'],
+    ['{"+":[false,2]}', '2'],
+    ['{"==":[true,1]}', 'true'],
+    ['{"==":[false,0]}', 'true'],
+    ['{"===":[[1],[1]]}', 'true'],
+    ['{"===":[[1],[2]]}', 'false'],
+    ['{"==":[[1],[1]]}', 'true'],
+    ['{"==":[[1],[2]]}', 'false'],
+    ['{"===":[{"a":1,"b":2},{"a":1,"b":2}]}', 'true'],
+    ['{"===":[{"a":1,"b":2},{"b":2,"a":1}]}', 'false'],
+    ['{"==":[{"a":1,"b":2},{"a":1,"b":2}]}', 'true'],
+    ['{"==":[{"a":1,"b":2},{"b":2,"a":1}]}', 'false'],
+    ['{"date.add":["2026-01-01",1,{"var":"coding"}]}', '"2026-01-02"'],
+    ['{"money.mul":["0.005","3"]}', '"0.015"'],
+  ])('v1 agreed operator semantics match literal parity corpus: %s', (expression, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(JSON.parse(expression) as Json), RuleContextSnapshot.fromJsonText('{"coding":null}'), admission))
+      .toEqual({ state: 'Resolved', value: JSON.parse(expected) as Json })
+  })
+
+  it.each([
+    ['{"money.add":[{"var":"coding"},"1"]}', '"invalid"', 'op', 'money'],
+    ['{"money.add":[{"var":"coding"},"1"]}', '1.5', 'op', 'money'],
+    ['{"date.add":[{"var":"coding"},1,"day"]}', '"invalid"', 'op', 'date.add'],
+    ['{"date.diff":[{"var":"coding"},"2026-01-01"]}', '"invalid"', 'op', 'date.diff'],
+    ['{"+":[{"var":"coding"},1]}', 'null', 'reason', 'null-as-number'],
+    ['{"*":[{"var":"coding"},{"var":"coding"}]}', '1e308', 'reason', 'non-finite'],
+  ])('v1 error values match literal parity corpus: %s with %s', (expression, input, parameter, expected) => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule(JSON.parse(expression) as Json), RuleContextSnapshot.fromJsonText(`{"coding":${input}}`), admission))
+      .toEqual({ state: 'Error', error: { code: 'rule.type_error', params: { [parameter]: expected } } })
+  })
+
+  it('v1 numeric money accepts an exact small integer', () => {
+    expect(new GuardEvaluator(clock, limits).evaluateValue(rule({ 'money.add': [{ var: 'coding' }, '1'] }), RuleContextSnapshot.fromJsonText('{"coding":1.0}'), admission))
+      .toEqual({ state: 'Resolved', value: '2' })
+  })
+
+  it.each([
+    ['{"money.add":["12345"]}', 7, '12345'],
+    ['{"money.add":["12345"]}', 6, null],
+    ['{"money.mul":["123","456"]}', 14, '56088'],
+    ['{"money.mul":["123","456"]}', 13, null],
+  ] as const)('v1 money charges each operand and result mantissa: %s at %s', (expression, stepBudget, expected) => {
+    expect(new GuardEvaluator(clock, { ...limits, stepBudget }).evaluateValue({ ...rule(JSON.parse(expression) as Json), id: 'v1-money-budget' }, context(null), admission))
+      .toEqual(expected === null ? { state: 'Error', error: { code: 'rule.budget_exceeded', params: { rule: 'v1-money-budget' } } } : { state: 'Resolved', value: expected })
   })
 
   it('keeps taxonomy traversal and callback-like operators outside the grammar', () => {
