@@ -491,6 +491,121 @@ public sealed class AcceptedRecordCreateTests
             new RecordWriteOperationKey("tenant-a", "operator-7", "op-116:accepted-command").IdempotencyKey);
     }
 
+    // T-616/postcommit-reactions (ADR-0154 decision 1, ADR 0131 decision 2, ADR-0110 decision 4): the committed event of an
+    // accepted command's create names the submitter as its principal and carries the worker as executor, both read from
+    // the committed journal row, so a redelivery from a reopened journal names the same two. Oracles: the literal submitter,
+    // worker, operation id and key bytes this class's command uses; the event type ADR 0124 decision 2 names.
+    [Fact]
+    [Trait("Proves", "platform")]
+    public async Task The_committed_event_of_an_accepted_create_names_the_submitter_as_principal_and_the_worker_as_executor()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-accepted-event-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "records.json");
+            var fixture = await Fixture.CreateAsync(journal: new FileJournalRecordWriteStore(path));
+            var outcome = await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command());
+            Assert.True(outcome.Committed);
+
+            var delivered = Assert.Single(await new FileJournalRecordWriteStore(path).ReadCommittedAsync(Tenant, 0));
+            var redelivered = Assert.Single(await new FileJournalRecordWriteStore(path).ReadCommittedAsync(Tenant, 0));
+
+            Assert.Equal(("records.record.created", "eam.asset-class", outcome.Receipt!.RecordId, "1.0.0", "op-accepted-1", "alice", "sys.records-worker"),
+                (delivered.EventType, delivered.RecordTypeId, delivered.RecordId, delivered.Version, delivered.OperationId, delivered.Principal, delivered.Executor));
+            Assert.Equal("8:tenant-a5:alice13:op-accepted-116:accepted-command", delivered.EventId);
+            Assert.Equal(delivered, redelivered);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    // T-616/postcommit-reactions (ADR 0124 decision 3; DES-0019 K10): a direct create and an accepted command that share an
+    // operation id are two committed events with one principal, so one reaction scope handles both. Each event's reaction is
+    // its own work: neither is replayed as the other's (identical bodies) nor refused as its conflict (different bodies).
+    // Oracles: the literal operation id, principal and bodies sent here; the record count is the two sources plus two reactions.
+    [Theory]
+    [Trait("Proves", "platform")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Reactions_to_a_direct_and_an_accepted_create_sharing_an_operation_id_each_create_their_own_record(bool sameBody)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-shared-op-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var journal = new FileJournalRecordWriteStore(Path.Combine(directory, "records.json"));
+            var fixture = await Fixture.CreateAsync(journal: journal);
+            Assert.True((await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command())).Committed);
+            Assert.True((await fixture.Operation.CreateAsync(new(Tenant, Submitter), new("eam.meter", "op-accepted-1", Body()))).Committed);
+            var sources = await journal.ReadCommittedAsync(Tenant, 0);
+            Assert.Equal([("op-accepted-1", "alice"), ("op-accepted-1", "alice")], sources.Select(item => (item.OperationId, item.Principal)));
+            var reaction = new RecordReactionKey("wf.follow-up", "1.0.0", "on-created");
+            var secondBody = sameBody ? Body() : JsonNode.Parse("""{"asset_tag":"A-2","quantity":3,"notes":"spare"}""")!.AsObject();
+
+            var effect = new RecordReactionEffect("run-1", 0, "follow-up", "create");
+
+            // The accepted create's event names the worker as executor; the direct create's names none (ADR-0154 decision 1).
+            var first = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[0], reaction, effect, "eam.meter", Body(), Executor: Worker));
+            var second = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(sources[1], reaction, effect, "eam.meter", secondBody));
+
+            Assert.True(first.Committed);
+            Assert.Null(second.Refusal);
+            Assert.False(second.Replayed);
+            Assert.NotEqual(first.Receipt!.RecordId, second.Receipt!.RecordId);
+            Assert.Equal(4, (await journal.ReadCommittedAsync(Tenant, 0)).Count);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    // P3-1 (ADR-0154 decisions 1 and 3; CWE-441): a reaction to an accepted create acts for the submitter, with the worker
+    // that completed the command as executor. A host that passes the worker as principal, drops the executor or names
+    // another worker is refused at bind after the gate decided, as the accepted command's own binding mismatch is, and
+    // nothing is written. The gate admits records:write for the worker too, so only this check refuses the worker pairs.
+    // Identities compare ordinally (P3-A): a principal or an executor that differs from the event's only in case is another
+    // identity, and the gate admits records:write for "Alice" too, so only the bind check refuses it.
+    // Oracles: the literal submitter, worker and delegate ids this class uses, and the literal case variants "Alice" of
+    // "alice" and "SYS.RECORDS-WORKER" of "sys.records-worker"; the literal stage and code records.command.binding_mismatch
+    // (ADR-0110 open item 7); the journal file's bytes before the refusal.
+    [Theory]
+    [Trait("Proves", "platform")]
+    [InlineData(Worker, Worker)]
+    [InlineData(Worker, null)]
+    [InlineData(Submitter, null)]
+    [InlineData(Submitter, Delegate)]
+    [InlineData("Alice", Worker)]
+    [InlineData(Submitter, "SYS.RECORDS-WORKER")]
+    public async Task A_reaction_to_an_accepted_create_acts_only_for_the_submitter_with_the_worker_as_executor(string principal, string? executor)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "t616-reaction-identity-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "records.json");
+            var journal = new FileJournalRecordWriteStore(path);
+            var fixture = await Fixture.CreateAsync(journal: journal);
+            Assert.True((await fixture.Operation.CompleteAcceptedAsync(new(Tenant, Worker), Command())).Committed);
+            var source = Assert.Single(await journal.ReadCommittedAsync(Tenant, 0));
+            Assert.Equal((Submitter, Worker), (source.Principal, source.Executor));
+            var reaction = new RecordReactionKey("wf.follow-up", "1.0.0", "on-created");
+            var effect = new RecordReactionEffect("run-1", 0, "follow-up", "create");
+            var before = File.ReadAllBytes(path);
+
+            var refused = await fixture.Operation.CreateReactionAsync(new(Tenant, principal), new(source, reaction, effect, "eam.meter", Body(), Executor: executor));
+
+            Assert.Equal(("bind", "records.command.binding_mismatch"), (refused.Refusal!.Stage, refused.Refusal.Code));
+            Assert.Null(refused.Receipt);
+            Assert.NotNull(refused.Decision);
+            Assert.Equal(principal, fixture.Gate.Asked.Last().Principal);
+            Assert.Equal(before, File.ReadAllBytes(path));
+
+            var allowed = await fixture.Operation.CreateReactionAsync(new(Tenant, Submitter), new(source, reaction, effect, "eam.meter", Body(), Executor: Worker));
+
+            Assert.True(allowed.Committed);
+            Assert.Equal(2, (await journal.ReadCommittedAsync(Tenant, 0)).Count);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     private static JsonObject Body() => JsonNode.Parse(ValidBody)!.AsObject();
 
     // The accepted command as the accepting store holds it: acceptance audit, form revision, the decision at acceptance and
@@ -520,7 +635,7 @@ public sealed class AcceptedRecordCreateTests
         public RecordWriteOperation Operation { get; }
 
         // The test host with three published types: the form_only asset class, a role-gated meter and an engine ledger line.
-        public static async Task<Fixture> CreateAsync(string[]? workers = null)
+        public static async Task<Fixture> CreateAsync(string[]? workers = null, FileJournalRecordWriteStore? journal = null)
         {
             var host = Host();
             await PublishAsync(host, AssetClass("1.0.0"), "eam.asset-class");
@@ -529,8 +644,11 @@ public sealed class AcceptedRecordCreateTests
             var gate = new WorkerGate(workers ?? [Worker, Delegate]);
             var port = new AcceptedCommandPort();
             var clock = new FixedClock(At);
-            return new(gate, port, new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, clock,
-                RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock)));
+            return new(gate, port, journal is null
+                ? new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, port, port, clock,
+                    RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock))
+                : new RecordWriteOperation(new AccessProvider(gate), host.Records, host.Registry, journal, journal, clock,
+                    RecordWriteFieldRuntimeTests.FixtureKinds(), RecordWriteFieldRuntimeTests.FixtureDomains(clock)));
         }
 
         private static async Task PublishAsync(TestHost host, NewRecordType type, string expectedId)

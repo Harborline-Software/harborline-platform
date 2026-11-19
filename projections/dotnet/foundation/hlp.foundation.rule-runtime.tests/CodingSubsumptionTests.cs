@@ -40,6 +40,103 @@ public sealed class CodingSubsumptionTests
         return new TaxonomyInterpreter([definition]).CaptureCodingAnswers(Text(fixture, "tenant"), [new(Text(fixture, "system"), coordinates, Text(fixture, "definitionSha256"))], queries, Window);
     }
 
+    // Oracle: README Decision DI, MoneyDecimal integer-input contract, DES-0018 rules-ck-8,
+    // and T-588/native-money-parity's independent decimal literals (T-724 rulings 121 and 35).
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""")]
+    [InlineData("""{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""")]
+    public void Money_record_oracle_probes_resolve_the_exact_fence_integer(string expression)
+    {
+        var result = Value("9.007e15", expression: expression);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal("9007000000000001", result.Value!.GetValue<string>());
+    }
+
+    public static IEnumerable<object[]> MoneyIntegerLiterals()
+    {
+        (string Exponent, string Integer, string Expected)[] rows =
+        [
+            ("9.006999999999999e15", "9006999999999999", "9007000000000000"),
+            ("9.007e15", "9007000000000000", "9007000000000001"),
+            ("9.007000000000001e15", "9007000000000001", "9007000000000002"),
+            ("9.007199254740991e15", "9007199254740991", "9007199254740992"),
+            ("9.007199254740992e15", "9007199254740992", "9007199254740993"),
+            ("9.007199254740994e15", "9007199254740994", "9007199254740995"),
+            ("9.223372036854776e18", "9223372036854775808", "9223372036854775809"),
+            ("-9.223372036854776e18", "-9223372036854775808", "-9223372036854775807"),
+            // Independent boundary oracles: (-2^63 - 2048) + 1; -10^19 + 1; 10^19 + 1; (2^63 - 1024) + 1.
+            ("-9.223372036854777e18", "-9223372036854777856", "-9223372036854777855"),
+            ("-1e19", "-10000000000000000000", "-9999999999999999999"),
+            ("1e19", "10000000000000000000", "10000000000000000001"),
+            ("9.223372036854775e18", "9223372036854774784", "9223372036854774785"),
+        ];
+        foreach (var row in rows)
+            foreach (string input in new[] { row.Exponent, row.Integer })
+                foreach (string expression in new[] { """{"money.add":[{"var":"coding"},"1"]}""", """{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""" })
+                    yield return [input, expression, row.Expected];
+    }
+
+    [Theory]
+    [MemberData(nameof(MoneyIntegerLiterals))]
+    public void Money_integer_inputs_match_literal_parity_matrix(string input, string expression, string expected)
+    {
+        var result = Value(input, expression: expression);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.GetValue<string>());
+    }
+
+    // ToMoney's lower fence (HarborlineJsonLogic.cs:292) admits -2^63 to FromInteger; the BigInteger
+    // fallback must render the same literal, so moving the fence by one value is equivalent.
+    [Fact]
+    public void Money_lower_fence_paths_agree_on_negative_two_to_the_63()
+    {
+        Assert.Equal("-9223372036854775808", MoneyDecimal.FromInteger(long.MinValue).ToCanonicalString());
+        Assert.Equal("-9223372036854775808", MoneyDecimal.Parse(new BigInteger(-9223372036854775808d).ToString(System.Globalization.CultureInfo.InvariantCulture)).ToCanonicalString());
+    }
+
+    // Exact integer storage includes the lower endpoint and the positive interior boundary.
+    [Theory]
+    [InlineData(9007000000000000L)]
+    [InlineData(9007000000000001L)]
+    [InlineData(9007199254740991L)]
+    [InlineData(9007199254740992L)]
+    [InlineData(9007199254740994L)]
+    [InlineData(long.MinValue)]
+    [InlineData(9223372036854774784L)]
+    public void Money_NumNode_preserves_exact_long_integer_storage(long expected)
+    {
+        var node = (JsonValue)HarborlineJsonLogic.NumNode(expected);
+        Assert.True(node.TryGetValue<long>(out var stored));
+        Assert.Equal(expected, stored);
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""")]
+    [InlineData("""{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""")]
+    public void Money_fractional_input_is_refused(string expression)
+    {
+        var result = Value("1.5", expression: expression);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("money", result.Error.Params["op"]);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Money_nonfinite_input_is_refused(double input)
+        => Assert.Throws<FormatException>(() => HarborlineJsonLogic.ToMoney(JsonValue.Create(input)));
+
+    [Fact]
+    public void Money_nonfinite_arithmetic_is_refused()
+    {
+        var result = Value("1e308", expression: """{"money.add":[{"*":[{"var":"coding"},2]},"1"]}""");
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("non-finite", result.Error.Params["reason"]);
+    }
+
     [Fact]
     public void Real_producer_matches_independent_shared_wire_and_public_consumers()
     {

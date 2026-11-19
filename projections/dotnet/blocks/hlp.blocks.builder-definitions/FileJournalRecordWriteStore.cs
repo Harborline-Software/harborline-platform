@@ -581,6 +581,36 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         finally { Mutation.Release(); }
     }
 
+    /// <summary>
+    /// The tenant's committed record events after <paramref name="after"/>, in commit order (ADR 0124 decision 2). The
+    /// journal is the outbox: an event exists exactly when its entry committed, so a refused, faulted or replayed write
+    /// publishes nothing new. A relay checkpoints a position only after its hand-off, and reading from an earlier position
+    /// redelivers equal events, which consumers dedupe by <see cref="RecordCommittedEvent.EventId"/>.
+    /// <para>The position is this journal's own entry index, shared by every tenant in it, so one tenant's positions have
+    /// gaps; it is a private cursor into this file journal, not a portable event sequence. Not in this store: paging (each
+    /// read returns every later event), a durable relay checkpoint, and the host relay that hands events to Workflow
+    /// triggers.</para>
+    /// </summary>
+    /// <param name="tenant">The tenant whose events are read; no other tenant's entry is returned.</param>
+    /// <param name="after">The last handed-off position, or 0 to read from the start.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    public async ValueTask<IReadOnlyList<RecordCommittedEvent>> ReadCommittedAsync(string tenant, long after,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenant);
+        ArgumentOutOfRangeException.ThrowIfNegative(after);
+        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return Load(cancellationToken)
+                .Select((entry, index) => (entry, position: index + 1L))
+                .Where(item => item.position > after && item.entry.Row.Tenant == tenant)
+                .Select(item => RecordCommittedEvents.Of(item.position, item.entry.Key, item.entry.Row, item.entry.Temporal?.Revision ?? 1))
+                .ToArray();
+        }
+        finally { Mutation.Release(); }
+    }
+
     /// <inheritdoc />
     /// <inheritdoc />
     public async ValueTask<RecordWriteRow?> FindAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
