@@ -1,0 +1,79 @@
+@namespace Harborline.UIAdapters.Blazor.Components.ReportAuthoring
+@using System.Globalization
+@if (Draft is not { } draft) { <button type="button" disabled="@(ReadOnly || incoming)" @onclick="Create">Create report</button> }
+else {
+<section aria-label="Report authoring" style="overflow-wrap:anywhere">
+  @if (incoming) { <div role="alert">A different revision is available. <button type="button" aria-label="Discard edits and load" @onclick="Discard">Discard edits and load</button><button type="button" aria-label="Keep editing" disabled="@ReadOnly" @onclick="Keep">Keep editing</button></div> }
+  <fieldset disabled="@(ReadOnly || incoming)"><legend>Report identity</legend><label>Tenant<input aria-label="Tenant" value="@draft.Tenant" @onchange="e => Change(draft with { Tenant = Text(e) })" /></label><label>Report key<input aria-label="Report key" value="@draft.Key" @onchange="e => Change(draft with { Key = Text(e) })" /></label><label>Version<input aria-label="Version" value="@draft.Version" @onchange="e => Change(draft with { Version = Text(e) })" /></label></fieldset>
+  @for (var i = 0; i < draft.Parameters.Count; i++) { var index = i; var item = draft.Parameters[index]; <div>@item.Name<button type="button" aria-label="@($"Remove parameter {item.Name}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveParameter(index)">Remove parameter @item.Name</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/parameters/{index}" || r.Pointer.StartsWith($"/parameters/{index}/", StringComparison.Ordinal))) { <span aria-label="@($"Parameter {index + 1} refusal")">@refusal.Code</span> }</div> }
+  <label>Parameter name<input aria-label="Parameter name" disabled="@(ReadOnly || incoming)" value="@parameterName" @onchange="e => Edit(() => parameterName = Text(e))" /></label><label>Parameter type<select aria-label="Parameter type" disabled="@(ReadOnly || incoming)" value="@parameterType" @onchange="e => Edit(() => parameterType = Text(e))">@foreach (var type in Types) { <option value="@type">@type</option> }</select></label><label>Parameter default<input aria-label="Parameter default" disabled="@(ReadOnly || incoming)" value="@parameterDefault" @onchange="e => Edit(() => parameterDefault = Text(e))" /></label>
+  @if (parameterName == "as_at") { <label>Effective-dated type<input aria-label="Effective-dated type" disabled="@(ReadOnly || incoming)" value="@effectiveType" @onchange="e => Edit(() => effectiveType = Text(e))" /></label> }
+  @if (invalidDefault) { <p role="alert">Enter a valid default.</p> }
+  <button type="button" aria-label="Add parameter" disabled="@(ReadOnly || incoming)" @onclick="AddParameter">Add parameter</button>
+  @for (var i = 0; i < draft.Measures.Count; i++) { var index = i; var item = draft.Measures[index]; <div>@item.Measure<button type="button" aria-label="@($"Remove measure {item.Measure}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveMeasure(index)">Remove measure @item.Measure</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/measures/{index}/measure")) { <span aria-label="@($"Measure {index + 1} refusal")">@string.Join(" ", new[] { refusal.Code, refusal.Measure, refusal.Catalogue }.Where(x => !string.IsNullOrEmpty(x)))</span> }</div> }
+  <button type="button" aria-label="@(open ? "Close measure picker" : "Choose measure")" @onclick="Toggle">@(open ? "Close measure picker" : "Choose measure")</button>
+  @if (open) {
+    @if (resolverError) { <p role="alert">Measures could not be loaded. Close and reopen to retry.</p> }
+    <label>Search measures<input aria-label="Search measures" value="@query" @oninput="Search" /></label><select aria-label="Measures" size="5" value="@selected" @onchange="e => SelectMeasure(Text(e))">@foreach (var option in options) { <option value="@option.Id">@option.Label</option> }</select><button type="button" aria-label="Add measure" disabled="@(ReadOnly || incoming || !options.Any(o => o.Id == selected))" @onclick="AddMeasure">Add measure</button>
+  }
+</section>
+}
+@code {
+    [Parameter] public ReportDraft? Value { get; set; }
+    [Parameter] public string? Revision { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public EventCallback<ReportDraft> Created { get; set; }
+    [Parameter] public EventCallback<ReportDraft> ValueChanged { get; set; }
+    [Parameter] public Func<string, Task<IReadOnlyList<MeasureOption>>>? ResolveMeasures { get; set; }
+    [Parameter] public IReadOnlyList<ReportRefusal> Refusals { get; set; } = [];
+    private static readonly string[] Types = ["boolean", "date_time", "integer", "float", "string"];
+    private ReportDraft? current, held;
+    private IReadOnlyList<ReportRefusal>? staleRefusals;
+    private IReadOnlyList<ReportRefusal> Located => incoming || held is not null || ReferenceEquals(Refusals, staleRefusals) ? [] : Refusals;
+    private string? currentRevision, heldRevision;
+    private bool incoming, dirty;
+    private ReportDraft? Draft => current;
+    private bool open, invalidDefault, resolverError;
+    private string query = "", selected = "", parameterName = "", parameterType = "boolean", parameterDefault = "", effectiveType = "";
+    private IReadOnlyList<MeasureOption> options = [];
+    private int generation, draftGeneration;
+    private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
+    private static bool Same(ReportDraft a, ReportDraft b) => a.Tenant == b.Tenant && a.Key == b.Key && a.Version == b.Version;
+    private void ResetPicker() { generation++; open = false; query = selected = ""; options = []; resolverError = false; }
+    private void Adopt(ReportDraft? value) { current = value; staleRefusals = null; currentRevision = Revision; dirty = false; held = null; heldRevision = null; incoming = false; draftGeneration++; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; invalidDefault = false; ResetPicker(); }
+    protected override void OnParametersSet() {
+        if (Value is null) { Adopt(null); return; }
+        if (current is null) { Adopt(Value); return; }
+        if (Same(current, Value) && currentRevision == Revision) { held = null; heldRevision = null; incoming = false; return; }
+        if (held is not null && Same(held, Value) && heldRevision == Revision) return;
+        if (dirty) { held = Value; heldRevision = Revision; incoming = true; } else Adopt(Value);
+    }
+    private void Discard() => Adopt(Value);
+    private void Keep() => incoming = false;
+    private Task Create() => Created.InvokeAsync(ReportDraft.Empty);
+    private void Edit(Action update) { dirty = true; draftGeneration++; update(); ResetPicker(); }
+    private void SelectMeasure(string value) { selected = value; if (!ReadOnly) dirty = true; }
+    private Task Change(ReportDraft value) { if (ReadOnly || incoming) return Task.CompletedTask; current = value; staleRefusals = Refusals; currentRevision = Revision; dirty = true; draftGeneration++; ResetPicker(); return ValueChanged.InvokeAsync(value); }
+    private Task RemoveParameter(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Parameters = draft.Parameters.Where((_, i) => i != index).ToArray() });
+    private Task RemoveMeasure(int index) => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = draft.Measures.Where((_, i) => i != index).ToArray() });
+    private Task AddMeasure() => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = [.. draft.Measures, new(selected)] });
+    private Task AddParameter() {
+        if (Draft is not { } draft) return Task.CompletedTask;
+        var text = parameterDefault.Trim(' ', '\t', '\r', '\n');
+        object? parsed = parameterType switch {
+            "boolean" when text is "true" or "false" => text == "true",
+            "integer" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A-?(?:0|[1-9][0-9]*)\z") && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) && i is >= -9007199254740991 and <= 9007199254740991 => i,
+            "float" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\z") && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) => d,
+            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,7})?(?:Z|[+-][0-9]{2}:[0-9]{2})\z") && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => text,
+            "string" => parameterDefault,
+            _ => null,
+        };
+        if (parsed is null || (parameterName == "as_at" && (parameterType != "date_time" || string.IsNullOrWhiteSpace(effectiveType)))) { invalidDefault = true; return Task.CompletedTask; }
+        invalidDefault = false;
+        var item = new ReportParameter(parameterName, parameterType, new(parameterType == "date_time" ? "datetime" : parameterType, parsed, parameterType, true), parameterName == "as_at" ? effectiveType : null);
+        return Change(draft with { Parameters = [.. draft.Parameters, item] });
+    }
+    private async Task Toggle() { open = !open; if (open) await Resolve(); else generation++; }
+    private async Task Search(ChangeEventArgs e) { query = Text(e); await Resolve(); }
+    private async Task Resolve() { var ticket = ++generation; options = []; selected = ""; resolverError = false; try { if (ResolveMeasures is not null) { var result = await ResolveMeasures(query); if (ticket == generation && open) options = result; } } catch { if (ticket == generation && open) resolverError = true; } }
+}
