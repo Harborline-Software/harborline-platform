@@ -15,11 +15,13 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
+import {EventEmitter} from 'node:events'
+import {createServer} from 'node:net'
 
 import { mergeShardReports } from '../gallery-shard-merge.mjs'
 import { observeGalleryRun } from '../gallery-observations.mjs'
 import {
-  aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
+  assertPortAvailable, stopServers, withServerCleanup, aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
 } from '../run-gallery-gate.mjs'
 
 const SUFFIX = ' is accessible and visually conformant'
@@ -188,3 +190,89 @@ test('a complete matrix aggregates to nine passed steps and reconciles exactly',
   assert.equal(observed.reconciliation, 'exact')
   assert.equal(observed.scenarioBrowserTests, 3)
 })
+
+// T-1264: literals below encode the requested POSIX lifecycle, not production-derived expectations.
+test('occupied gallery port names the listener without stopping it', async () => {
+  const listener = createServer()
+  await new Promise(resolveListen => listener.listen(0, '127.0.0.1', resolveListen))
+  const port = listener.address().port
+  try {
+    for (const platform of ['darwin', 'linux']) {
+      await assert.rejects(assertPortAvailable(port, {platform, inspect: (command, args) => {
+        assert.equal(command, 'lsof')
+        assert.deepEqual(args, ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN'])
+        return {stdout: 'COMMAND PID USER\nnode 1234 gallery'}
+      }}), error => {
+        assert.ok(error.message.includes(`gallery port ${port} is unavailable`))
+        assert.match(error.message, /node 1234 gallery/)
+        return true
+      })
+    }
+    await assert.rejects(assertPortAvailable(port, {platform: 'linux', inspect: () => ({error: {code: 'ENOENT'}})}), /is unavailable/)
+    assert.equal(listener.listening, true)
+  } finally { await new Promise(resolveClose => listener.close(resolveClose)) }
+  await assertPortAvailable(port)
+})
+
+const gone = () => { throw Object.assign(new Error('gone'), {code: 'ESRCH'}) }
+for (const graceful of [true, false]) {
+  test(`gallery cleanup waits for the whole group; graceful=${graceful}`, async () => {
+    const calls = []
+    let probes = 0
+    await stopServers([{child: {pid: 1234, killed: true}}, {child: {}}], {
+      platform: 'darwin', timeoutMs: 1,
+      kill: (pid, signal) => {
+        calls.push([pid, signal])
+        if (signal === 0 && (++probes > 1 || graceful)) gone()
+      },
+    })
+    assert.deepEqual(calls, graceful
+      ? [[-1234, 'SIGTERM'], [-1234, 0]]
+      : [[-1234, 'SIGTERM'], [-1234, 0], [-1234, 'SIGKILL'], [-1234, 0]])
+  })
+}
+test('gallery cleanup preserves Windows tree kill and waits for exit', async () => {
+  const calls = []
+  await stopServers([{child: {pid: 1234}}], {platform: 'win32',
+    treeKill: (command, args) => calls.push([command, args]),
+    kill: (pid, signal) => { assert.equal(pid, 1234); assert.equal(signal, 0); gone() },
+  })
+  assert.deepEqual(calls, [['taskkill', ['/pid', '1234', '/T', '/F']]])
+})
+test('gallery cleanup ignores exited groups and reports unkillable groups', async () => {
+  await stopServers([{child: {pid: 1234}}], {platform: 'linux', kill: gone})
+  await assert.rejects(stopServers([{child: {pid: 1234}}], {
+    platform: 'linux', kill: () => {}, timeoutMs: 1,
+  }), /gallery server cleanup failed/)
+})
+for (const failure of [false, true]) {
+  test(`gallery cleanup is awaited on work completion; failure=${failure}`, async () => {
+    const host = new EventEmitter()
+    const events = []
+    const work = withServerCleanup(async () => {
+      events.push('work')
+      if (failure) throw new Error('step failed')
+    }, {host, stop: async () => { await Promise.resolve(); events.push('stopped') }})
+    if (failure) await assert.rejects(work, /step failed/)
+    else await work
+    assert.deepEqual(events, ['work', 'stopped'])
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) assert.equal(host.listenerCount(signal), 0)
+  })
+}
+for (const [signal, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+  test(`gallery ${signal} waits for cleanup and removes handlers`, async () => {
+    const host = new EventEmitter()
+    const events = []
+    let finish
+    const exited = new Promise(resolveExit => { host.exit = exitCode => { events.push(exitCode); resolveExit() } })
+    const work = withServerCleanup(() => new Promise(resolveWork => { finish = resolveWork }), {
+      host, stop: async () => { await Promise.resolve(); events.push('stopped') },
+    })
+    host.emit(signal)
+    await exited
+    finish()
+    await work
+    assert.deepEqual(events, ['stopped', code])
+    for (const name of ['SIGINT', 'SIGTERM', 'SIGHUP']) assert.equal(host.listenerCount(name), 0)
+  })
+}

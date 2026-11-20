@@ -16,17 +16,17 @@ import { run as galleryRun } from '../run-gallery-gate.mjs'
 const TINY_BUDGET_MS = 300
 const OUTLIVES_BUDGET_ARGS = ['-e', 'setTimeout(() => {}, 10000)']
 
-function withTinyBudget(body) {
+async function withTinyBudget(body) {
   process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS = String(TINY_BUDGET_MS)
   try {
-    return body()
+    return await body()
   } finally {
     delete process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS
   }
 }
 
 test('spawnWithBudget kills a child that exceeds its budget', () => {
-  withTinyBudget(() => {
+  return withTinyBudget(() => {
     const started = performance.now()
     const result = spawnWithBudget(process.execPath, OUTLIVES_BUDGET_ARGS)
     const elapsedMs = performance.now() - started
@@ -51,20 +51,22 @@ test('a child that finishes within budget is not treated as timed out', () => {
 // gate silently regresses to `exitCode: null, failureOutput: "\n"` -- the exact indistinguishable
 // silence this ticket exists to remove.
 test('a gallery gate step past its budget fails by step id, budget and command', () => {
-  withTinyBudget(() => {
-    assert.throws(
+  return withTinyBudget(async () => {
+    const started = performance.now()
+    await assert.rejects(
       () => galleryRun('react-gallery-typecheck', process.execPath, OUTLIVES_BUDGET_ARGS),
       /react-gallery-typecheck exceeded its 300ms budget and was killed: .*setTimeout/)
+    assert.ok(performance.now() - started < 8_000, 'the timed out step must stop before its 10000ms lifetime')
   })
 })
 
 // gallery/tests installs its own dependencies inside the gallery-gate step (19), after tooling-selftests (11); on a clean
 // clone or the receipt's detached tree the package is not resolvable yet. The probe reports that as unavailable too, so
 // this test runs on every tree and accepts either reason; a skip would fail the self-test runner (330 s3).
-test("a gallery gate run refuses an unavailable browser with Playwright's reason", () => {
+test("a gallery gate run refuses an unavailable browser with Playwright's reason", async () => {
   const unavailableBrowsers = mkdtempSync(resolve(tmpdir(), 'hlp-unavailable-browser-'))
   try {
-    assert.throws(
+    await assert.rejects(
       () => galleryRun(
         'playwright-browser-launch',
         process.execPath,
@@ -85,7 +87,7 @@ test("a gallery gate run refuses an unavailable browser with Playwright's reason
 })
 
 test('a gallery prepare step past its budget fails by name, budget and command', () => {
-  withTinyBudget(() => {
+  return withTinyBudget(() => {
     assert.throws(
       () => prepareRun(process.execPath, OUTLIVES_BUDGET_ARGS),
       /prepareGalleries step exceeded its 300ms budget and was killed: .*setTimeout/)
@@ -96,7 +98,7 @@ test('a gallery prepare step past its budget fails by name, budget and command',
 // silence actually lived: each one is budgeted and named individually, so a wedge in restore 14 of
 // 20 says which command, rather than "the whole fixture step".
 test('a package fixture restore past its budget names the command that wedged', () => {
-  withTinyBudget(() => {
+  return withTinyBudget(() => {
     assert.throws(
       () => runFixtureStep(process.execPath, OUTLIVES_BUDGET_ARGS),
       /package fixture step exceeded its 300ms budget and was killed: .*setTimeout/)
@@ -122,7 +124,7 @@ for (const [name, run, announcement] of [
   ['gallery prepare', args => prepareRun(process.execPath, args), /^gallery prepare step started \(budget 5000ms\): .+ -e .+started.+\n$/],
   ['package fixture', args => runFixtureStep(process.execPath, args), /^package fixture step started \(budget 5000ms\): .+ -e .+started.+\n$/],
 ]) {
-  test(`a ${name} step announces itself before its child starts`, t => {
+  test(`a ${name} step announces itself before its child starts`, async t => {
     const temporaryRoot = realpathSync(tmpdir())
     const directory = mkdtempSync(resolve(temporaryRoot, 'gallery-breadcrumb-'))
     const marker = resolve(directory, 'started')
@@ -135,7 +137,7 @@ for (const [name, run, announcement] of [
         output.push(String(chunk))
         return true
       })
-      run(['-e', "require('node:fs').writeFileSync(process.argv[1], 'started')", marker])
+      await run(['-e', "require('node:fs').writeFileSync(process.argv[1], 'started')", marker])
       assert.equal(existsSync(marker), true, 'the real child must run')
       assert.match(output.join(''), announcement)
     } finally {
