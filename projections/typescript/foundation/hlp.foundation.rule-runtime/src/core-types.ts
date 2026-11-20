@@ -26,7 +26,7 @@ export function declaredCoreType(type: string | undefined, ruleId: string, code:
 export function deriveCoreTypes(node: Json, ruleId: string,
   input: (path: string) => ReadonlySet<CoreJsonType> = () => anyJson,
   code: string = Codes.compileInvalidExpression): CoreTypeResult {
-  const visit = (value: Json): CoreTypeResult => {
+  const visit = (value: Json, element = false): CoreTypeResult => {
     if (value === null) return result(['null'])
     if (Array.isArray(value)) return result(['array'])
     if (typeof value !== 'object') return result([typeof value as CoreJsonType])
@@ -34,7 +34,7 @@ export function deriveCoreTypes(node: Json, ruleId: string,
     if (entries.length !== 1) return result(['object'])
     const [op, raw] = entries[0]
     const args = Array.isArray(raw) ? raw : [raw]
-    const children = args.map(visit)
+    const children = args.map((arg, index) => visit(arg, element || (index === 1 && ['some', 'all', 'none'].includes(op))))
     const join = (types: Iterable<CoreJsonType>, canError = false, canPending = false): CoreTypeResult => ({
       types: new Set(types), canError: canError || children.some(c => c.canError), canPending: canPending || children.some(c => c.canPending),
     })
@@ -46,9 +46,10 @@ export function deriveCoreTypes(node: Json, ruleId: string,
     switch (op) {
       case 'var': {
         const path = varPath(args[0])
-        const primary = input(path)
+        const primary = element ? anyJson : input(path)
         return join(union(primary, children[1]?.types ?? (sameTypes(primary, anyJson) ? ['null'] : [])), true, true)
       }
+      case 'some': case 'all': case 'none': case 'startsWith': case 'endsWith': return join(['boolean'], true)
       case 'missing': case 'missing_some': return join(['array'], true, true)
       case '==': case '!=': case '===': case '!==': case '!': case '!!': case 'in': case 'coding.is': return join(['boolean'])
       case '>': case '>=': case '<': case '<=': return join(['boolean'], true)

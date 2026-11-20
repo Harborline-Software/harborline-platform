@@ -583,6 +583,69 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Equal([blocks[0] with { Container = "stack" }, blocks[1] with { ParentId = "group" }], changed!.Blocks);
     }
 
+    // Oracles: DES-0052 layout-auth-3/layout-ck-7; layout-auth-18 and T-724 ruling 41.
+    [Fact(DisplayName = "layout-auth-3: two blocks added from nothing form a nested stack")]
+    public void TwoBlocksAddedFromNothingFormANestedStack()
+    {
+        var value = LayoutAuthoringDraft.Empty;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, value).Add(x => x.Catalogue, Catalogue())
+            .Add(x => x.ValueChanged, next => value = next));
+        cut.Find("fieldset button").Click();
+        cut.Render(parameters => parameters.Add(x => x.Value, value));
+        cut.FindAll("button").Single(button => button.TextContent == "Add block").Click();
+        cut.Render(parameters => parameters.Add(x => x.Value, value));
+        cut.Find("[aria-label='Block 2 parent']").Change("block-1");
+        Assert.Equal([new LayoutAuthoringBlock("block-1", "layout.table", Container: "stack"),
+            new LayoutAuthoringBlock("block-2", "layout.table", ParentId: "block-1")], value.Blocks);
+    }
+
+    [Theory(DisplayName = "layout-auth-3: Add block names only an offered canonical kind")]
+    [InlineData("layout.list", "layout.list")]
+    [InlineData("layout.retired", "")]
+    [InlineData(null, "")]
+    public void AddBlockNamesOnlyAnOfferedCanonicalKind(string? offered, string expected)
+    {
+        LayoutAuthoringDraft? changed = null;
+        var catalogue = Catalogue() with { BlockKinds = offered is null ? [] : [new(offered, offered)] };
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, LayoutAuthoringDraft.Empty).Add(x => x.Catalogue, catalogue)
+            .Add(x => x.ValueChanged, next => changed = next));
+        cut.Find("fieldset button").Click();
+        Assert.Equal([new LayoutAuthoringBlock("block-1", expected)], changed!.Blocks);
+    }
+
+    // Oracles: DES-0052 :537/:546, DES-0053 layout-runtime-eng-8, shared refusal fixture (T-583 item 2).
+    [Fact(DisplayName = "layout-ck-7: a missing kind stays visible and unchanged beside the verbatim refusal")]
+    public void MissingKindStaysVisibleAndUnchangedBesideTheVerbatimRefusal()
+    {
+        var refusal = JsonSerializer.Deserialize<LayoutRefusalEnvelope>(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "refusal-envelope.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var value = LayoutAuthoringDraft.Empty with { Blocks = [new("block-1", "layout.retired")] };
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, value).Add(x => x.Catalogue, Catalogue()).Add(x => x.Refusal, refusal)
+            .Add(x => x.ValueChanged, next => value = next));
+        var select = cut.Find("[aria-label='Block 1 kind']");
+        Assert.Equal("layout.retired", select.GetAttribute("value"));
+        var option = select.QuerySelector("option[value='layout.retired']");
+        Assert.NotNull(option);
+        Assert.Equal("false", option.GetAttribute("data-kind-offered"));
+        Assert.Equal("layout.retired", option.TextContent);
+        var alert = cut.Find("[role='alert']");
+        Assert.Equal(refusal.Stage, alert.GetAttribute("data-refusal-stage"));
+        Assert.Equal(refusal.Refusals.Select(item => $"{refusal.Stage}: {item.Code} at {item.Pointer} ({item.Target})"),
+            alert.QuerySelectorAll("li").Select(item => item.TextContent));
+        Assert.Equal("layout.block.kind_unknown", alert.QuerySelector("li")!.GetAttribute("data-refusal-code"));
+        Assert.Equal("/blocks/0/kind", alert.QuerySelector("li")!.GetAttribute("data-refusal-pointer"));
+        // The token's option and the platform's list item are the only leaf text about this kind.
+        Assert.Equal(["install: layout.block.kind_unknown at /blocks/0/kind (surface.orders@1.0.0)", "layout.retired"],
+            cut.FindAll("*").Where(node => node.Children.Length == 0 &&
+                (node.TextContent.Contains("layout.retired") || node.TextContent.Contains("kind_unknown"))).Select(node => node.TextContent));
+        cut.Find("[aria-label='Block 1 zone']").Change("header.center");
+        cut.Render(parameters => parameters.Add(x => x.Value, value));
+        Assert.Equal([new LayoutAuthoringBlock("block-1", "layout.retired", Zone: "header.center")], value.Blocks);
+        Assert.Equal("layout.retired", cut.Find("[aria-label='Block 1 kind']").GetAttribute("value"));
+    }
+
     private static string RepositoryRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

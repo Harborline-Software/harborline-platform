@@ -67,7 +67,7 @@ public sealed class WorkflowFixtureConformanceTests
                 $"{row.GetProperty("id").GetString()}: expected [{string.Join(", ", expectedCodes)}], got [{string.Join(", ", actualCodes)}]");
         }
 
-        Assert.Equal(90, cases.Length);
+        Assert.Equal(92, cases.Length);
         Assert.Equal(ActionClassification.CP, resolver.AuthorityOf("unregistered.capability"));
         Assert.Throws<ArgumentOutOfRangeException>(() => new ImmutableWorkflowAuthorityResolver(
             new Dictionary<string, ActionClassification> { ["invalid"] = (ActionClassification)99 }));

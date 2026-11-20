@@ -10,7 +10,14 @@ namespace Harborline.Blocks.LayoutRuntime.Tests;
 
 public sealed class LayoutFlowTests
 {
-    [Fact]
+    [Fact(DisplayName = "layout-runtime-ck-2: screen and page share tree order and keep static regions outside flow")]
+    [Trait("Holds", "layout-runtime-eng-2")]
+    [Trait("Holds", "layout-runtime-eng-4")]
+    [Trait("Holds", "layout-runtime-cc-1")]
+    [Trait("Holds", "layout-runtime-ck-3")]
+    [Trait("Holds", "layout-eng-18")]
+    [Trait("Holds", "layout-run-1")]
+    [Trait("Holds", "layout-bound-6")]
     public void ScreenAndPageUseOneTreeOrderAndKeepStaticRegionsOutOfFlow()
     {
         var runtime = new LayoutRuntimeEngine();
@@ -25,7 +32,9 @@ public sealed class LayoutFlowTests
         Assert.Equal("header", Assert.Single(page.StaticRegions).BlockId);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-runtime-ck-1: resolve the exact published Layout version from the shared store")]
+    [Trait("Holds", "layout-runtime-eng-1")]
+    [Trait("Holds", "layout-eng-13")]
     public async Task ResolvesOnlyTheExactPublishedLayoutVersionFromTheSharedStore()
     {
         var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
@@ -44,7 +53,8 @@ public sealed class LayoutFlowTests
         Assert.Equal("screen", plan.Plan.Fragmentainer.Kind);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-runtime-eng-8: refuse an invalid persisted body before flow")]
+    [Trait("Holds", "layout-runtime-ck-4")]
     public async Task RefusesAnInvalidPersistedBodyBeforeTheRuntimeCanFlowIt()
     {
         var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
@@ -62,6 +72,98 @@ public sealed class LayoutFlowTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () => await new LayoutPublishedSurfaceResolver(store).ResolveAsync(new(key, "version-2"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
 
         Assert.Equal("layout.persisted_body_invalid", exception.Message);
+    }
+
+    [Fact(DisplayName = "layout-eng-13: unknown and draft-only versions refuse published resolution")]
+    public async Task UnknownAndDraftOnlyVersionsRefusePublishedResolution()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ValidScreenDefinition()));
+        await store.SaveDraftAsync(new(key, "version-1", "1.0.0", body), 0, "draft-1");
+        var resolver = new LayoutPublishedSurfaceResolver(store);
+
+        var draft = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await resolver.ResolveAsync(new(key, "version-1"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+        Assert.Equal("layout.published_version_not_found", draft.Message);
+
+        await store.PublishAsync(key, "version-1", 1, "publish-1");
+        var unknown = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await resolver.ResolveAsync(new(key, "version-2"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance));
+        Assert.Equal("layout.published_version_not_found", unknown.Message);
+    }
+
+    [Fact(DisplayName = "layout-eng-20: three authored pages select only their first, left and right static regions")]
+    public void ThreeAuthoredPagesSelectFirstLeftAndRightStaticRegions()
+    {
+        var definition = Definition(LayoutMedium.Page) with
+        {
+            Blocks =
+            [
+                new("first-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("First")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "first.center"),
+                new("left-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Left")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "left.center"),
+                new("right-header", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Right")), [], FlowRole: LayoutFlowRole.Static, StaticRegion: "right.center"),
+                new("summary", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Summary")), [], BreakAfter: true),
+                new("lines", "layout.table", new LayoutQueryBinding("open-lines"), [], BreakAfter: true),
+                new("total", "layout.metric", new LayoutMeasureBinding("invoice.total"), []),
+            ],
+            PageLayouts = [new("letter", "letter", LayoutPageOrientation.Portrait, new("sm", "sm", "sm", "sm"), new("sm", "sm"))],
+            PageMasters = [new("master", "letter", new(null, "first.center", null), new(null, "left.center", null), new(null, "right.center", null))],
+            PageRuns = [new("run", "letter", "master", ["summary", "lines", "total"])],
+        };
+
+        var fragments = new LayoutRuntimeEngine().Flow(definition).PageFragments!;
+
+        Assert.Equal(3, fragments.Count);
+        Assert.Equal(("first", "summary", "first-header"), (fragments[0].Variant, Assert.Single(fragments[0].Flow).BlockId, Assert.Single(fragments[0].StaticRegions).BlockId));
+        Assert.Equal(("left", "lines", "left-header"), (fragments[1].Variant, Assert.Single(fragments[1].Flow).BlockId, Assert.Single(fragments[1].StaticRegions).BlockId));
+        Assert.Equal(("right", "total", "right-header"), (fragments[2].Variant, Assert.Single(fragments[2].Flow).BlockId, Assert.Single(fragments[2].StaticRegions).BlockId));
+    }
+
+    [Fact(DisplayName = "layout-eng-22: published resolution succeeds without any store write")]
+    [Trait("Holds", "layout-runtime-cc-4")]
+    public async Task PublishedResolutionCallsNoStoreWriteMember()
+    {
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "invoice");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Layout] = (_, _) => [],
+        });
+        var body = Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(ValidScreenDefinition()));
+        await store.SaveDraftAsync(new(key, "version-1", "1.0.0", body), 0, "draft-1");
+        await store.PublishAsync(key, "version-1", 1, "publish-1");
+        var readOnly = new ReadOnlyDefinitionStore(store);
+
+        var resolved = await new LayoutPublishedSurfaceResolver(readOnly).ResolveAsync(
+            new(key, "version-1"), GrantsAllAuthor.Instance, GrantsAllAuthor.Instance);
+
+        Assert.Equal("version-1", resolved.VersionId);
+        Assert.Equal("screen", resolved.Plan.Fragmentainer.Kind);
+        Assert.Equal(0, readOnly.WriteCalls);
+    }
+
+    [Fact(DisplayName = "layout-runtime-ck-3: a child retains its declared parent zone in both media")]
+    public void ChildZoneIsPreservedForScreenAndPage()
+    {
+        var definition = Definition(LayoutMedium.Screen) with
+        {
+            Blocks =
+            [
+                new("parent", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Parent")),
+                    [new("child", "layout.text", new LayoutStaticBinding(JsonSerializer.SerializeToElement("Child")), [], Placement: new(Zone: "details"))],
+                    Container: new(LayoutContainerKind.Areas, Regions: ["details"])),
+            ],
+        };
+        var runtime = new LayoutRuntimeEngine();
+
+        var screen = runtime.Flow(definition);
+        var page = runtime.Flow(definition with { Medium = LayoutMedium.Page });
+
+        Assert.Equal("details", Assert.Single(screen.Flow, block => block.BlockId == "child").Zone);
+        Assert.Equal("details", Assert.Single(page.Flow, block => block.BlockId == "child").Zone);
     }
 
     [Theory]
@@ -145,7 +247,7 @@ public sealed class LayoutFlowTests
     public void PlatformRegisterOffersEveryCanonicalLayoutRendererKind(string kind)
         => Assert.True(LayoutBlockKindRegistry.Platform.Contains(kind));
 
-    [Fact]
+    [Fact(DisplayName = "layout-bound-2: Helm widgets resolve only registered identifiers")]
     public void HelmWidgetCompositionResolvesOnlyRegisteredIdentifiers()
     {
         IHelmWidgetRegistry widgets = new HelmWidgetRegistry([new("revenue-glance", "Revenue glance")]);
@@ -154,7 +256,7 @@ public sealed class LayoutFlowTests
         Assert.Null(widgets.Resolve("unregistered-widget"));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-26: refuse unwrappable multicolumn screen flow at 320 pixels")]
     public void ScreenAdmissionRefusesAnUnwrappableMultiColumnFlowAt320Pixels()
     {
         var definition = ValidScreenDefinition() with
@@ -167,7 +269,10 @@ public sealed class LayoutFlowTests
         Assert.Contains(exception.Refusals, refusal => refusal.Code == LayoutDefinitionCodes.ReflowForbidden);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-runtime-eng-6: authored breaks select first then left static regions")]
+    [Trait("Holds", "layout-eng-20")]
+    [Trait("Holds", "layout-eng-21")]
+    [Trait("Holds", "layout-run-3")]
     public void PageRunsSplitOnAuthoredBreaksAndSelectFirstThenLeftStaticRegions()
     {
         var provenance = JsonSerializer.SerializeToElement(new { source = "test" });
@@ -399,6 +504,43 @@ public sealed class LayoutFlowTests
                 .Select(block => block with { Children = [] })
                 .ToArray(),
         };
+    }
+
+    private sealed class ReadOnlyDefinitionStore(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
+    {
+        public int WriteCalls { get; private set; }
+
+        public ValueTask<IReadOnlyList<DefinitionKey>> ListKeysAsync(string tenant, DefinitionKind kind,
+            CancellationToken cancellationToken = default) => inner.ListKeysAsync(tenant, kind, cancellationToken);
+        public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => inner.ListHistoryAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
+            CancellationToken cancellationToken = default) => inner.GetPublishedHeadAsync(key, cancellationToken);
+        public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
+            CancellationToken cancellationToken = default) => inner.ResolvePublishedAsync(binding, cancellationToken);
+        public ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId,
+            long expectedRevision, string requestId, CancellationToken cancellationToken = default)
+            => inner.GetPublicationReplayAsync(key, versionId, expectedRevision, requestId, cancellationToken);
+        public ValueTask<DefinitionDependencies> ReadDependenciesAsync(string tenant, string definitionType,
+            string definitionId, CancellationToken cancellationToken = default)
+            => inner.ReadDependenciesAsync(tenant, definitionType, definitionId, cancellationToken);
+
+        public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw WriteRefused();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, CancellationToken cancellationToken = default) => throw WriteRefused();
+        public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
+            string requestId, IReadOnlyList<DefinitionPublishedHeadCondition> conditions,
+            CancellationToken cancellationToken = default) => throw WriteRefused();
+        public ValueTask<DefinitionRevision> RestoreAsDraftAsync(DefinitionKey key, string sourceVersionId,
+            string draftVersionId, string draftVersion, long expectedRevision, string requestId,
+            CancellationToken cancellationToken = default) => throw WriteRefused();
+
+        private InvalidOperationException WriteRefused()
+        {
+            WriteCalls++;
+            return new("Published resolution must not write to the definition store.");
+        }
     }
 
     private sealed class ReturnedRevisionStore(DefinitionRevision revision) : IVersionedDefinitionStore

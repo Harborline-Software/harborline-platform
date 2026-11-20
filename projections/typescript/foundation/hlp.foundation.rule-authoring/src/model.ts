@@ -12,6 +12,7 @@
  */
 
 import { builtInFunctions, type BuiltInKey, type HitPolicy, type RuleActionKind, type RuleScope } from '@harborline-software/rule-engine'
+import { rulesPreviewDeclaration } from './preview-environment.js'
 
 /** The three authoring skins, one per type badge (design §0). `condition` reuses the form builder's
  * `RuleBuilder` and is documented (design §4) but not authored here yet — table + formula are the
@@ -102,9 +103,9 @@ export type ArithOp = '+' | '-' | '*' | '/'
  * form, so an editor cannot smuggle an undeclared variable path through a raw call.
  */
 export type FormulaCallOp = Exclude<BuiltInKey, 'var'>
-/** Generated from the R1 built-in register (rules-eng-27) in register order, never a hand list. */
+/** The preview borrower's authorable built-ins, generated in register order (rules-eng-27). */
 export const formulaCallOps: readonly FormulaCallOp[] = builtInFunctions
-  .filter((f) => f.authorable)
+  .filter((f) => f.authorable && rulesPreviewDeclaration.operations.includes(f.key))
   .map((f) => f.key as FormulaCallOp)
 
 /** One guided expression term — the constrained composition the formula editor exposes (design §3.1:

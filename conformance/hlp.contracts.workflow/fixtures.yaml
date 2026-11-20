@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.contracts.workflow",
-  "interfaceRevision": 7,
+  "interfaceRevision": 8,
   "authority": {"notify.email": "AP", "ledger.post-journal-entry": "CP", "ledger.void-payment": "CP"},
   "roleDefinitions": [{"roleDefinitionId":"3b69e3cb-ec5e-4ad7-8c90-16ebc1896102","role":{"vocabulary":"sys.platform-roles","name":"auditor"},"displayName":"Auditor","owner":{"kind":"Platform","ownerId":"harborline-platform"},"isSealed":true}],
   "contractWindow": {"major": 1, "minor": 2, "oldestMajor": 1},
@@ -36,6 +36,8 @@
     {"id": "closed-vocabulary", "operation": "closed.values", "expected": {"WorkflowDefinitionStatus": ["Draft", "Published", "Deprecated", "Withdrawn"], "WorkflowMutability": ["Locked", "Editable"], "WorkflowStateKind": ["Normal", "Terminal"], "WorkflowViewHint": ["flow", "gantt", "kanban"], "WorkflowLockScope": ["every field", "dates only", "attachments only", "nothing"], "WorkflowNotificationTier": ["decision", "observation", "information"], "WorkflowTriggerKind": ["Event", "Schedule", "HumanAction", "DependencyComplete"], "WorkflowActionKind": ["Notify", "CreateRecord", "UpdateField", "InvokeService", "StartSubProcess", "EmitEvent"], "ActionClassification": ["CP", "AP"], "WorkflowCascadeLayer": ["KernelCore", "Subsystem", "PlatformPackage", "DomainPackage", "TenantConfiguration"]}},
     {"id": "canonical-round-trip", "operation": "wire.round-trip", "type": "WorkflowDefinition", "input": "$canonical", "expected": "same"},
     {"id": "workflows-ck-22-notification-on-state-refused", "operation": "wire.read", "type": "WorkflowState", "input": {"id": "A", "label": {"defaultLocale": "en", "values": {"en": "A"}}, "kind": "Normal", "notification": {}}, "expectedError": "workflow.notification_on_state"},
+    {"id": "workflows-ck-21-escalation-on-notification-refused", "operation": "wire.read", "type": "WorkflowActionBinding", "input": {"id": "notify", "on": {"state": "A"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP", "notification": {"eventKey": "event", "tier": "information", "escalation": null}}, "expectedError": "workflow.escalation_on_notification"},
+    {"id": "workflows-ck-21-escalation-on-action-refused", "operation": "wire.read", "type": "WorkflowActionBinding", "input": {"id": "notify", "on": {"state": "A"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP", "escalation": null}, "expectedError": "workflow.escalation_on_notification"},
     {"id": "workflows-ck-20-state-field-declarations-round-trip", "operation": "wire.round-trip", "type": "WorkflowState", "input": {"id": "A", "label": {"defaultLocale": "en", "values": {"en": "A"}}, "kind": "Normal", "fieldRequirements": [{"field": "invoice.amount", "condition": "required.amount"}], "locks": "dates only", "escalation": {"schedule": "review-overdue"}}, "expected": "same"},
     {"id": "workflows-ck-22-notification-action-round-trip", "operation": "wire.round-trip", "type": "WorkflowActionBinding", "input": {"id": "notify", "on": {"transition": "t"}, "kind": "Notify", "capabilityRef": "notify.email", "classification": "AP", "notification": {"eventKey": "invoice.issued", "batchingWindow": "PT10M", "tier": "observation"}}, "expected": "same"},
     {"id": "workflows-ck-20-empty-field-refused", "operation": "wire.read", "type": "WorkflowState", "input": {"id": "A", "label": {"defaultLocale": "en", "values": {"en": "A"}}, "kind": "Normal", "fieldRequirements": [{"field": "", "condition": "required.amount"}]}, "expectedError": "workflow.invalid_field_requirement"},

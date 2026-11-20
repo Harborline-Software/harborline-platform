@@ -53,6 +53,33 @@ public interface IValueResolver
     RefValue ResolveAgg(string fn, string section, string col);
 }
 
+/// <summary>A quantifier predicate sees only its element; no outer resolver is retained.</summary>
+internal sealed class ElementResolver(JsonNode? element, EvalBudget budget) : IValueResolver
+{
+    public RefValue ResolveVar(string path)
+    {
+        budget.ChargeSize(path.Length + 1L);
+        var value = element;
+        if (path.Length == 0) return RefValue.Resolved(value);
+        foreach (var part in path.Split('.'))
+        {
+            if (value is JsonObject) value = value[part];
+            else if (value is JsonArray)
+            {
+                var array = value.AsArray();
+                bool parsed = int.TryParse(part, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var index);
+                if (!parsed || index.ToString(System.Globalization.CultureInfo.InvariantCulture) != part || index >= array.Count)
+                    return RefValue.Resolved(null);
+                value = array[index];
+            }
+            else return RefValue.Resolved(null);
+        }
+        return RefValue.Resolved(value);
+    }
+
+    public RefValue ResolveAgg(string fn, string section, string col) => RefValue.UnavailableAggregate(fn, section, col);
+}
+
 /// <summary>
 /// The shared step budget + wall-clock token for one whole-instance evaluation
 /// (SPINE-1 design §4). One <see cref="EvalBudget"/> spans every cell + rule in the
