@@ -64,3 +64,4 @@ assert.deepEqual(readWorkflowWire('WorkflowState', stateWithDeclarations), state
 const notifyAction = { id: 'notify', on: { transition: 'close' }, kind: 'Notify', capabilityRef: 'notify.email', classification: 'AP', notification: { eventKey: 'invoice.issued', batchingWindow: 'PT10M', tier: 'observation' } }
 assert.deepEqual(readWorkflowWire('WorkflowActionBinding', notifyAction), notifyAction)
 assert.throws(() => readWorkflowWire('WorkflowState', { ...stateWithDeclarations, notification: {} }), /workflow.notification_on_state/)
+assert.throws(() => readWorkflowWire('WorkflowActionBinding', { ...notifyAction, notification: { ...notifyAction.notification, escalation: null } }), /workflow\.escalation_on_notification/)
