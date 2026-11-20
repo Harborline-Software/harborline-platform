@@ -4,8 +4,9 @@
   "sourceExtracted": true,
   "sourceState": "Revision 3 preserves the complete caller-backed Forms state boundary and implements pinned gaps rather than copying defects: atomic first-revision creation, cancellation-safe and idempotently retryable admitted-revision register-and-publish, one-current-published listing, immutable tenant-scoped lifecycle and lineage, lossless Carrier authoring metadata, bounded CP-locked reuse-by-reference, one atomic tenant/Party/actor scope, form-bound draft resume/abandon, and ephemeral pre-auth promote-or-purge. Eight source-derived suites plus nine gap cases pass 130 native tests. Clean npm/NuGet consumers prove wire and state behavior with no source/project fallback or assembly ambiguity. Durable aggregate adapters and executable render/validate/submit, audit, outbox, and recovery remain assigned to the complete Forms Engine gate.",
   "contentHashes": {
-    "projections/dotnet/foundation/hlp.foundation.forms/IFormDefinitionStore.cs": "b5c5d94f9576d37b103a2b78fcba41fa96a552c3b5ac3a4d275cf7a76ceb6821",
-    "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs": "83eb2bf18d4a93803d2383a87aef3056274ff038111e94e29d835032e7c6161e",
+    "projections/dotnet/foundation/hlp.foundation.forms/Exceptions/FormDefinitionExceptions.cs": "ab39d4d42b8dfa219ef90b107f775e1f9b96fc5fa40d04e610a1f2032a619c4c",
+    "projections/dotnet/foundation/hlp.foundation.forms/IFormDefinitionStore.cs": "9e6416d586dd7f08a32d6214f15d6b933b6ec8d2108b35d8156dad2b7be6c61f",
+    "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs": "97f6387411d6b8f9fd0d87e219b53f5d974c79d2237804acb9b7e65c22d9f7f8",
     "projections/dotnet/foundation/hlp.foundation.forms/IReusableUnitStore.cs": "157d7c65abd940d7ec35169140cf9dcb34ae7bbafbf1b1837bb2c813aa284a1f",
     "projections/dotnet/foundation/hlp.foundation.forms/ReuseResolver.cs": "36a67ce952aa9c3d37c2658508200df86f4ff0b9c166690a14957998bd354a17",
     "projections/dotnet/foundation/hlp.foundation.forms/FormDefinitionValidation.cs": "e376a592459b4999d9dad84c5a290e14ecbc1695be415cc30679fce3640741c4",
@@ -19,16 +20,16 @@
     "projections/dotnet/foundation/hlp.foundation.forms/Drafts/PreAuthCaptureService.cs": "50215df7419b01d6fb0c9f687a71c3ce7578fd5d2b2c6721cfbf73b61e22057b",
     "projections/dotnet/foundation/hlp.foundation.forms/Compatibility/SchemaId.cs": "9a4643d0ea4db04759e360e013c228a1404b56460ea2555d056b422d7064677f",
     "projections/dotnet/foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj": "059f4d9f6523f863e35b7a8e1b943e3cd54d004bd17ccf6ab08d6b471a1480a8",
-    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionKeystoneTests.cs": "465ed35a24fdd495bb0f2911f0ff1a763c5a74c8c86109ce99baf22f2622b93a",
+    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionKeystoneTests.cs": "88c1c1dc71d16034f52c9e2f057eaefe8032168c22e8fea04e69bb78b1cb1bfc",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/ReuseCascadeResolverTests.cs": "cdb3423ec103971aef68a9e2a1a570d3b588ad3e252a4f9f15fb3b8eb79b96be",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/SubmissionDraftTests.cs": "816db5fc7f508aadc79cdc12eea0f09177b8aaca6a7d848866c3783dd1cad9ed",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormsStateGapTests.cs": "d08be82c13a12178bd3e4b6ca652d2e5234fe9d2d88f26ad635dfbf5221d0fd6",
-    "specs/modules/foundation/hlp.foundation.forms/interface.yaml": "48e80252ebdf469d6aa3a7f987d3acadd81c1fa95e3d70c29c21f3b6427b3724",
+    "specs/modules/foundation/hlp.foundation.forms/interface.yaml": "3ac157740c6ca4bedcd31a4052ba9317c165c678e0f9babc1abc61e636e4fce6",
     "projections/dotnet/foundation/hlp.foundation.forms/RecordTypeCreationPolicy.cs": "5a3349e15dee29d2965c353fd9fc144f4b62a203f2321a145dbbd71beb00616b",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormRecordTypeTargetAdmissionTests.cs": "8ed34612642518775b12ce8df81d7b67928cd67c05b9c16fa053bbef5ffba640",
     "projections/dotnet/foundation/hlp.foundation.forms/RecordCreationDeclarations.cs": "5db697d015620d4efeb0c6735774690a163f906f3739d600796fc4af7d64a6a6",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormRecordCreationDeclarationTests.cs": "f5b2f765b6312712fa326172f141911e016de629d6dc20e4f6460ef37836282d",
-    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionVersioningTests.cs": "a70b843e714d16e37dedc14254d9575694ffce5e4751c24de73fa82eae388da7"
+    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionVersioningTests.cs": "3b9057a2150df9d128c0ca261e9a067f24f91463679ccf2faa5bd461371a7abb"
   },
   "nextGate": "Consume the package-green Forms state through the Forms Engine in the authenticated inspection-review vertical slice."
 }

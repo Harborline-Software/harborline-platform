@@ -40,6 +40,103 @@ public sealed class CodingSubsumptionTests
         return new TaxonomyInterpreter([definition]).CaptureCodingAnswers(Text(fixture, "tenant"), [new(Text(fixture, "system"), coordinates, Text(fixture, "definitionSha256"))], queries, Window);
     }
 
+    // Oracle: README Decision DI, MoneyDecimal integer-input contract, DES-0018 rules-ck-8,
+    // and T-588/native-money-parity's independent decimal literals (T-724 rulings 121 and 35).
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""")]
+    [InlineData("""{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""")]
+    public void Money_record_oracle_probes_resolve_the_exact_fence_integer(string expression)
+    {
+        var result = Value("9.007e15", expression: expression);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal("9007000000000001", result.Value!.GetValue<string>());
+    }
+
+    public static IEnumerable<object[]> MoneyIntegerLiterals()
+    {
+        (string Exponent, string Integer, string Expected)[] rows =
+        [
+            ("9.006999999999999e15", "9006999999999999", "9007000000000000"),
+            ("9.007e15", "9007000000000000", "9007000000000001"),
+            ("9.007000000000001e15", "9007000000000001", "9007000000000002"),
+            ("9.007199254740991e15", "9007199254740991", "9007199254740992"),
+            ("9.007199254740992e15", "9007199254740992", "9007199254740993"),
+            ("9.007199254740994e15", "9007199254740994", "9007199254740995"),
+            ("9.223372036854776e18", "9223372036854775808", "9223372036854775809"),
+            ("-9.223372036854776e18", "-9223372036854775808", "-9223372036854775807"),
+            // Independent boundary oracles: (-2^63 - 2048) + 1; -10^19 + 1; 10^19 + 1; (2^63 - 1024) + 1.
+            ("-9.223372036854777e18", "-9223372036854777856", "-9223372036854777855"),
+            ("-1e19", "-10000000000000000000", "-9999999999999999999"),
+            ("1e19", "10000000000000000000", "10000000000000000001"),
+            ("9.223372036854775e18", "9223372036854774784", "9223372036854774785"),
+        ];
+        foreach (var row in rows)
+            foreach (string input in new[] { row.Exponent, row.Integer })
+                foreach (string expression in new[] { """{"money.add":[{"var":"coding"},"1"]}""", """{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""" })
+                    yield return [input, expression, row.Expected];
+    }
+
+    [Theory]
+    [MemberData(nameof(MoneyIntegerLiterals))]
+    public void Money_integer_inputs_match_literal_parity_matrix(string input, string expression, string expected)
+    {
+        var result = Value(input, expression: expression);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.GetValue<string>());
+    }
+
+    // ToMoney's lower fence (HarborlineJsonLogic.cs:292) admits -2^63 to FromInteger; the BigInteger
+    // fallback must render the same literal, so moving the fence by one value is equivalent.
+    [Fact]
+    public void Money_lower_fence_paths_agree_on_negative_two_to_the_63()
+    {
+        Assert.Equal("-9223372036854775808", MoneyDecimal.FromInteger(long.MinValue).ToCanonicalString());
+        Assert.Equal("-9223372036854775808", MoneyDecimal.Parse(new BigInteger(-9223372036854775808d).ToString(System.Globalization.CultureInfo.InvariantCulture)).ToCanonicalString());
+    }
+
+    // Exact integer storage includes the lower endpoint and the positive interior boundary.
+    [Theory]
+    [InlineData(9007000000000000L)]
+    [InlineData(9007000000000001L)]
+    [InlineData(9007199254740991L)]
+    [InlineData(9007199254740992L)]
+    [InlineData(9007199254740994L)]
+    [InlineData(long.MinValue)]
+    [InlineData(9223372036854774784L)]
+    public void Money_NumNode_preserves_exact_long_integer_storage(long expected)
+    {
+        var node = (JsonValue)HarborlineJsonLogic.NumNode(expected);
+        Assert.True(node.TryGetValue<long>(out var stored));
+        Assert.Equal(expected, stored);
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""")]
+    [InlineData("""{"money.add":[{"+":[{"var":"coding"},0]},"1"]}""")]
+    public void Money_fractional_input_is_refused(string expression)
+    {
+        var result = Value("1.5", expression: expression);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("money", result.Error.Params["op"]);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Money_nonfinite_input_is_refused(double input)
+        => Assert.Throws<FormatException>(() => HarborlineJsonLogic.ToMoney(JsonValue.Create(input)));
+
+    [Fact]
+    public void Money_nonfinite_arithmetic_is_refused()
+    {
+        var result = Value("1e308", expression: """{"money.add":[{"*":[{"var":"coding"},2]},"1"]}""");
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("non-finite", result.Error.Params["reason"]);
+    }
+
     [Fact]
     public void Real_producer_matches_independent_shared_wire_and_public_consumers()
     {
@@ -189,6 +286,201 @@ public sealed class CodingSubsumptionTests
         var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
         Assert.Equal(ValueState.Resolved, result.State);
         Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void Flat_strict_equality_does_not_coerce_zero_string_to_number()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"===":["0",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.False(result.Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_strict_and_loose_equality_respect_null_and_boolean_values()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"===":[true,true]}""", """{"===":[null,null]}""", """{"==":[null,null]}""" })
+            Assert.True(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        foreach (var expression in new[] { """{"===":[true,false]}""", """{"===":[true,"true"]}""", """{"===":["true",true]}""", """{"===":[null,0]}""", """{"===":[0,null]}""", """{"==":[null,0]}""", """{"==":[0,null]}""" })
+            Assert.False(evaluator.EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_strict_equality_distinguishes_equal_and_unequal_numbers()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"===":[5,5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"===":[5,2]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Flat_loose_equality_coerces_numeric_strings_but_not_other_strings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["5",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"==":["05",5]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.False(evaluator.EvaluateValue(Rule("""{"==":["not numeric",0]}"""), Facts("null"), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Theory]
+    [InlineData("""{"!!":[{}]}""", "false")]
+    [InlineData("""{"!":[{}]}""", "true")]
+    [InlineData("""{"and":[{},true]}""", "{}")]
+    [InlineData("""{"or":[{},true]}""", "true")]
+    [InlineData("""{"if":[{},true,false]}""", "false")]
+    public void V1_empty_object_is_falsy_in_every_logical_operator(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Fact]
+    public void Missing_operators_preserve_pending_dependencies()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"missing":["coding"]}""", """{"missing_some":[1,["coding"]]}""" })
+            Assert.Equal(ValueState.Pending, evaluator.EvaluateValue(Rule(expression), Facts("""{"@pending":true}"""), RuleEvalScope.Root, TestAdmission.Any).State);
+    }
+
+    [Theory]
+    [InlineData("""{"missing_some":[1,[null,false,3,[],{}]]}""", """["","false","3","[]","{}"]""")]
+    [InlineData("""{"!!":[""]}""", "false")]
+    [InlineData("""{"!!":["0"]}""", "true")]
+    [InlineData("""{"!!":[0]}""", "false")]
+    [InlineData("""{"!!":[2]}""", "true")]
+    [InlineData("""{"+":[true,2]}""", "3")]
+    [InlineData("""{"+":[false,2]}""", "2")]
+    [InlineData("""{"==":[true,1]}""", "true")]
+    [InlineData("""{"==":[false,0]}""", "true")]
+    [InlineData("""{"===":[[1],[1]]}""", "true")]
+    [InlineData("""{"===":[[1],[2]]}""", "false")]
+    [InlineData("""{"==":[[1],[1]]}""", "true")]
+    [InlineData("""{"==":[[1],[2]]}""", "false")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"===":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"a":1,"b":2}]}""", "true")]
+    [InlineData("""{"==":[{"a":1,"b":2},{"b":2,"a":1}]}""", "false")]
+    [InlineData("""{"date.add":["2026-01-01",1,{"var":"coding"}]}""", "\"2026-01-02\"")]
+    [InlineData("""{"money.mul":["0.005","3"]}""", "\"0.015\"")]
+    public void V1_agreed_operator_semantics_match_literal_parity_corpus(string expression, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Null(result.Error);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal(expected, result.Value!.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "\"invalid\"", "op", "money")]
+    [InlineData("""{"money.add":[{"var":"coding"},"1"]}""", "1.5", "op", "money")]
+    [InlineData("""{"date.add":[{"var":"coding"},1,"day"]}""", "\"invalid\"", "op", "date.add")]
+    [InlineData("""{"date.diff":[{"var":"coding"},"2026-01-01"]}""", "\"invalid\"", "op", "date.diff")]
+    [InlineData("""{"+":[{"var":"coding"},1]}""", "null", "reason", "null-as-number")]
+    [InlineData("""{"*":[{"var":"coding"},{"var":"coding"}]}""", "1e308", "reason", "non-finite")]
+    public void V1_error_values_match_literal_parity_corpus(string expression, string input, string parameter, string expected)
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule(expression), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        var pair = Assert.Single(result.Error.Params);
+        Assert.Equal(parameter, pair.Key);
+        Assert.Equal(expected, pair.Value);
+    }
+
+    [Fact]
+    public void V1_numeric_money_accepts_an_exact_small_integer()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts("1.0"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.Equal("2", result.Value!.GetValue<string>());
+    }
+
+    [Theory]
+    [InlineData("""{"money.add":["12345"]}""", 7, "12345")]
+    [InlineData("""{"money.add":["12345"]}""", 6, null)]
+    [InlineData("""{"money.mul":["123","456"]}""", 14, "56088")]
+    [InlineData("""{"money.mul":["123","456"]}""", 13, null)]
+    public void V1_money_charges_each_operand_and_result_mantissa(string expression, int steps, string? expected)
+    {
+        var evaluator = new GuardEvaluator(Clock, RuleEngineLimits.Default with { StepBudget = steps });
+        var rule = RuleDefinitionFactory.Create("v1-money-budget", RuleTier.JsonLogic, RuleScope.Field, "out", expression, RuleActionKind.Compute);
+        var result = evaluator.EvaluateValue(rule, Facts("null"), RuleEvalScope.Root, TestAdmission.Any);
+        if (expected is null)
+        {
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.budget_exceeded", result.Error!.Code);
+            var pair = Assert.Single(result.Error.Params);
+            Assert.Equal("rule", pair.Key);
+            Assert.Equal("v1-money-budget", pair.Value);
+        }
+        else
+        {
+            Assert.Equal(ValueState.Resolved, result.State);
+            Assert.Equal(expected, result.Value!.GetValue<string>());
+        }
+    }
+
+    [Fact]
+    public void Missing_some_preserves_the_bad_reference_identity()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(
+            Rule("""{"missing_some":[1,["row.coding"]]}""", RuleScope.Row, "items/out"), Facts("null"), new RuleEvalScope("items", "r1"), TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.bad_reference", result.Error!.Code);
+        Assert.Equal("row.coding", result.Error.Params["path"]);
+    }
+
+    [Fact]
+    public void Legacy_coding_coercion_keeps_boolean_and_numeric_spellings()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","false"]}"""), Facts("""{"system":"sys","code":false}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","true"]}"""), Facts("""{"system":"sys","code":true}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","0.5"]}"""), Facts("""{"system":"sys","code":0.5}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+        Assert.True(evaluator.EvaluateValue(Rule("""{"coding.is":[{"var":"coding"},"sys","1e+30"]}"""), Facts("""{"system":"sys","code":1e30}"""), RuleEvalScope.Root, TestAdmission.Any).Value!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void Numeric_operations_preserve_the_recorded_nonnumeric_refusal()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"+":[{"var":"coding"},1]}"""), Facts("{}"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+        Assert.Equal("not-a-number", result.Error.Params["reason"]);
+    }
+
+    [Fact]
+    public void Nonfinite_arithmetic_fails_closed()
+    {
+        var result = new GuardEvaluator(Clock).EvaluateValue(Rule("""{"*":[{"var":"coding"},{"var":"coding"}]}"""), Facts("1e308"), RuleEvalScope.Root, TestAdmission.Any);
+        Assert.Equal(ValueState.Error, result.State);
+        Assert.Equal("rule.type_error", result.Error!.Code);
+    }
+
+    [Fact]
+    public void Money_refuses_non_decimal_values_instead_of_coercing_them()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var input in new[] { "true", "null", "{}", "[]", "\"not money\"" })
+        {
+            var result = evaluator.EvaluateValue(Rule("""{"money.add":[{"var":"coding"},"1"]}"""), Facts(input), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
+    }
+
+    [Fact]
+    public void Date_operators_refuse_invalid_dates_instead_of_returning_a_value()
+    {
+        var evaluator = new GuardEvaluator(Clock);
+        foreach (var expression in new[] { """{"date.add":[{"var":"coding"},1,"day"]}""", """{"date.diff":[{"var":"coding"},"2026-01-01"]}""" })
+        {
+            var result = evaluator.EvaluateValue(Rule(expression), Facts("\"not a date\""), RuleEvalScope.Root, TestAdmission.Any);
+            Assert.Equal(ValueState.Error, result.State);
+            Assert.Equal("rule.type_error", result.Error!.Code);
+        }
     }
 
     [Fact]

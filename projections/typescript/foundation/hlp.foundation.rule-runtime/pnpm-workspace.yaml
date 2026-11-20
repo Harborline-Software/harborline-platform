@@ -13,3 +13,6 @@ overrides:
 # StrykerJS core still needs the static-mutant activation fix (stryker-js#6144, PR #6145).
 patchedDependencies:
   '@stryker-mutator/core@10.1.1': patches/@stryker-mutator__core@10.1.1.patch
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf # picomatch ReDoS; no fixed release; dev tooling only; ADR-0086 exception; remove when picomatch ships the fix.

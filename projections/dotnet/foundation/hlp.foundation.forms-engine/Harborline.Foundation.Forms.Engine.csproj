@@ -15,6 +15,7 @@
     <ProjectReference Include="../../contracts/hlp.contracts.identities/Harborline.Contracts.csproj" />
     <ProjectReference Include="../hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
     <ProjectReference Include="../hlp.foundation.forms/Harborline.Foundation.Forms.csproj" />
+    <ProjectReference Include="../hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj" />
     <ProjectReference Include="../hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
     <ProjectReference Include="../hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj" />
     <ProjectReference Include="../../kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj" />

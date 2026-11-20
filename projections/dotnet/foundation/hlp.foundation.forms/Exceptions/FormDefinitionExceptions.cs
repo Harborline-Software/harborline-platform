@@ -59,6 +59,21 @@ public sealed class FormDefinitionConflictException : Exception
     }
 }
 
+/// <summary>A refused form lifecycle transition or restoration.</summary>
+public sealed class FormDefinitionLifecycleException : InvalidOperationException
+{
+    /// <summary>The definition whose lifecycle was refused.</summary>
+    public FormDefinitionId SchemaId { get; }
+    /// <summary>The revision whose lifecycle was refused.</summary>
+    public SemanticVersion Version { get; }
+    /// <summary>The stable refusal code.</summary>
+    public string Code { get; }
+
+    /// <summary>Creates a lifecycle refusal with its original message.</summary>
+    public FormDefinitionLifecycleException(FormDefinitionId schemaId, SemanticVersion version, string code, string message)
+        : base(message) => (SchemaId, Version, Code) = (schemaId, version, code);
+}
+
 /// <summary>
 /// Raised when a registration attempt violates an overlay invariant — a
 /// section references a field that does not appear in the overlay, two

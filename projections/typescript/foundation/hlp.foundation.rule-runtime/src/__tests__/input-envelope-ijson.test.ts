@@ -17,6 +17,20 @@ const fixture = JSON.parse(readFileSync(join(here, '..', '..', '..', '..', '..',
 const rawUnits = (text: string) => text.replace(/<U\+([0-9A-F]{4})>/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
 
 describe('I-JSON at the input envelope (T-1143)', () => {
+  it('refuses two adjacent low surrogates rather than treating them as a pair', () => {
+    const text = '{"value":"' + '\udc00\udc01' + '"}'
+    expect(() => RuleContextSnapshot.fromJsonText(text)).toThrow(new TypeError('rule context is not I-JSON: it holds a lone surrogate (RFC 7493 §2.1)'))
+  })
+
+  it.each([
+    '{"key":0,"array":[],"key":1}',
+    '{"key":0,"object":{},"key":1}',
+    '{"a\\"b":0,"a\\"b":1}',
+    '{"key" \t\r\n:0,"key" \t\r\n:1}',
+  ])('refuses a repeated member after nested containers, escapes or whitespace: %s', text => {
+    expect(() => RuleContextSnapshot.fromJsonText(text)).toThrow(new TypeError('rule context is not I-JSON: it repeats a member name (RFC 7493 §2.3)'))
+  })
+
   it.each(fixture.cases)('rule instance: $name', ({ text, refusal }) => {
     const json = rawUnits(text)
     if (refusal === null) expect(() => RuleInstance.fromJsonText(json)).not.toThrow()
