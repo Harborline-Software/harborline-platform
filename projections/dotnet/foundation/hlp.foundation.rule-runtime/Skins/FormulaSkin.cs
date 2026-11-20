@@ -106,6 +106,9 @@ public static class FormulaCompiler
     {
         switch (node)
         {
+            case JsonObject obj when obj.Count == 1 && obj.First().Key is "some" or "all" or "none":
+                if (obj.First().Value is JsonArray { Count: > 0 } quantifier) Walk(quantifier[0], seen, set);
+                break;
             case JsonObject obj when obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
             {
                 var raw = obj.First().Value;

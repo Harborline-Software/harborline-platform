@@ -75,12 +75,18 @@ function staticVarPath(raw: Json): string | null {
 }
 
 function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigint,
-  staticReference?: (path: string) => bigint | undefined, codingPresent = false): NodeProof {
+  staticReference?: (path: string) => bigint | undefined, codingPresent = false, element = false): NodeProof {
   // The evaluator regards arrays and multi-key objects as literal JSON data.
   if (!isObject(node) || Object.keys(node).length !== 1) return inertProof(node)
   const [op, raw] = Object.entries(node)[0]
   const args = Array.isArray(raw) ? raw : [raw]
-  const children = args.map(arg => deriveNode(arg, dependencyResult, aggregateResult, staticReference, codingPresent))
+  if (['some', 'all', 'none'].includes(op)) {
+    const source = deriveNode(args[0], dependencyResult, aggregateResult, staticReference, codingPresent, element)
+    const predicate = deriveNode(args[1], max(INPUT_BYTES, source.result), aggregateResult, undefined, codingPresent, true)
+    const count = max(INPUT_NODES, source.result)
+    return { result: 5n, work: 1n + source.work + count * (1n + predicate.work), reads: source.reads, aggregateReads: source.aggregateReads }
+  }
+  const children = args.map(arg => deriveNode(arg, dependencyResult, aggregateResult, staticReference, codingPresent, element))
   const child = merge(children)
   const childResult = max(...children.map(item => item.result))
   const childBytes = sum(children.map(item => item.result))
@@ -94,7 +100,8 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
   switch (op) {
     case 'var':
       // The fallback is eager in both tiers.  The resolver lookup is explicit work.
-      { const path = staticVarPath(raw)
+      { if (element) return base(max(dependencyResult, childResult), childBytes + dependencyResult + 1n, 0n, 0n)
+        const path = staticVarPath(raw)
         const resolved = path === null ? dependencyResult : staticReference?.(path) ?? INPUT_BYTES
         return base(max(resolved, childResult), add(childBytes, 1n), child.reads + 1n) }
     case 'missing': {
@@ -128,6 +135,7 @@ function deriveNode(node: Json, dependencyResult: bigint, aggregateResult: bigin
     case 'in':
       // Array membership can compare every member; loose equality can serialize both sides.
       return base(5n, INPUT_NODES * add(childBytes, 1n))
+    case 'startsWith': case 'endsWith': return base(5n, childBytes + 1n)
     case 'cat': {
       const output = args.length === 0 ? 2n : sum(children.map(item => catStringResultBytes(item.result)))
       // Repeated concatenation copies growing prefixes even where a host uses ropes.

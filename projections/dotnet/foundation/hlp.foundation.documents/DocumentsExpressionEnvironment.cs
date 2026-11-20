@@ -2,7 +2,6 @@ using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleEngine;
 using Harborline.Foundation.RuleEngine.Context;
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.Model;
 
 namespace Harborline.Foundation.Documents;
@@ -26,7 +25,7 @@ public static class DocumentsExpressionEnvironment
             ["field"] = "typed record field",
             ["row"] = "per-row scope",
         },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "pinned-issue-clock",

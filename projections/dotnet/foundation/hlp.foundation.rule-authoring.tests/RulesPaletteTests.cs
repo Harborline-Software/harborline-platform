@@ -54,13 +54,31 @@ public sealed class RulesPaletteTests
         Assert.Empty(empty);
     }
 
-    [Fact(DisplayName = "rules-auth-20, rules-eng-27: the function half of the palette is the register's authorable built-ins")]
-    public void Function_half_is_the_register()
+    // T-1194 item 5: the pre-PR vocabulary is a literal pin, independent of the live register.
+    private static readonly string[] PreviewOperations =
+        ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"];
+
+    [Fact(DisplayName = "T-1194: rules-auth-11 retains its pre-revision-7 operation declaration")]
+    public void Preview_environment_operations_stay_pinned()
+    {
+        Assert.Equal(PreviewOperations, RulesPreviewEnvironment.Declaration.Operations);
+        Assert.Equal(PreviewOperations, RulesPreviewEnvironment.Admitted.Declaration.Operations);
+    }
+
+    [Fact(DisplayName = "rules-auth-20, rules-eng-27: the function palette contains only the preview borrower's authorable built-ins")]
+    public void Function_palette_stays_within_preview_operations()
     {
         var palette = RulesPaletteGenerator.Generate(FixtureRecords, RuleScope.Field, "total");
-        Assert.Equal(BuiltInFunctionRegister.Functions.Where(f => f.Key != "var").Select(f => f.Key), palette.Functions.Select(f => f.Key));
-        Assert.Equal(palette.Functions.Select(f => f.Key), FormulaCallOps.All);
+        Assert.Equal(PreviewOperations.Skip(1), palette.Functions.Select(f => f.Key));
         Assert.All(palette.Functions, function => Assert.Same(function.Reference, BuiltInFunctionRegister.Resolve(function.Key)));
+    }
+
+    [Fact(DisplayName = "T-1194: guided formula choices retain the preview borrower's pre-revision-7 operations")]
+    public void Formula_choices_stay_pinned()
+    {
+        Assert.Equal(PreviewOperations.Skip(1), FormulaCallOps.All);
+        foreach (var operation in new[] { "some", "all", "none", "startsWith", "endsWith" })
+            Assert.False(FormulaCallOps.IsSupported(operation));
     }
 
     internal static string FixturePath()

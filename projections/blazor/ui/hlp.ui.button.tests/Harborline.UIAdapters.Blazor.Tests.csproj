@@ -105,6 +105,7 @@
     <Compile Include="../hlp.ui.view-runtime.tests/**/*.cs" Link="DataDisplay/ViewRuntime/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.rule-authoring.tests/**/*.cs" Link="RuleAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.records-authoring.tests/**/*.cs" Link="RecordsAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.report-authoring.tests/**/*.cs" Link="ReportAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../hlp.ui.document-authoring.tests/**/*.cs" Link="DocumentAuthoring/%(Filename)%(Extension)" />
     <Compile Include="../../../dotnet/foundation/hlp.foundation.documents.tests/TemplateFixtures.cs" Link="DocumentAuthoring/TemplateFixtures.cs" />
     <Content Include="../../../../conformance/hlp.ui.document-authoring/fixtures.yaml" Link="document-authoring-fixtures/fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />

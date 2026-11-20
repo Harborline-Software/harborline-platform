@@ -221,6 +221,11 @@
           "max",
           "in",
           "cat",
+          "startsWith",
+          "endsWith",
+          "some",
+          "all",
+          "none",
           "money.add",
           "money.sub",
           "money.mul",
@@ -245,7 +250,7 @@
         },
         "replay": "deterministic"
       },
-      "canonical": "{\"borrower\":\"views-ck-14\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"clock\":\"evaluated-at\",\"field\":\"typed record field\"}}",
+      "canonical": "{\"borrower\":\"views-ck-14\",\"effects\":[\"field-read\"],\"grammar\":\"harborline-jsonlogic/v1\",\"missingValues\":\"missing-field-reads-null\",\"operations\":[\"var\",\"missing\",\"missing_some\",\"==\",\"!=\",\"===\",\"!==\",\"!\",\"!!\",\"and\",\"or\",\"if\",\">\",\">=\",\"<\",\"<=\",\"+\",\"-\",\"*\",\"/\",\"%\",\"min\",\"max\",\"in\",\"cat\",\"startsWith\",\"endsWith\",\"some\",\"all\",\"none\",\"money.add\",\"money.sub\",\"money.mul\",\"date.add\",\"date.diff\",\"date.today\",\"coding.is\"],\"phases\":{\"AuthoringValidation\":false,\"PublishValidation\":false,\"Render\":true,\"Run\":true,\"SignOff\":false,\"Submission\":false},\"replay\":\"deterministic\",\"timeSource\":\"evaluated-at\",\"timeZone\":\"utc\",\"variables\":{\"caller\":\"authenticated-principal\",\"clock\":\"evaluated-at\",\"field\":\"typed record field\"}}",
       "admittedPhase": "Run",
       "inapplicablePhase": "Submission",
       "admitted": {
