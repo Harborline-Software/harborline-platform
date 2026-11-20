@@ -19,6 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Scheduling.Tests" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Data" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Evaluation" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Tests" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />

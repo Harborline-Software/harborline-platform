@@ -214,6 +214,12 @@ public sealed class FileJournalSchedulingStoreTests
         public JournalFixture() => Directory.CreateDirectory(directory);
         public string Path => System.IO.Path.Combine(directory, "scheduling.journal");
         public FileJournalSchedulingStore Open() => new(new() { JournalPath = Path });
-        public void Dispose() => Directory.Delete(directory, recursive: true);
+        public void Dispose()
+        {
+            // Best-effort cleanup must not fail tests when temporary files remain locked or inaccessible.
+            try { Directory.Delete(directory, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
 }
