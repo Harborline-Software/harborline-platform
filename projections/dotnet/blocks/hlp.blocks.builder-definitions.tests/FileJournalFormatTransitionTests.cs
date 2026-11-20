@@ -21,6 +21,50 @@ public sealed class FileJournalFormatTransitionTests : IDisposable
         return original;
     }
 
+    [Theory]
+    [InlineData("42")]
+    [InlineData("{\"DefinitionKey\":\"\",\"DefinitionVersion\":\"1.0.0\"}")]
+    public async Task T616_legacy_delegated_actor_is_ignored_before_decoding_and_replay_survives_conversion(string actor)
+    {
+        // Oracle: T-616/reaction-write-identities, old-format acceptance; ADR-0154 does not invent legacy provenance.
+        var original = $$$"""
+        {"Format":"records-write-file-journal/1","Entries":[{"Key":"4:acme5:alice13:old-operation","Operation":{"CommandId":"old-record","IdempotencyKey":"4:acme5:alice13:old-operation","Fingerprint":"old-intent"},"Row":{"Tenant":"acme","RecordId":"old-record","RecordTypeId":"sales.customer","Version":"1.0.0","DefinitionDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Schema":"schema:old","ActorId":"alice","OperationId":"old-operation","RequestedVersion":null,"IntentEncodingVersion":"records-write-intent/1","IntentDigest":"old-intent","Body":"e30=","RecordedAt":"2030-01-02T03:04:05+00:00","OriginatorId":null,"AcceptedCommandId":null,"AcceptanceAuditId":null,"DelegatedActor":{{{actor}}}},"Audit":{"AuditId":"old-audit","ActorId":"alice","RecordedAt":"2030-01-02T03:04:05+00:00","Payload":"","AuthoritySnapshot":"","OriginatorId":null,"DelegatedActor":{{{actor}}}},"Receipt":{"RecordId":"old-record","OperationId":"old-operation","RecordTypeId":"sales.customer","Version":"1.0.0","DefinitionDigest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Schema":"schema:old","RecordedAt":"2030-01-02T03:04:05+00:00"}}]}
+        """;
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(PathName, original);
+        var row = new RecordWriteRow("acme", "old-record", "sales.customer", "1.0.0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", new("schema:old"),
+            "alice", "old-operation", null, "records-write-intent/1", "old-intent", "{}"u8.ToArray(),
+            new(2030, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        var receipt = new RecordWriteReceipt("old-record", "old-operation", "sales.customer", "1.0.0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            new("schema:old"), new(2030, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        for (var phase = 0; phase < 2; phase++)
+        {
+            var store = new FileJournalRecordWriteStore(PathName);
+            var bytes = File.ReadAllBytes(PathName);
+            var current = await store.FindAsync("acme", "old-record");
+            Assert.NotNull(current);
+            Assert.Equal("alice", current.ActorId);
+            Assert.Null(current.OriginatorId);
+            Assert.Null(current.DelegatedActor);
+            Assert.Equal("{}"u8.ToArray(), current.Body.ToArray());
+            Assert.Equal(receipt, (await store.FindAsync(new RecordWriteOperationKey("acme", "alice", "old-operation")))!.Receipt);
+            var replay = await Append(store, row with { PublicationVersionId = "1.0.0" });
+            Assert.Equal(RecordWriteCommitDisposition.Replayed, replay.Disposition);
+            Assert.Equal(receipt, replay.Receipt);
+            Assert.Equal(bytes, File.ReadAllBytes(PathName));
+            if (phase == 0)
+            {
+                Assert.Equal(original, File.ReadAllText(PathName));
+                Assert.Equal(RecordWriteCommitDisposition.Created, (await Append(store)).Disposition);
+                using var converted = JsonDocument.Parse(File.ReadAllBytes(PathName));
+                Assert.Equal("legacy/1", converted.RootElement.GetProperty("Entries")[0].GetProperty("Tag").GetString());
+                using var old = JsonDocument.Parse(original);
+                Assert.Equal(old.RootElement.GetProperty("Entries")[0].GetRawText(),
+                    converted.RootElement.GetProperty("Entries")[0].GetProperty("Legacy").GetRawText());
+            }
+        }
+    }
+
     [Fact]
     public async Task authentic_old_four_entries_keep_raw_spans_rows_receipts_and_replay_on_conversion_and_later_appends()
     {

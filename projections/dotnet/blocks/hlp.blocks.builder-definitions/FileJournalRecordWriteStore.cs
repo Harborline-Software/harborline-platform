@@ -38,9 +38,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         var resolver = new DefaultJsonTypeInfoResolver();
         resolver.Modifiers.Add(info =>
         {
-            if (info.Type != typeof(RecordWriteRow)) return;
-            var property = info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId));
-            info.Properties.Remove(property);
+            if (info.Type == typeof(RecordWriteRow))
+                info.Properties.Remove(info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId)));
+            if (info.Type == typeof(RecordWriteRow) || info.Type == typeof(KernelAuditEvidence))
+                info.Properties.Remove(info.Properties.Single(item => item.Name == nameof(KernelAuditEvidence.DelegatedActor)));
         });
         return new(Json) { TypeInfoResolver = resolver, MaxDepth = LegacyJournalMaxDepth };
     }
