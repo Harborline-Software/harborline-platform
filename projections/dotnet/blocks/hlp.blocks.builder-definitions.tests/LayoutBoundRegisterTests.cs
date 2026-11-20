@@ -227,6 +227,12 @@ public sealed class LayoutBoundRegisterTests
                 LayoutDefinitionCodes.GuardVariableNotAdmitted, "/blocks/0/show_when");
     }
 
+    [Fact(DisplayName = "T-1194: layout-ck-29 retains its pre-revision-7 operations, matching render-time admission")]
+    public void PublishGuardOperationsStayPinnedBeforeRevisionSeven()
+        => Assert.Equal(
+            ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
+            LayoutDefinitionAdmission.PublishGuardEnvironment.Operations);
+
     [Fact(DisplayName = "layout-ck-29: show_when holds exactly one of expression or predicate; neither or both refuses at every stage")]
     public void ShowWhenHoldsExactlyOneOfExpressionOrPredicate()
     {

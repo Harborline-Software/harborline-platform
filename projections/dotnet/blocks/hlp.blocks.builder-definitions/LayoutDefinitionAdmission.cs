@@ -3,7 +3,6 @@ using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Rules;
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 using Harborline.Foundation.RuleEngine.References;
 
 namespace Harborline.Blocks.BuilderDefinitions;
@@ -132,7 +131,7 @@ public static class LayoutDefinitionCodes
 /// </summary>
 public static class LayoutDefinitionAdmission
 {
-    private static readonly BorrowerEnvironmentDeclaration PublishGuardEnvironment = new(
+    internal static readonly BorrowerEnvironmentDeclaration PublishGuardEnvironment = new(
         Borrower: "layout-ck-29",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string>
@@ -141,7 +140,7 @@ public static class LayoutDefinitionAdmission
             ["row"] = "repeating-collection row value",
             ["section"] = "layout section value",
         },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "publish-validation-does-not-read-time",
