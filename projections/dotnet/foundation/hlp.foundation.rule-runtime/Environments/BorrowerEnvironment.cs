@@ -96,17 +96,17 @@ public sealed class AdmittedEnvironment
         return null;
     }
 
-    private string? Walk(JsonNode? node)
+    private string? Walk(JsonNode? node, bool element = false)
     {
         if (node is not JsonObject { Count: 1 } call) return null;
         var (op, raw) = (call.First().Key, call.First().Value);
         if (!_operations.Contains(op)) return BorrowerEnvironmentAdmission.OperationNotAdmitted;
         var args = raw is JsonArray array ? array.ToList() : [raw];
-        if (op == "var" && args.FirstOrDefault() is JsonValue path && path.TryGetValue<string>(out var p) && !Addresses(p))
+        if (!element && op == "var" && args.FirstOrDefault() is JsonValue path && path.TryGetValue<string>(out var p) && !Addresses(p))
             return BorrowerEnvironmentAdmission.VariableNotAdmitted;
         if (op == "agg" && !_variables.Contains("row")) return BorrowerEnvironmentAdmission.VariableNotAdmitted;
-        foreach (var arg in args)
-            if (Walk(arg) is { } refusal) return refusal;
+        for (int i = 0; i < args.Count; i++)
+            if (Walk(args[i], element || (i == 1 && op is "some" or "all" or "none")) is { } refusal) return refusal;
         return null;
     }
 

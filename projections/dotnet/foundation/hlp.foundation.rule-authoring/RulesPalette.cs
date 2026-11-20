@@ -54,7 +54,7 @@ public static class RulesPaletteGenerator
                     references.Add(new($"table.{fold}({table.Key}.{column.Key})",
                         $"{char.ToUpperInvariant(fold[0])}{fold[1..]} of {table.Key} {column.Label}",
                         fold is "any" or "all" ? ColumnValueType.Boolean : ColumnValueType.Number));
-        return new([.. BuiltInFunctionRegister.Functions.Where(f => f.Authorable)], references);
+        return new([.. BuiltInFunctionRegister.Functions.Where(f => f.Authorable && RulesPreviewEnvironment.Declaration.Operations.Contains(f.Key))], references);
     }
 
     private static bool Folds(string fold, ColumnValueType type) => fold switch

@@ -144,12 +144,11 @@ public static class ArithOps
 /// </summary>
 public static class FormulaCallOps
 {
-    /// <summary>The authorable built-ins in register order, generated from the R1 register (rules-eng-27).</summary>
-    public static IReadOnlyList<string> All { get; } = [.. BuiltInFunctionRegister.Functions.Where(f => f.Authorable).Select(f => f.Key)];
+    /// <summary>The preview borrower's authorable built-ins in register order (rules-eng-27).</summary>
+    public static IReadOnlyList<string> All { get; } = [.. BuiltInFunctionRegister.Functions.Where(f => f.Authorable && RulesPreviewEnvironment.Declaration.Operations.Contains(f.Key)).Select(f => f.Key)];
 
     /// <summary>Returns true only for the engine's admitted non-<c>var</c> formula operators.</summary>
-    public static bool IsSupported(string? op) => op is not null
-        && BuiltInFunctionRegister.TryResolve(op, out var function) && function.Authorable;
+    public static bool IsSupported(string? op) => op is not null && All.Contains(op);
 }
 
 /// <summary>One guided expression term — the constrained composition the formula editor exposes.</summary>

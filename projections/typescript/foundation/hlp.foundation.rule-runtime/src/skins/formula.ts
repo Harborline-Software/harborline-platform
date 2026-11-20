@@ -80,6 +80,11 @@ function collectVarPaths(node: Json): string[] {
 }
 
 function walk(node: Json, seen: string[], set: Set<string>): void {
+  if (isObj(node) && Object.keys(node).length === 1 && ['some', 'all', 'none'].includes(Object.keys(node)[0])) {
+    const args = Object.values(node)[0]
+    if (Array.isArray(args) && args.length > 0) walk(args[0], seen, set)
+    return
+  }
   if (isObj(node) && Object.keys(node).length === 1 && ('missing' in node || 'missing_some' in node)) {
     const raw = Object.values(node)[0]
     const args = Array.isArray(raw) ? raw : [raw]

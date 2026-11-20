@@ -5,6 +5,7 @@
  */
 import { aggregateFolds, builtInFunctions, type BuiltInFunctionDefinition, type RuleScope } from '@harborline-software/rule-engine'
 import type { RuleDefinitionValueType as ColumnValueType } from './definition.js'
+import { rulesPreviewDeclaration } from './preview-environment.js'
 
 /** A field as Records owns it. The palette reads these facts and stores no copy of the schema. */
 export interface RecordFieldFact { readonly key: string; readonly label: string; readonly valueType: ColumnValueType; readonly section?: string }
@@ -46,5 +47,5 @@ export function generatePalette(records: RecordFieldSet, scope: RuleScope, scope
       }
     }
   }
-  return { functions: builtInFunctions.filter((f) => f.authorable), references }
+  return { functions: builtInFunctions.filter((f) => f.authorable && rulesPreviewDeclaration.operations.includes(f.key)), references }
 }
