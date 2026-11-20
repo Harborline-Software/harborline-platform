@@ -88,6 +88,7 @@ public sealed class RetryTimingTests
 
     [Theory(DisplayName = "execution-runtime-ck-10: both Retry-After forms lengthen within the cap and retain the uncapped wait")]
     [InlineData("external-api-standard", 10, 10)]
+    [InlineData("external-api-standard", 31, 30)]
     [InlineData("external-api-standard", 120, 30)]
     [InlineData("durable-delivery", 864000, 3600)]
     public async Task Server_wait_and_cap(string profile, int toldSeconds, int expectedSeconds)

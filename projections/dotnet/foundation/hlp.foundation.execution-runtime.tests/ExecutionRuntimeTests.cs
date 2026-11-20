@@ -100,6 +100,8 @@ public sealed class ExecutionRuntimeTests
 
         var early = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => lifecycle.BeginAttemptAsync(Tenant, run.Id).AsTask());
         Assert.Equal(ExecutionRuntimeRefusals.RetryNotDue, early.Code);
+        // Oracle: DES-0056's due-time refusal; retain a diagnostic reason as well as the code.
+        Assert.Contains("not due", early.Message, StringComparison.Ordinal);
 
         clock.Advance(TimeSpan.FromSeconds(1));
         await lifecycle.BeginAttemptAsync(Tenant, run.Id);
@@ -309,6 +311,8 @@ public sealed class ExecutionRuntimeTests
             var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(
                 () => lifecycle.StartAsync(new StartRun(PlanRun, Tenant, ExternalApi, CausedBy: cause)).AsTask());
             Assert.Equal(ExecutionRuntimeRefusals.CausedByInvalid, refused.Code);
+            // Oracle: DES-0056's tenant-scoped caused_by requirement.
+            Assert.Contains("tenant does not hold", refused.Message, StringComparison.Ordinal);
         }
     }
 
@@ -321,7 +325,10 @@ public sealed class ExecutionRuntimeTests
         Assert.Null(await store.GetAsync(OtherTenant, run.Id));
         var refused = await Assert.ThrowsAsync<ExecutionRuntimeRefusedException>(() => lifecycle.BeginAttemptAsync(OtherTenant, run.Id).AsTask());
         Assert.Equal(ExecutionRuntimeRefusals.RunUnknown, refused.Code);
-        await Assert.ThrowsAsync<ArgumentException>(() => lifecycle.StartAsync(new StartRun(WorkflowRun, default, ExternalApi)).AsTask());
+        // Oracle: DES-0056's tenant boundary; diagnostics explain the refusal without disclosing a foreign run.
+        Assert.Contains("tenant", refused.Message, StringComparison.Ordinal);
+        var missingTenant = await Assert.ThrowsAsync<ArgumentException>(() => lifecycle.StartAsync(new StartRun(WorkflowRun, default, ExternalApi)).AsTask());
+        Assert.Contains("requires a tenant", missingTenant.Message, StringComparison.Ordinal);
         await Assert.ThrowsAsync<ArgumentException>(() => lifecycle.DeadLetteredAsync(default).AsTask());
         await Assert.ThrowsAsync<ArgumentException>(() => lifecycle.SucceedAsync(default, run.Id).AsTask());
     }

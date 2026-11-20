@@ -136,7 +136,7 @@ public sealed class RunLifecycle
                     attempts[^1] = attempts[^1] with { ServerToldWait = serverWait };
                     delay = serverWait;
                 }
-                if (delay > profile.MaxDelay) delay = profile.MaxDelay;
+                delay = TimeSpan.FromTicks(Math.Min(delay.Ticks, profile.MaxDelay.Ticks));
                 return run with
                 {
                     Status = RunStatus.AwaitingRetry,
