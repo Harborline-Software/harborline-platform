@@ -27,6 +27,14 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>Registers gated plan runs. The host supplies AccessProvider, RunLifecycle, FileJournalSchedulingStore and TimeProvider, and calls PlanRun.Register once on its registry.</summary>
+    public static IServiceCollection AddHarborlineSchedulingPlanRuns(this IServiceCollection services)
+    {
+        services.AddHarborlineSchedulingPlanner();
+        services.TryAddSingleton<PlanRun>();
+        return services;
+    }
+
     /// <summary>Registers due queries. The host must supply IRruleExpansionService and its authoritative KernelClock.</summary>
     public static IServiceCollection AddHarborlineSchedulingDueQueries(this IServiceCollection services)
     {
