@@ -668,6 +668,32 @@
       "limits": {"stepBudget": 10},
       "guardValue": "c.result",
       "expectedGuardValue": {"state": "Resolved", "value": true}
+    },
+    {
+      "name": "array-string/review-local-read-before-erroring-fallback",
+      "_comment": "T-1194 / DES-0018 rules-ck-8: tiers agree. The documented authoritative budget and native var contract resolve/charge the local read before the eager fallback. Budget exhaustion wins over division by zero; the expected code is a literal, not a tier's output.",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{}], {"var": ["abcdefghij", {"/": [1, 0]}]}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 10},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/review-local-long-read-before-erroring-fallback",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{}], {"var": ["abcdefghijklmnopqrstuvwxyzabcdef", {"/": [1, 0]}]}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 10},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.budget_exceeded", "params": {"rule": "c.result"}}}
+    },
+    {
+      "name": "array-string/review-local-present-value-keeps-eager-fallback",
+      "_comment": "The var fallback remains eager after a successful read. Division by zero has the literal error specified in fail-closed-outcomes.json; the budget is deliberately sufficient for the read and fallback.",
+      "definitionRules": [{"id": "c.result", "tier": "JsonLogic", "scope": "Field", "scopeTarget": "result", "action": "Compute", "expression": {"some": [[{"flag": true}], {"var": ["flag", {"/": [1, 0]}]}]}}],
+      "instance": {},
+      "limits": {"stepBudget": 100},
+      "guardValue": "c.result",
+      "expectedGuardValue": {"state": "Error", "error": {"code": "rule.div_by_zero", "params": {}}}
     }
   ]
 }

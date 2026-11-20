@@ -58,7 +58,8 @@ Both tiers implement EXACTLY this set, identically. The conformance corpus has â
   them explicitly. Work proofs multiply predicate work by a bound on array cardinality, including
   nested quantifiers and generated arrays. Beyond normal AST steps, each iteration charges one step,
   local reads charge path length + 1, and string tests charge source length + pattern length + 1
-  (UTF-16 code units); all use the shared budget.
+  (UTF-16 code units); all use the shared budget. A `var` resolves its reference (including local-read
+  charges) before eagerly evaluating its fallback, even when the reference has a value.
 - **Platform extensions:** `agg` (`sum`/`count`/`avg`/`min`/`max`/`any`/`all`), `money.add`/`money.sub`/`money.mul`
   (exact decimal â€” BigInteger, NO IEEE-754 drift), `date.add`/`date.diff`/`date.today` (deterministic,
   injected clock), `coding.is` (taxonomy membership over `{system,code}`).

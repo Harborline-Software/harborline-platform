@@ -126,8 +126,9 @@ export function evaluate(node: Json, ctx: EvalContext): Json {
 function evalVar(args: Json[], ctx: EvalContext): Json {
   const path = asString(args.length > 0 ? evaluate(args[0], ctx) : null) ?? ''
   if (path.length === 0 && !(ctx.resolver instanceof ElementResolver)) return null
+  const resolved = ctx.resolver.resolveVar(path)
   const fallback = args.length > 1 ? evaluate(args[1], ctx) : null
-  return unwrap(ctx.resolver.resolveVar(path), fallback)
+  return unwrap(resolved, fallback)
 }
 
 function unwrap(rv: RefValue, fallback: Json): Json {
