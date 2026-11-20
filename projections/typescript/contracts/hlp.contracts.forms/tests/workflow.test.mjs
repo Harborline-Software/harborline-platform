@@ -32,3 +32,10 @@ test('workflows-ck-20 admission reports malformed directly constructed field req
   const result=validateWorkflowAdmission(value,authority,roleVocabulary)
   assert.ok(result.violations.some(v=>v.code==='missing-required-property'))
 })
+
+test('workflows-ck-21 admission refuses escalation on a directly constructed action',()=>{
+  const value=clone(fixture.canonical)
+  value.actions[0].escalation=null
+  const result=validateWorkflowAdmission(value,authority,roleVocabulary)
+  assert.ok(result.violations.some(v=>v.code==='workflow.escalation_on_notification'))
+})
