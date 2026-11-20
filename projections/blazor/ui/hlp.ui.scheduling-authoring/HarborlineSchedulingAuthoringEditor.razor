@@ -1,0 +1,323 @@
+@namespace Harborline.UIAdapters.Blazor.Components.SchedulingAuthoring
+@using System.Globalization
+@using System.Numerics
+@using System.Text.Encodings.Web
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@using System.Text.RegularExpressions
+@using Harborline.UIAdapters.Blazor.Components.Buttons
+
+@{ var body = Current.Body; var basis = BasisNode; var solver = body["solver"] as JsonObject; var anchor = Str(basis?["anchor"]); var nodes = basis?["nodes"] as JsonArray ?? [];
+    var modules = body["modules"] as JsonArray ?? []; var moduleName = Str((modules.FirstOrDefault() as JsonObject)?["module"]); var constraints = ((modules.FirstOrDefault() as JsonObject)?["parameters"] as JsonObject)?["constraints"] as JsonArray ?? [];
+    var others = modules.Skip(1).Select(entry => Str((entry as JsonObject)?["module"]) ?? entry?.ToJsonString() ?? "null").ToList(); var backendId = Str(solver?["backend_id"]);
+    Announce();
+    RenderFragment content = @<text>
+    <header class="hl-scheduling-authoring__grid">
+        <output aria-label="Identity">@(Current.Identity == "" ? "Not yet assigned" : Current.Identity)</output>
+        <output aria-label="Version">@(Current.VersionId == "" ? "Not yet assigned" : Current.VersionId)</output>
+        <output aria-label="Expected revision">@(Current.ExpectedRevision ?? "None")</output>
+    </header>
+    <div class="hl-scheduling-authoring__grid">
+        @Input("Name", Str(body["name"]) ?? "", raw => Edit(target => target["name"] = raw))
+        @Select("Runs on record type", Str(body["on_type_id"]), Choices(Catalogue.Types), value => SetText("on_type_id", value))
+        @Select("Starts", StartsKind, StartKinds, ChooseStarts, "Not set", "not a current spelling")
+        @if (!string.IsNullOrEmpty(StartsKind)) { @Select("Starts target", Str((body["starts"] as JsonObject)?["target_id"]), StartTargets(StartsKind), value => SetIn("starts", "target_id", Txt(value))) }
+        @Select("Basis", BasisKind, BasisKinds, ChooseBasis, "Single due date", "not a current spelling")
+        @if (BasisKind == "fixed_calendar") { @Input("Recurrence rule", Str(basis?["rrule"]) ?? "", raw => SetIn("basis", "rrule", Txt(raw))) }
+        @if (BasisKind == "completion_offset") { @Input("Completion offset", Str(basis?["offset"]) ?? "", raw => SetIn("basis", "offset", Txt(raw))) }
+        @if (BasisKind == "threshold")
+        {
+            @Input("Threshold reading", Str(basis?["reading"]) ?? "", raw => SetIn("basis", "reading", Txt(raw)))
+            @Select("Threshold crossing", Str(basis?["crossing"]), Crossings, value => SetIn("basis", "crossing", Txt(value)), "Not set", "not a current spelling")
+            @Input("Threshold value", _refusedThreshold ?? NumberText(basis?["value"]), SetThresholdValue, "decimal")
+            @if (_refusedThreshold is { } refused) { <p class="hl-scheduling-authoring__note">@($"Threshold value {refused} cannot be kept exactly as a number, so it is not applied.")</p> }
+        }
+        @if (DueShown) { @Input("Due date", Str(body["due_date"]) ?? "", raw => SetText("due_date", raw)) }
+        @Select("Missed behaviour", Str(body["missed_behaviour"]), MissedBehaviours, value => SetText("missed_behaviour", value), "Not set", "not a current spelling")
+        @Select("Problem class", ProblemClass, ProblemClasses, value => SetText("problem_class", value), "None", "not a current spelling")
+        @Select("Legality rule set", Str(body["legality_ref"]), Choices(Catalogue.LegalityRuleSets), value => SetText("legality_ref", value))
+    </div>
+    @if (WindowShown) { @Pair("Window", "window", "earliest", "latest", HasBasis ? "Signed ISO 8601 durations around each occurrence, such as -P7D and P7D." : "ISO 8601 instants, such as 2027-01-01T00:00:00Z.") }
+    @Pair("Tolerance", "tolerance", "early", "late", "ISO 8601 durations, such as PT30M.")
+    @if (BasisKind == "event_anchored_chain")
+    {
+        <fieldset class="hl-scheduling-authoring__group"><legend>Event-anchored chain</legend>
+            @Input("Chain anchor", anchor ?? "", raw => SetIn("basis", "anchor", Txt(raw)))
+            <fieldset class="hl-scheduling-authoring__group" aria-invalid="@Invalid("Chain nodes")"><legend>Chain nodes</legend>
+                @if (nodes.Count == 0) { <p class="hl-scheduling-authoring__note">No nodes authored.</p> }
+                @for (var index = 0; index < nodes.Count; index++)
+                {
+                    var current = index; var n = current + 1; var node = nodes[current] as JsonObject; var after = Str(node?["after_node_id"]); var tolerance = node?["tolerance"] as JsonObject;
+                    <fieldset class="hl-scheduling-authoring__group"><legend>@($"Node {n}")</legend>
+                        <p class="hl-scheduling-authoring__note">@NodeScope(n, after, anchor)</p>
+                        <div class="hl-scheduling-authoring__grid">
+                            @Input($"Node {n} id", Str(node?["node_id"]) ?? "", raw => SetNode(current, target => target["node_id"] = raw))
+                            @Select($"Node {n} follows", after, EarlierNodes(nodes, current), value => SetNode(current, target => Put(target, "after_node_id", Txt(value))), "The chain anchor", "not an earlier node")
+                            @Input($"Node {n} offset", Str(node?["offset"]) ?? "", raw => SetNode(current, target => target["offset"] = raw))
+                            @Input($"Node {n} tolerance early", Str(tolerance?["early"]) ?? "", raw => SetNode(current, target => Child(target, "tolerance")["early"] = raw))
+                            @Input($"Node {n} tolerance late", Str(tolerance?["late"]) ?? "", raw => SetNode(current, target => Child(target, "tolerance")["late"] = raw))
+                        </div>
+                        <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="!ReadOnly" OnClick="() => EditNodes(list => list.RemoveAt(current))">@($"Remove node {n}")</HarborlineButton>
+                    </fieldset>
+                }
+                <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="!ReadOnly" OnClick="AddNode">Add node</HarborlineButton>
+            </fieldset>
+        </fieldset>
+    }
+    @if (SolverShown)
+    {
+        <fieldset class="hl-scheduling-authoring__group"><legend>Solver</legend>
+            <div class="hl-scheduling-authoring__grid">
+                @Select("Solver backend", backendId, [.. Catalogue.Backends.Select(backend => (backend.Id, backend.Label))], ChooseBackend)
+                @if (solver is not null)
+                {
+                    @Select("Solver guarantee", Str(solver["guarantee"]), [.. (Catalogue.Backends.FirstOrDefault(backend => backend.Id == backendId)?.Guarantees ?? []).Select(guarantee => (guarantee, guarantee))], value => SetIn("solver", "guarantee", Txt(value)))
+                    @Input("Work budget", NumberText(solver["work_budget"]), SetWorkBudget, "numeric")
+                }
+            </div>
+            @if (solver is not null) { <label>Backend parameters<textarea aria-label="Backend parameters" aria-invalid="@Invalid("Backend parameters")" rows="3" value="@(solver["parameters"] is JsonObject parameters ? parameters.ToJsonString(Compact) : "")" @onchange="SetParameters"></textarea><span class="hl-scheduling-authoring__note">A JSON object; other text is not applied.</span></label> }
+        </fieldset>
+    }
+    @if (ModulesShown)
+    {
+        <fieldset class="hl-scheduling-authoring__group"><legend>Constraint modules</legend>
+            @Select("Constraint module", moduleName, AdmittedModules, ChooseModule, "Not set", "not admitted")
+            @if (others.Count > 0) { <p class="hl-scheduling-authoring__note">@($"Also carried unchanged: {string.Join(", ", others)}.")</p> }
+            @if (moduleName == "precedence")
+            {
+                @for (var index = 0; index < constraints.Count; index++)
+                {
+                    var current = index; var n = current + 1; var row = constraints[current] as JsonObject;
+                    <div class="hl-scheduling-authoring__row">
+                        @Input($"Precedence {n} id", Str(row?["id"]) ?? "", raw => SetConstraint(current, target => target["id"] = raw))
+                        @Input($"Precedence {n} before activity", Str(row?["beforeActivityId"]) ?? "", raw => SetConstraint(current, target => target["beforeActivityId"] = raw))
+                        @Input($"Precedence {n} after activity", Str(row?["afterActivityId"]) ?? "", raw => SetConstraint(current, target => target["afterActivityId"] = raw))
+                        @Input($"Precedence {n} minimum gap slots", NumberText(row?["minimumGapSlots"]), raw => raw.Trim() == "" ? SetConstraint(current, target => target.Remove("minimumGapSlots")) : Whole(raw) is { } gap ? SetConstraint(current, target => target["minimumGapSlots"] = gap) : Task.CompletedTask, "numeric")
+                        <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="!ReadOnly" OnClick="() => EditConstraints(list => list.RemoveAt(current))">@($"Remove precedence constraint {n}")</HarborlineButton>
+                    </div>
+                }
+                <HarborlineButton ButtonType="ButtonType.Button" Variant="ButtonVariant.Secondary" Size="ButtonSize.Small" Enabled="!ReadOnly" OnClick="AddConstraint">Add precedence constraint</HarborlineButton>
+            }
+        </fieldset>
+    }
+    <p role="note" aria-label="Supply" class="hl-scheduling-authoring__note">@Supply</p>
+</text>; }
+<form class="hl-scheduling-authoring" aria-label="Schedule definition draft" data-read-only="@(ReadOnly ? "" : null)" data-generation="@_generation" @onsubmit:preventDefault="true">
+    <p class="hl-scheduling-authoring__scope">Local draft. Edits stay in this editor and are not saved.</p>
+    @if (!SchedulingRevisionText.IsAcceptable(Value.ExpectedRevision)) { <p role="status" class="hl-scheduling-authoring__note">@RejectedRevision</p> }
+    @if (Adopted)
+    {
+        if (Matched.Count > 0) { <ul class="hl-scheduling-authoring__refusals" aria-label="Refusal list">@foreach (var diagnostic in Matched) { var field = FieldOf(diagnostic.Pointer); <li data-code="@diagnostic.Code" data-pointer="@diagnostic.Pointer">@($"{diagnostic.Code} at {At(diagnostic.Pointer)}{(field is null ? "" : $" ({field})")}")</li> }</ul> }
+        else { <p class="hl-scheduling-authoring__note">@(Checked ? "No refusals." : Diagnostics is null ? NotChecked : StaleRefusals)</p> }
+        if (ReadOnly) { <fieldset class="hl-scheduling-authoring__read-only" disabled>@content</fieldset> } else { @content }
+    }
+    <div role="status" aria-live="polite" aria-label="Refusal announcements" class="hl-scheduling-authoring__announcer">@_announcement</div>
+    @if (_incoming is not null) { <aside role="alert" class="hl-scheduling-authoring__incoming">A different draft or revision arrived while you have local edits.<HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Keep">Keep edits</HarborlineButton><HarborlineButton ButtonType="ButtonType.Button" Enabled="!ReadOnly" OnClick="Discard">Discard edits</HarborlineButton></aside> }
+</form>
+
+@code {
+    /// <summary>The host's draft. A different identity, version or revision replaces a clean draft and waits behind Keep/Discard on a dirty one.</summary>
+    [Parameter, EditorRequired] public SchedulingDraft Value { get; set; } = SchedulingDraft.Empty;
+    /// <summary>The record types, start targets, legality rule sets and solver backends the host offers; the editor never chooses one on its own.</summary>
+    [Parameter] public SchedulingCatalogue Catalogue { get; set; } = new();
+    /// <summary>Host-supplied admission refusals; shown only when identity, revision and generation all match the current draft.</summary>
+    [Parameter] public SchedulingDiagnosticSet? Diagnostics { get; set; }
+    /// <summary>A local flag that disables every control and edit handler. It is not an authorization decision.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>Receives each local change with its generation. Local state only; nothing is persisted.</summary>
+    [Parameter] public EventCallback<SchedulingDraftChange> DraftChanged { get; set; }
+
+    // Spellings of the ScheduleDefinition grammar (ScheduleDefinitionAdmission, ScheduleProblemClass, the admitted module catalogue). A
+    // value outside them is shown, never rewritten. Labels match the React lane.
+    private static readonly (string Id, string Label)[] StartKinds = [("form", "A form"), ("workflow", "A workflow"), ("work_item", "A work item")];
+    private static readonly (string Id, string Label)[] BasisKinds = [("fixed_calendar", "Fixed calendar"), ("completion_offset", "Completion offset"), ("threshold", "Threshold"), ("event_anchored_chain", "Event-anchored chain")];
+    private static readonly (string Id, string Label)[] Crossings = [("above", "Above"), ("below", "Below")];
+    private static readonly (string Id, string Label)[] MissedBehaviours = [("record_and_replan", "Record and replan"), ("window_closed", "Window closed")];
+    private static readonly (string Id, string Label)[] ProblemClasses = [.. new[] { "Workforce", "Timetabling", "ProtocolAdmission", "Project", "JobShop", "Mobility", "CompositeRecovery" }.Select(name => (name, name))];
+    private static readonly (string Id, string Label)[] AdmittedModules = [("time_windows", "Time windows"), ("resource_requirements", "Resource requirements"), ("no_overlap", "No overlap"), ("precedence", "Precedence")];
+    // The field a refusal pointer belongs to: the first prefix that matches and whose field is on screen. Anything else is listed unplaced.
+    private static readonly (string Prefix, string Field)[] PointerFields = [("/name", "Name"), ("/on_type_id", "Runs on record type"), ("/starts/target_id", "Starts target"), ("/starts", "Starts"), ("/basis/rrule", "Recurrence rule"), ("/basis/offset", "Completion offset"), ("/basis/reading", "Threshold reading"), ("/basis/crossing", "Threshold crossing"), ("/basis/value", "Threshold value"), ("/basis/anchor", "Chain anchor"), ("/basis/nodes", "Chain nodes"), ("/basis", "Basis"), ("/due_date", "Due date"), ("/window", "Window"), ("/tolerance", "Tolerance"), ("/missed_behaviour", "Missed behaviour"), ("/problem_class", "Problem class"), ("/solver/backend_id", "Solver backend"), ("/solver/guarantee", "Solver guarantee"), ("/solver/work_budget", "Work budget"), ("/solver/parameters", "Backend parameters"), ("/solver", "Solver backend"), ("/modules", "Constraint module"), ("/legality_ref", "Legality rule set")];
+    private const string Supply = "Supply is read from the shared availability runtime, from each Resource's own availability source, set on the Resource in the Booking editor. It cannot be changed here.";
+    private const string NotChecked = "Not yet checked for refusals.";
+    private const string StaleRefusals = "Refusals not current: they were checked against another draft, revision or edit.";
+    private const string RejectedRevision = "A host draft was not loaded because its revision is not a canonical decimal string.";
+    private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private SchedulingDraft Current = SchedulingDraft.Empty; private SchedulingDraft? _incoming; private string? _lifecycle; private string? _held; private bool _dirty; private int _generation; private string? _refusedThreshold;
+    private string _announcement = ""; private HashSet<string> _announced = [];
+    // No draft exists until the first host value with an acceptable revision.
+    private bool Adopted => _lifecycle is not null;
+
+    // A host echo of the same identity, version and revision is not a replacement. A host value whose revision is present but not
+    // canonical is rejected: never adopted, held, repaired or emitted. The generation is local and never reads the revision.
+    // Adopting a replacement moves the generation, so the host is told it, as for any change, and can send refusals for it.
+    protected override Task OnParametersSetAsync()
+    {
+        if (!SchedulingRevisionText.IsAcceptable(Value.ExpectedRevision)) return Task.CompletedTask;
+        var key = LifecycleKey(Value);
+        if (_lifecycle is null) { Current = Value; _lifecycle = key; return Task.CompletedTask; }
+        if (key == _lifecycle) { _incoming = null; _held = null; return Task.CompletedTask; }
+        if (key == _held) return Task.CompletedTask;
+        if (_dirty) { _held = key; _incoming = Value; return Task.CompletedTask; }
+        Current = Value; _lifecycle = key; _generation++; _refusedThreshold = null;
+        return DraftChanged.InvokeAsync(new SchedulingDraftChange(Value, _generation));
+    }
+
+    private static string LifecycleKey(SchedulingDraft value) => $"{value.Identity}\u0000{value.VersionId}\u0000{value.ExpectedRevision}";
+    // Refusals match only the exact identity, canonical revision and local generation; anything else is stale and never shown, and
+    // the draft is then not known to be free of refusals.
+    private bool Checked => Adopted && Diagnostics is { } supplied && SchedulingRevisionText.IsAcceptable(supplied.ExpectedRevision) && supplied.Identity == Current.Identity && string.Equals(supplied.ExpectedRevision, Current.ExpectedRevision, StringComparison.Ordinal) && supplied.Generation == _generation;
+    private IReadOnlyList<SchedulingDiagnostic> Matched => Checked ? Diagnostics!.Diagnostics : [];
+    // The live region announces only refusals that were not in the previous set, so a screen reader hears each new one once.
+    private void Announce()
+    {
+        var keys = Matched.Select(diagnostic => $"{diagnostic.Code} at {At(diagnostic.Pointer)}").ToList();
+        var fresh = keys.Where(key => !_announced.Contains(key)).ToList();
+        _announced = [.. keys];
+        if (fresh.Count > 0) _announcement = $"{fresh.Count} new refusal{(fresh.Count == 1 ? "" : "s")}: {string.Join("; ", fresh)}";
+        else if (keys.Count == 0) _announcement = "";
+    }
+
+    private JsonObject? BasisNode => Current.Body["basis"] as JsonObject;
+    private string? BasisKind => Str(BasisNode?["kind"]);
+    // A null basis is the single due date form, as the producer reads it.
+    private bool HasBasis => Current.Body["basis"] is not null;
+    private string? StartsKind => Str((Current.Body["starts"] as JsonObject)?["kind"]);
+    private string? ProblemClass => Str(Current.Body["problem_class"]) is { } named && named != "None" ? named : null;
+    private bool SolverShown => !string.IsNullOrEmpty(ProblemClass) || Current.Body.ContainsKey("solver");
+    private bool ModulesShown => !string.IsNullOrEmpty(ProblemClass) || Current.Body.ContainsKey("modules");
+    private bool DueShown => !HasBasis || Current.Body.ContainsKey("due_date");
+    private bool WindowShown => BasisKind != "event_anchored_chain" || Current.Body.ContainsKey("window");
+    private HashSet<string> OnScreen()
+    {
+        HashSet<string> shown = ["Name", "Runs on record type", "Starts", "Basis", "Tolerance", "Missed behaviour", "Problem class", "Legality rule set"];
+        if (!string.IsNullOrEmpty(StartsKind)) shown.Add("Starts target");
+        string[] basisFields = BasisKind switch { "fixed_calendar" => ["Recurrence rule"], "completion_offset" => ["Completion offset"], "threshold" => ["Threshold reading", "Threshold crossing", "Threshold value"], "event_anchored_chain" => ["Chain anchor", "Chain nodes"], _ => [] };
+        shown.UnionWith(basisFields);
+        if (DueShown) shown.Add("Due date");
+        if (WindowShown) shown.Add("Window");
+        if (SolverShown) shown.Add("Solver backend");
+        if (ModulesShown) shown.Add("Constraint module");
+        if (Current.Body["solver"] is JsonObject) shown.UnionWith(["Solver guarantee", "Work budget", "Backend parameters"]);
+        return shown;
+    }
+    private string? FieldOf(string pointer)
+    {
+        var shown = OnScreen();
+        foreach (var (prefix, field) in PointerFields) if ((pointer == prefix || pointer.StartsWith(prefix + "/", StringComparison.Ordinal)) && shown.Contains(field)) return field;
+        return null;
+    }
+    private string? Invalid(string field) => (field == "Threshold value" && _refusedThreshold is not null) || Matched.Any(diagnostic => FieldOf(diagnostic.Pointer) == field) ? "true" : null;
+    private static string At(string pointer) => pointer == "" ? "the whole definition" : pointer;
+    private static string NodeScope(int n, string? after, string? anchor) => string.IsNullOrEmpty(after) ? $"Node {n} scope: follows the chain anchor{(string.IsNullOrEmpty(anchor) ? "" : " " + anchor)}" : $"Node {n} scope: follows node {after}";
+    private static List<(string Id, string Label)> EarlierNodes(JsonArray nodes, int index) => [.. nodes.Take(index).Select(other => Str((other as JsonObject)?["node_id"])).OfType<string>().Where(id => id != "").Distinct().Select(id => (id, id))];
+    private static List<(string Id, string Label)> Choices(IReadOnlyList<SchedulingOption> options) => [.. options.Select(option => (option.Id, option.Label))];
+    private List<(string Id, string Label)> StartTargets(string? kind) => Choices(kind switch { "form" => Catalogue.Forms, "workflow" => Catalogue.Workflows, "work_item" => Catalogue.WorkItems, _ => [] });
+
+    private RenderFragment Select(string field, string? selected, IReadOnlyList<(string Id, string Label)> options, Func<string, Task> onChange, string none = "Not set", string unknown = "not offered") =>
+        @<label>@field<select aria-label="@field" aria-invalid="@Invalid(field)" value="@(selected ?? "")" @onchange="eventArgs => onChange(Text(eventArgs))"><option value="">@none</option>@if (!string.IsNullOrEmpty(selected) && !options.Any(option => option.Id == selected)) { <option value="@selected">@($"{selected} ({unknown})")</option> }@foreach (var option in options) { <option value="@option.Id">@option.Label</option> }</select></label>;
+    private RenderFragment Input(string field, string value, Func<string, Task> onChange, string? inputMode = null) =>
+        @<label>@field<input aria-label="@field" aria-invalid="@Invalid(field)" inputmode="@inputMode" value="@value" @onchange="eventArgs => onChange(Text(eventArgs))" /></label>;
+    private RenderFragment Pair(string legend, string member, string first, string second, string hint)
+    {
+        var pair = Current.Body[member] as JsonObject;
+        return @<fieldset class="hl-scheduling-authoring__group" aria-invalid="@Invalid(legend)"><legend>@legend</legend><p class="hl-scheduling-authoring__note">@hint</p><div class="hl-scheduling-authoring__row">@Input($"{legend} {first}", Str(pair?[first]) ?? "", raw => SetIn(member, first, Txt(raw)))@Input($"{legend} {second}", Str(pair?[second]) ?? "", raw => SetIn(member, second, Txt(raw)))</div></fieldset>;
+    }
+
+    private static string? Str(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+    private static string NumberText(JsonNode? node) => node is JsonValue value && value.GetValueKind() == JsonValueKind.Number ? value.ToJsonString() : "";
+    private static string Text(ChangeEventArgs eventArgs) => eventArgs.Value?.ToString() ?? "";
+    private static JsonNode? Txt(string raw) => raw == "" ? null : JsonValue.Create(raw);
+    // Numbers are read with the JSON number grammar, invariantly; anything else leaves the draft unchanged. A decimal is applied only
+    // when the double it becomes has the same decimal value, so a threshold is never rounded on its way into the draft.
+    private const string NumberGrammar = @"^-?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?$";
+    private static JsonNode? Decimal(string raw) => Regex.IsMatch(raw.Trim(), NumberGrammar) && Exact(raw.Trim()) ? JsonValue.Create(double.Parse(raw.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture)) : null;
+    private static bool Inexact(string raw) => Regex.IsMatch(raw.Trim(), NumberGrammar) && !Exact(raw.Trim());
+    private static bool Exact(string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) && DecimalValue(text) == DecimalValue(number.ToString("R", CultureInfo.InvariantCulture));
+    // One spelling per decimal value (sign, significant digits, exponent), so 1.50, 15e-1 and 1.5 compare equal.
+    private static string? DecimalValue(string text)
+    {
+        var match = Regex.Match(text, @"^(-?)(\d+)(?:\.(\d+))?(?:[eE]([-+]?\d+))?$");
+        if (!match.Success) return null;
+        var fraction = match.Groups[3].Value;
+        var digits = (match.Groups[2].Value + fraction).TrimStart('0');
+        var significant = digits.TrimEnd('0');
+        if (significant == "") return "0";
+        var exponent = BigInteger.Parse(match.Groups[4].Success ? match.Groups[4].Value : "0", CultureInfo.InvariantCulture) - fraction.Length + digits.Length - significant.Length;
+        return $"{match.Groups[1].Value}{significant}e{exponent}";
+    }
+    private static JsonNode? Whole(string raw) => Regex.IsMatch(raw.Trim(), @"^-?(0|[1-9]\d*)$") && long.TryParse(raw.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var number) && number >= -9007199254740991 && number <= 9007199254740991 ? JsonValue.Create(number) : null;
+
+    private Task Change(SchedulingDraft next) { if (ReadOnly || !Adopted) return Task.CompletedTask; Current = next; _dirty = true; _generation++; return DraftChanged.InvokeAsync(new SchedulingDraftChange(next, _generation)); }
+    // Every edit works on a copy, so the host's body is never mutated and unedited members (envelope, grace, escalation) survive.
+    private Task Edit(Action<JsonObject> mutate) { if (ReadOnly || !Adopted) return Task.CompletedTask; var body = Current.Body.DeepClone().AsObject(); mutate(body); return Change(Current with { Body = body }); }
+    // Setting a member writes it; null removes it and writes nothing in its place.
+    private static void Put(JsonObject target, string member, JsonNode? value) { if (value is null) target.Remove(member); else target[member] = value; }
+    private static JsonObject Child(JsonObject target, string member) { if (target[member] is JsonObject child) return child; var created = new JsonObject(); target[member] = created; return created; }
+    private Task SetText(string member, string value) => Edit(body => Put(body, member, Txt(value)));
+    // An object member left with no members is removed.
+    private Task SetIn(string member, string key, JsonNode? value) => Edit(body => { var child = Child(body, member); Put(child, key, value); if (child.Count == 0) body.Remove(member); });
+    private Task ChooseStarts(string kind) => Edit(body => Put(body, "starts", kind == "" ? null : new JsonObject { ["kind"] = kind }));
+    // A basis replaces the single due date; a chain carries its windows on its nodes, so it also removes the top-level window.
+    private Task ChooseBasis(string kind) => Edit(body =>
+    {
+        body.Remove("basis");
+        if (kind == "") return;
+        body.Remove("due_date");
+        if (kind == "event_anchored_chain") body.Remove("window");
+        body["basis"] = new JsonObject { ["kind"] = kind };
+    });
+    private Task SetThresholdValue(string raw) { _refusedThreshold = Inexact(raw) ? raw.Trim() : null; return raw.Trim() == "" ? SetIn("basis", "value", null) : Decimal(raw) is { } number ? SetIn("basis", "value", number) : Task.CompletedTask; }
+    private Task EditNodes(Action<JsonArray> mutate) => Edit(body =>
+    {
+        var basis = Child(body, "basis");
+        if (basis["nodes"] is not JsonArray nodes) { nodes = []; basis["nodes"] = nodes; }
+        mutate(nodes);
+        if (nodes.Count == 0) basis.Remove("nodes");
+        if (basis.Count == 0) body.Remove("basis");
+    });
+    private Task SetNode(int index, Action<JsonObject> mutate) => EditNodes(nodes => { if (index >= nodes.Count) return; if (nodes[index] is not JsonObject node) { node = []; nodes[index] = node; } mutate(node); });
+    private Task AddNode() => EditNodes(nodes => nodes.Add(new JsonObject { ["node_id"] = "", ["offset"] = "", ["tolerance"] = new JsonObject { ["early"] = "", ["late"] = "" } }));
+    // Choosing a backend keeps the rest of the solver; the producer requires a parameters object, so a new solver starts with an empty one.
+    private Task ChooseBackend(string id) => Edit(body =>
+    {
+        if (id == "") { body.Remove("solver"); return; }
+        var solver = Child(body, "solver");
+        solver["backend_id"] = id;
+        if (solver["parameters"] is null) solver["parameters"] = new JsonObject();
+    });
+    private Task SetWorkBudget(string raw) => raw.Trim() == "" ? SetIn("solver", "work_budget", null) : Whole(raw) is { } budget ? SetIn("solver", "work_budget", budget) : Task.CompletedTask;
+    private Task SetParameters(ChangeEventArgs eventArgs)
+    {
+        JsonObject? parameters;
+        try { parameters = JsonNode.Parse(Text(eventArgs)) as JsonObject; _ = parameters?.Count; } catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException) { parameters = null; }
+        return parameters is null ? Task.CompletedTask : SetIn("solver", "parameters", parameters);
+    }
+    // Only the first module is authored here; later ones are carried unchanged. A new module starts without parameters.
+    private Task ChooseModule(string name) => Edit(body =>
+    {
+        var rest = (body["modules"] as JsonArray ?? []).Skip(1).Select(entry => entry?.DeepClone()).ToList();
+        var next = new JsonArray();
+        if (name != "") next.Add(new JsonObject { ["module"] = name });
+        foreach (var entry in rest) next.Add(entry);
+        Put(body, "modules", next.Count > 0 ? next : null);
+    });
+    private Task EditConstraints(Action<JsonArray> mutate) => Edit(body =>
+    {
+        if (body["modules"] is not JsonArray modules || modules.Count == 0) return;
+        if (modules[0] is not JsonObject head) { head = []; modules[0] = head; }
+        var parameters = Child(head, "parameters");
+        if (parameters["constraints"] is not JsonArray constraints) { constraints = []; parameters["constraints"] = constraints; }
+        mutate(constraints);
+        if (constraints.Count == 0) parameters.Remove("constraints");
+        if (parameters.Count == 0) head.Remove("parameters");
+    });
+    private Task SetConstraint(int index, Action<JsonObject> mutate) => EditConstraints(constraints => { if (index >= constraints.Count) return; if (constraints[index] is not JsonObject row) { row = []; constraints[index] = row; } mutate(row); });
+    private Task AddConstraint() => EditConstraints(constraints => constraints.Add(new JsonObject { ["id"] = "", ["beforeActivityId"] = "", ["afterActivityId"] = "", ["minimumGapSlots"] = 0 }));
+    private Task Keep() { if (ReadOnly) return Task.CompletedTask; _incoming = null; return Task.CompletedTask; }
+    private Task Discard()
+    {
+        if (ReadOnly || _incoming is not { } next) return Task.CompletedTask;
+        Current = next; _incoming = null; _held = null; _dirty = false; _generation++; _lifecycle = LifecycleKey(next); _refusedThreshold = null;
+        return DraftChanged.InvokeAsync(new SchedulingDraftChange(next, _generation));
+    }
+}

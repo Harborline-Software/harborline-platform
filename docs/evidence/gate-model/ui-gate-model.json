@@ -68,7 +68,7 @@
   },
   "ticket": "098",
   "subject": {
-    "moduleCount": 82,
+    "moduleCount": 84,
     "gateIds": [
       "assertDeterminism",
       "assertAccessible",
@@ -724,8 +724,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PARTIAL",
-          "note": "axe-core over 0 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: booking-authoring.resource, booking-authoring.refusals"
+          "status": "PASS",
+          "note": "axe-core over 2 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -1744,7 +1744,7 @@
         {
           "id": "assertVisualParity",
           "status": "PARTIAL",
-          "note": "Only 2 scenarios are covered by the gallery receipt at tree 7486f460; data-exchange.partial-failure and data-exchange.from-empty visual parity remain unmeasured by that receipt until Chris queues a refresh covering the new tree."
+          "note": "2 visual-parity scenario(s) compared in the recorded gallery-gate; 2 added since it was recorded are uncompared until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertFunctionalParity",
@@ -1779,7 +1779,7 @@
         {
           "id": "assertResponsiveQuality",
           "status": "PARTIAL",
-          "note": "320px and 200% text reflow in both lanes remain unmeasured by a gallery receipt covering the new tree; the receipt at tree 7486f460 contains no reflow case. Chris queues the receipt refresh."
+          "note": "reflow is unmeasured for 2 scenario(s) added since the recorded gallery-gate, until it is re-recorded: data-exchange.partial-failure, data-exchange.from-empty"
         },
         {
           "id": "assertEmptyAndErrorStates",
@@ -2346,6 +2346,84 @@
           "id": "assertDesignQuality",
           "status": "UNBUILT",
           "note": "UNBUILT inherited from assertEmptyAndErrorStates"
+        }
+      ]
+    },
+    {
+      "moduleId": "hlp.ui.document-authoring",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PASS",
+          "note": "axe-core over 4 scenarios x 2 lanes in gallery-gate"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PASS",
+          "note": "4 visual-parity scenario(s), lane vs lane, pixelmatch"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "1 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "UNBUILT",
+          "note": "no component interface found in either lane"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "UNBUILT",
+          "note": "focus scanner reported nothing for this module"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PASS",
+          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but blocks, diagnostics, fields, lines, records, regions, runs, samples can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertFocusQuality, assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
         }
       ]
     },
@@ -2986,8 +3064,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PARTIAL",
-          "note": "axe-core over 10 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: layers-rail.inside-dialog, layers-rail.inside-sheet"
+          "status": "PASS",
+          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -3376,8 +3454,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PARTIAL",
-          "note": "axe-core over 10 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: notification-center.inside-dialog, notification-center.inside-sheet"
+          "status": "PASS",
+          "note": "axe-core over 12 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -4000,18 +4078,18 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PASS",
-          "note": "axe-core over 3 scenarios x 2 lanes in gallery-gate"
+          "status": "PARTIAL",
+          "note": "axe-core over 3 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: rule-authoring.lineage, rule-authoring.promotion"
         },
         {
           "id": "assertVisualParity",
-          "status": "PASS",
-          "note": "3 visual-parity scenario(s), lane vs lane, pixelmatch"
+          "status": "PARTIAL",
+          "note": "3 visual-parity scenario(s) compared in the recorded gallery-gate; 2 added since it was recorded are uncompared until it is re-recorded: rule-authoring.lineage, rule-authoring.promotion"
         },
         {
           "id": "assertFunctionalParity",
           "status": "PASS",
-          "note": "3 conformance case(s) across both lanes"
+          "note": "5 conformance case(s) across both lanes"
         },
         {
           "id": "assertInternationalization",
@@ -4040,13 +4118,13 @@
         },
         {
           "id": "assertResponsiveQuality",
-          "status": "PASS",
-          "note": "reflow measured at 320px and 200% text in both lanes, with no horizontal overflow"
+          "status": "PARTIAL",
+          "note": "reflow is unmeasured for 2 scenario(s) added since the recorded gallery-gate, until it is re-recorded: rule-authoring.lineage, rule-authoring.promotion"
         },
         {
           "id": "assertEmptyAndErrorStates",
           "status": "UNBUILT",
-          "note": "no empty or error property, but bindings, expressionContracts, fieldBindings, granted, palette, refusals, rules can be handed an empty collection; that state is reachable and undesigned"
+          "note": "no empty or error property, but bindings, calculationsReadBy, consumersOf, deadWeight, expressionContracts, fieldBindings, granted, palette, refusals, rules can be handed an empty collection; that state is reachable and undesigned"
         },
         {
           "id": "assertContentResilience",
@@ -4140,6 +4218,84 @@
           "id": "assertDesignQuality",
           "status": "UNBUILT",
           "note": "UNBUILT inherited from assertStateCompleteness, assertEmptyAndErrorStates"
+        }
+      ]
+    },
+    {
+      "moduleId": "hlp.ui.scheduling-authoring",
+      "presentation": "visual",
+      "catalogStatus": "gap-implemented",
+      "terminal": false,
+      "gates": [
+        {
+          "id": "assertDeterminism",
+          "status": "PASS",
+          "note": "cheap half only: no timing or async construct declared"
+        },
+        {
+          "id": "assertAccessible",
+          "status": "PARTIAL",
+          "note": "axe-core over 0 scenarios x 2 lanes in the recorded gallery-gate; 3 added since it was recorded are unscanned until it is re-recorded: scheduling-authoring.chain, scheduling-authoring.solver, scheduling-authoring.refusals"
+        },
+        {
+          "id": "assertVisualParity",
+          "status": "PARTIAL",
+          "note": "0 visual-parity scenario(s) compared in the recorded gallery-gate; 3 added since it was recorded are uncompared until it is re-recorded: scheduling-authoring.chain, scheduling-authoring.solver, scheduling-authoring.refusals"
+        },
+        {
+          "id": "assertFunctionalParity",
+          "status": "PASS",
+          "note": "4 conformance case(s) across both lanes"
+        },
+        {
+          "id": "assertInternationalization",
+          "status": "PARTIAL",
+          "note": "no locale fixtures; only the shared canvas is exercised"
+        },
+        {
+          "id": "assertPerformanceProfile",
+          "status": "UNBUILT",
+          "note": "no client-performance measurement exists for this module; run-ui-performance.mjs records test-process wall clock and declares wallClockBudgetUsed: false"
+        },
+        {
+          "id": "assertTokenAdherence",
+          "status": "PASS",
+          "note": "every value resolves to an approved token"
+        },
+        {
+          "id": "assertStateCompleteness",
+          "status": "UNBUILT",
+          "note": "no component interface found in either lane"
+        },
+        {
+          "id": "assertFocusQuality",
+          "status": "UNBUILT",
+          "note": "focus scanner reported nothing for this module"
+        },
+        {
+          "id": "assertResponsiveQuality",
+          "status": "PARTIAL",
+          "note": "reflow is unmeasured for 1 scenario(s) added since the recorded gallery-gate, until it is re-recorded: scheduling-authoring.chain"
+        },
+        {
+          "id": "assertEmptyAndErrorStates",
+          "status": "UNBUILT",
+          "note": "no empty or error property, but backends, diagnostics, forms, guarantees, legalityRuleSets, types, workItems, workflows can be handed an empty collection; that state is reachable and undesigned"
+        },
+        {
+          "id": "assertContentResilience",
+          "status": "UNBUILT",
+          "note": "no long-content, missing-field or large-number case declared"
+        },
+        {
+          "id": "assertDesignReview",
+          "status": "UNBUILT",
+          "note": "no design-review verdict recorded for this module"
+        },
+        {
+          "id": "assertDesignQuality",
+          "status": "UNBUILT",
+          "note": "UNBUILT inherited from assertStateCompleteness, assertFocusQuality, assertEmptyAndErrorStates, assertContentResilience, assertDesignReview"
         }
       ]
     },
@@ -6262,8 +6418,8 @@
         },
         {
           "id": "assertAccessible",
-          "status": "PARTIAL",
-          "note": "axe-core over 11 scenarios x 2 lanes in the recorded gallery-gate; 2 added since it was recorded are unscanned until it is re-recorded: user-menu.inside-dialog, user-menu.inside-sheet"
+          "status": "PASS",
+          "note": "axe-core over 13 scenarios x 2 lanes in gallery-gate"
         },
         {
           "id": "assertVisualParity",
@@ -6485,9 +6641,9 @@
     }
   ],
   "tally": {
-    "PASS": 674,
-    "PARTIAL": 107,
-    "UNBUILT": 206,
+    "PASS": 684,
+    "PARTIAL": 111,
+    "UNBUILT": 220,
     "NOT-APPLICABLE": 159,
     "FAIL": 2
   }
