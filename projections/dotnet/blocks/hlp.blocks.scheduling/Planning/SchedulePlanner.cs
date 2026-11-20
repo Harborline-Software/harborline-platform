@@ -6,7 +6,7 @@ using Harborline.Foundation.Scheduling.Services;
 namespace Harborline.Blocks.Scheduling.Planning;
 
 /// <summary>Resolves a published schedule, admits its modules, and reads candidate supply through the shared runtime.</summary>
-public sealed class SchedulePlanner
+internal sealed class SchedulePlanner
 {
     private readonly ScheduleDefinitionCatalogue _catalogue;
     private readonly IAvailabilityRuntime _availability;

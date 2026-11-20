@@ -9,8 +9,8 @@ public sealed class FileJournalSchedulingStoreTests
     [Fact(DisplayName = "execution-runtime-cc-4, scheduling-run-3: Plans replay every member, coexist with old calendar frames, and are tenant scoped and write once")]
     public async Task PlansReplayBesideLegacyCalendarFrames()
     {
-        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "harborline", "platform527", Guid.NewGuid() + ".journal");
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+        using var fixture = new JournalFixture();
+        var path = fixture.Path;
         // Literal version-one calendar frame: the pre-Plan journal contract.
         await File.WriteAllBytesAsync(path, Frame(2, System.Text.Encoding.UTF8.GetBytes(
             "{\"TenantId\":\"tenant-a\",\"Kind\":1,\"EntityId\":\"calendar-1\",\"PayloadJson\":\"{}\"}")));
@@ -214,6 +214,6 @@ public sealed class FileJournalSchedulingStoreTests
         public JournalFixture() => Directory.CreateDirectory(directory);
         public string Path => System.IO.Path.Combine(directory, "scheduling.journal");
         public FileJournalSchedulingStore Open() => new(new() { JournalPath = Path });
-        public void Dispose() { try { Directory.Delete(directory, recursive: true); } catch { } }
+        public void Dispose() => Directory.Delete(directory, recursive: true);
     }
 }

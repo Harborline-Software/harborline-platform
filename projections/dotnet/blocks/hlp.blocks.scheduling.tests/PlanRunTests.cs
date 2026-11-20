@@ -16,6 +16,26 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class PlanRunTests
 {
+    [Fact]
+    public void PlanRun_is_the_only_exported_planning_entry_point()
+    {
+        // GetPlanAsync reads the store port/reference implementation used by API EF adapters; it cannot plan.
+        var planRead = typeof(FileJournalSchedulingStore).GetMethod(nameof(FileJournalSchedulingStore.GetPlanAsync),
+            [typeof(string), typeof(RunId), typeof(CancellationToken)]);
+        Assert.NotNull(planRead);
+        var producers = typeof(PlanRun).Assembly.GetExportedTypes()
+            .Where(type => type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.DeclaredOnly)
+                .Any(method => method != planRead && !method.IsSpecialName
+                    && !method.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), inherit: false)
+                    && ReturnsPlan(method.ReturnType)))
+            .Select(type => type.FullName!).Order(StringComparer.Ordinal).ToArray();
+        Assert.Equal(["Harborline.Blocks.Scheduling.Planning.PlanRun"], producers);
+
+        static bool ReturnsPlan(Type type) => type == typeof(SchedulingProposal) || type == typeof(SchedulingPlan)
+            || type == typeof(PlanRunResult) || type.IsGenericType && type.GetGenericArguments().Any(ReturnsPlan);
+    }
+
     [Fact(DisplayName = "execution-runtime-cc-4: scheduling registers plan-run once without a handler")]
     public void RegistersOnce()
     {
@@ -123,6 +143,76 @@ public sealed class PlanRunTests
         Assert.Null(await f.Store.GetPlanAsync("t", run.Id));
     }
 
+    [Fact]
+    public async Task Begin_failure_preserves_original_exception_and_cancels_pending_run()
+    {
+        using var f = await Fixture.Create();
+        f.Runs.ThrowOnStatus = RunStatus.Running;
+        f.Runs.Error = new IOException("begin failed");
+        var error = await Assert.ThrowsAsync<IOException>(() => f.Run());
+        Assert.Equal("begin failed", error.Message);
+        Assert.Same(f.Runs.Error, error);
+        var run = Assert.Single(await f.Runs.ListByStatusAsync(new("t"), RunStatus.Cancelled));
+        Assert.Empty(run.Attempts);
+        Assert.Equal([RunStatus.Running, RunStatus.Cancelled], f.Runs.Updates);
+        Assert.Null(await f.Store.GetPlanAsync("t", run.Id));
+    }
+
+    [Fact]
+    public async Task Succeed_failure_preserves_original_exception_and_saved_plan_without_dead_lettering()
+    {
+        using var f = await Fixture.Create();
+        f.Runs.ThrowOnStatus = RunStatus.Succeeded;
+        f.Runs.Error = new IOException("succeed failed");
+        var error = await Assert.ThrowsAsync<IOException>(() => f.Run());
+        Assert.Equal("succeed failed", error.Message);
+        Assert.Same(f.Runs.Error, error);
+        var run = Assert.Single(await f.Runs.ListByStatusAsync(new("t"), RunStatus.Running));
+        Assert.Null(run.DeadLetter);
+        Assert.Equal([RunStatus.Running, RunStatus.Succeeded], f.Runs.Updates);
+        Assert.NotNull(await f.Store.GetPlanAsync("t", run.Id));
+    }
+
+    [Theory]
+    [InlineData("unexpected", RunStatus.DeadLettered)]
+    [InlineData("unsupported", RunStatus.DeadLettered)]
+    [InlineData("cancelled", RunStatus.Cancelled)]
+    public async Task Cleanup_failure_preserves_planning_exception(string failure, RunStatus cleanupStatus)
+    {
+        using var f = await Fixture.Create();
+        using var cts = new CancellationTokenSource();
+        f.Runs.ThrowOnStatus = cleanupStatus;
+        f.Runs.Error = new IOException("cleanup failed");
+        Exception original = failure switch
+        {
+            "unsupported" => new UnsupportedProfileException("MODULE_UNSUPPORTED: test module."),
+            "cancelled" => new OperationCanceledException("planning cancelled", cts.Token),
+            _ => new InvalidOperationException("planning failed"),
+        };
+        f.Availability.OnRead = () => { if (failure == "cancelled") cts.Cancel(); throw original; };
+        Exception error;
+        if (failure == "unsupported")
+        {
+            error = await Assert.ThrowsAsync<UnsupportedProfileException>(() => f.Run(ct: cts.Token));
+            Assert.Equal("MODULE_UNSUPPORTED: test module.", error.Message);
+        }
+        else if (failure == "cancelled")
+        {
+            error = await Assert.ThrowsAsync<OperationCanceledException>(() => f.Run(ct: cts.Token));
+            Assert.Equal("planning cancelled", error.Message);
+        }
+        else
+        {
+            error = await Assert.ThrowsAsync<InvalidOperationException>(() => f.Run(ct: cts.Token));
+            Assert.Equal("planning failed", error.Message);
+        }
+        Assert.Same(original, error);
+        Assert.Equal("cleanup failed", Assert.IsType<IOException>(error.Data["PlanRunCleanupError"]).Message);
+        var run = Assert.Single(await f.Runs.ListByStatusAsync(new("t"), RunStatus.Running));
+        Assert.Null(run.DeadLetter);
+        Assert.Null(await f.Store.GetPlanAsync("t", run.Id));
+    }
+
     [Fact(DisplayName = "execution-runtime-cc-4: caused_by is tenant checked and kept on both run and Plan")]
     public async Task Cause()
     {
@@ -139,8 +229,9 @@ public sealed class PlanRunTests
 
     private sealed class Fixture : IDisposable
     {
-        public FileJournalSchedulingStore Store { get; } = new(new() { JournalPath = Path.Combine(Path.GetTempPath(), "harborline", "platform527", Guid.NewGuid() + ".journal") });
-        public InMemoryRunStore Runs { get; } = new();
+        private readonly string directory = Directory.CreateTempSubdirectory("hl-plan-run-").FullName;
+        public FileJournalSchedulingStore Store { get; }
+        public FaultingRunStore Runs { get; } = new();
         public Decider Decider { get; } = new();
         public Availability Availability { get; } = new();
         public RunLifecycle Lifecycle { get; }
@@ -149,6 +240,7 @@ public sealed class PlanRunTests
         private readonly ServiceProvider provider;
         private Fixture(ScheduleDefinitionCatalogue catalogue, IPlanningSolver solver, CountingDefinitions definitions)
         {
+            Store = new(new() { JournalPath = Path.Combine(directory, "scheduling.journal") });
             Definitions = definitions;
             var registry = new RunKindRegistry(); PlanRun.Register(registry);
             var clock = new Clock();
@@ -189,7 +281,26 @@ public sealed class PlanRunTests
                 pin ?? new("t", "job", "job@1.0.0"), facts ?? Facts(), invalid == "backend" ? "missing" : "prototype.exhaustive-proof.v2",
                 SolverGuarantee.FeasibleProof, 100, DateTimeOffset.Parse("2027-01-01T00:00:00Z"), invalid == "axis" ? TimeSpan.Zero : TimeSpan.FromHours(1),
                 invalid == "binding" ? new Dictionary<string, ResourceCapacity>() : new() { ["r"] = ResourceCapacity.Exclusive(ParticipantRef.Asset("room")) }, cause, ct);
-        public void Dispose() { provider.Dispose(); Store.Dispose(); }
+        public void Dispose() { provider.Dispose(); Store.Dispose(); Directory.Delete(directory, recursive: true); }
+    }
+    private sealed class FaultingRunStore : IRunStore
+    {
+        private readonly InMemoryRunStore inner = new();
+        public RunStatus? ThrowOnStatus { get; set; }
+        public Exception Error { get; set; } = new IOException("store failed");
+        public List<RunStatus> Updates { get; } = [];
+        public ValueTask CreateAsync(RunRecord record, CancellationToken cancellationToken = default)
+            => inner.CreateAsync(record, cancellationToken);
+        public ValueTask<RunRecord?> GetAsync(TenantId tenantId, RunId id, CancellationToken cancellationToken = default)
+            => inner.GetAsync(tenantId, id, cancellationToken);
+        public ValueTask UpdateAsync(RunRecord record, long expectedVersion, CancellationToken cancellationToken = default)
+        {
+            Updates.Add(record.Status);
+            if (record.Status == ThrowOnStatus) throw Error;
+            return inner.UpdateAsync(record, expectedVersion, cancellationToken);
+        }
+        public ValueTask<IReadOnlyList<RunRecord>> ListByStatusAsync(TenantId tenantId, RunStatus status, CancellationToken cancellationToken = default)
+            => inner.ListByStatusAsync(tenantId, status, cancellationToken);
     }
     private sealed class CountingDefinitions(IVersionedDefinitionStore inner) : IVersionedDefinitionStore
     {
