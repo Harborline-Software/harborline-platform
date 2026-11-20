@@ -59,15 +59,16 @@ else {
     private Task AddMeasure() => Draft is not { } draft ? Task.CompletedTask : Change(draft with { Measures = [.. draft.Measures, new(selected)] });
     private Task AddParameter() {
         if (Draft is not { } draft) return Task.CompletedTask;
+        var text = parameterDefault.Trim(' ', '\t', '\r', '\n');
         object? parsed = parameterType switch {
-            "boolean" when bool.TryParse(parameterDefault, out var b) => b,
-            "integer" when long.TryParse(parameterDefault, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) && i is >= -9007199254740991 and <= 9007199254740991 => i,
-            "float" when double.TryParse(parameterDefault, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) => d,
-            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(parameterDefault, @"^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$") && DateTimeOffset.TryParse(parameterDefault, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => parameterDefault,
+            "boolean" when text is "true" or "false" => text == "true",
+            "integer" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A-?(?:0|[1-9][0-9]*)\z") && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) && i is >= -9007199254740991 and <= 9007199254740991 => i,
+            "float" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\z") && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) && double.IsFinite(d) => d,
+            "date_time" when System.Text.RegularExpressions.Regex.IsMatch(text, @"\A[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\.[0-9]{1,7})?(?:Z|[+-][0-9]{2}:[0-9]{2})\z") && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out _) => text,
             "string" => parameterDefault,
             _ => null,
         };
-        if (parsed is null) { invalidDefault = true; return Task.CompletedTask; }
+        if (parsed is null || (parameterName == "as_at" && (parameterType != "date_time" || string.IsNullOrWhiteSpace(effectiveType)))) { invalidDefault = true; return Task.CompletedTask; }
         invalidDefault = false;
         var item = new ReportParameter(parameterName, parameterType, new(parameterType == "date_time" ? "datetime" : parameterType, parsed, parameterType, true), parameterName == "as_at" ? effectiveType : null);
         return Change(draft with { Parameters = [.. draft.Parameters, item] });

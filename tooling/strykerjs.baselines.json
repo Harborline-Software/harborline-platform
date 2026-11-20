@@ -944,7 +944,6 @@
       "observed": [
         70.59
       ],
-      "report": "C:/Users/Chris/.t3/scratch-500/strykerjs-report-authoring-mutation.json",
       "measured": "2026-11-16, PC, T-489 full run (--all, every mutable file) on f000edad plus the gallery parity fix committed with this entry, StrykerJS 10.1.1 vitest-runner, 15 workers: 276 Killed / 102 Survived / 13 NoCoverage"
     }
   }

@@ -5,6 +5,54 @@ import { expect, it, vi } from 'vitest'
 import { ReportAuthoringEditor, type ReportDraft } from './ReportAuthoringEditor'
 import { ReportAuthoringScreen } from './ReportAuthoringScreen'
 
+const defaultCases = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../../conformance/hlp.ui.report-authoring/parameter-defaults.json'), 'utf8')).cases as { id: string; type: string; input: string; accepted: boolean; value?: string | number | boolean }[]
+
+it.each(defaultCases)('shared parameter default $id', row => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [], parameters: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'p' } })
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: row.type } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: row.input } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  if (row.accepted) {
+    expect(change).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(JSON.stringify(change.mock.lastCall![0].parameters[0].default))).toEqual({ kind: row.type === 'date_time' ? 'datetime' : row.type, type: row.type, is_valid: true, value: row.value })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  } else {
+    expect(change).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid default.')
+  }
+})
+
+it('resolver identity changes preserve selection until the next open or query', async () => {
+  const original = vi.fn(async () => ['finance.rent'])
+  const latest = vi.fn(async () => ['finance.balance'])
+  const props = { value: { tenant: 't', key: 'r', version: '1', measures: [] }, onCreate: vi.fn(), onChange: vi.fn() }
+  const view = render(<ReportAuthoringEditor {...props} resolveMeasures={original} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Choose measure' }))
+  await screen.findByRole('option', { name: 'finance.rent' })
+  fireEvent.change(screen.getByLabelText('Measures'), { target: { value: 'finance.rent' } })
+  view.rerender(<ReportAuthoringEditor {...props} resolveMeasures={latest} />)
+  expect(original).toHaveBeenCalledTimes(1)
+  expect(latest).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Measures')).toHaveValue('finance.rent')
+  fireEvent.change(screen.getByLabelText('Search measures'), { target: { value: 'balance' } })
+  await screen.findByRole('option', { name: 'finance.balance' })
+  expect(latest).toHaveBeenCalledExactlyOnceWith('balance')
+})
+
+it.each([['boolean', 'true', 'lease'], ['date_time', '2026-01-01T00:00:00Z', ''], ['date_time', '2026-01-01T00:00:00Z', ' \t ']])('refuses invalid as_at type=%s input=%s effective=%s', (type, input, effective) => {
+  const change = vi.fn()
+  render(<ReportAuthoringEditor value={{ tenant: 't', key: 'r', version: '1', measures: [] }} onCreate={() => {}} onChange={change} />)
+  fireEvent.change(screen.getByLabelText('Parameter name'), { target: { value: 'as_at' } })
+  fireEvent.change(screen.getByLabelText('Parameter type'), { target: { value: type } })
+  fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: input } })
+  fireEvent.change(screen.getByLabelText('Effective-dated type'), { target: { value: effective } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
+  expect(change).not.toHaveBeenCalled()
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid default.')
+})
+
 it('reports-auth-12 creates a report from nothing', () => {
   const create = vi.fn()
   render(<ReportAuthoringEditor value={null} onCreate={create} onChange={() => {}} />)

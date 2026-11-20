@@ -14,6 +14,60 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class ReportAuthoringTests : BunitContext
 {
+    public static IEnumerable<object[]> ParameterDefaultCases()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/parameter-defaults.json"))) directory = directory.Parent;
+        using var fixture = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory!.FullName, "conformance/hlp.ui.report-authoring/parameter-defaults.json")));
+        foreach (var row in fixture.RootElement.GetProperty("cases").EnumerateArray()) yield return [row.GetProperty("id").GetString()!, row.GetRawText()];
+    }
+
+    [Theory(DisplayName = "shared parameter default")]
+    [MemberData(nameof(ParameterDefaultCases))]
+    public void SharedParameterDefault(string id, string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var row = document.RootElement;
+        ReportDraft? changed = null;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, value => changed = value));
+        cut.Find("[aria-label='Parameter name']").Change("p");
+        cut.Find("[aria-label='Parameter type']").Change(row.GetProperty("type").GetString());
+        cut.Find("[aria-label='Parameter default']").Change(row.GetProperty("input").GetString());
+        cut.Find("[aria-label='Add parameter']").Click();
+        if (row.GetProperty("accepted").GetBoolean())
+        {
+            var actual = Assert.Single(changed!.Parameters).Default;
+            var type = row.GetProperty("type").GetString();
+            Assert.Equal(type == "date_time" ? "datetime" : type, actual.Kind);
+            Assert.Equal(type, actual.Type);
+            Assert.True(actual.IsValid);
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(row.GetProperty("value").GetRawText()), JsonSerializer.SerializeToNode(actual.Value)), id);
+            Assert.Empty(cut.FindAll("[role='alert']"));
+        }
+        else
+        {
+            Assert.Null(changed);
+            Assert.Equal("Enter a valid default.", cut.Find("[role='alert']").TextContent);
+        }
+    }
+
+    [Theory]
+    [InlineData("boolean", "true", "lease")]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", "")]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", " \t ")]
+    public void RefusesInvalidAsAt(string type, string input, string effective)
+    {
+        ReportDraft? changed = null;
+        var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, value => changed = value));
+        cut.Find("[aria-label='Parameter name']").Change("as_at");
+        cut.Find("[aria-label='Parameter type']").Change(type);
+        cut.Find("[aria-label='Parameter default']").Change(input);
+        cut.Find("[aria-label='Effective-dated type']").Change(effective);
+        cut.Find("[aria-label='Add parameter']").Click();
+        Assert.Null(changed);
+        Assert.Equal("Enter a valid default.", cut.Find("[role='alert']").TextContent);
+    }
+
     [Fact(DisplayName = "reports-auth-12: creates a report from nothing")]
     public void CreateReport()
     {
@@ -95,8 +149,7 @@ public sealed class ReportAuthoringTests : BunitContext
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json"))) directory = directory.Parent;
         if (directory is null) throw new InvalidOperationException("Shared fixture not found.");
         var expected = SharedFixtureBatch.Current is { } raw ? JsonNode.Parse(raw)!["expected"] : JsonNode.Parse(File.ReadAllText(Path.Combine(directory.FullName, "conformance/hlp.ui.report-authoring/definition.json")));
-        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
-        Assert.True(JsonNode.DeepEquals(expected, JsonSerializer.SerializeToNode(current, options)));
+        Assert.True(JsonNode.DeepEquals(expected, JsonNode.Parse(ReportDraftCodec.Serialize(current))));
     }
 
     [Fact(DisplayName = "reports-auth-22: refuses an untyped default")]

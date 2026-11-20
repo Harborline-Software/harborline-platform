@@ -11,7 +11,8 @@ const realDateTime = (text: string) => {
   const date = new Date(0)
   date.setUTCFullYear(year, month - 1, day)
   const offset = /([+-])(\d{2}):(\d{2})$/.exec(text)
-  return hour < 24 && minute < 60 && second < 60 && year >= 1 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day && (!offset || Number(offset[2]) * 60 + Number(offset[3]) <= 840) && !Number.isNaN(Date.parse(text))
+  const utcYear = new Date(text).getUTCFullYear()
+  return hour < 24 && minute < 60 && second < 60 && year >= 1 && utcYear >= 1 && utcYear <= 9999 && date.getUTCMonth() === month - 1 && date.getUTCDate() === day && (!offset || Number(offset[2]) * 60 + Number(offset[3]) <= 840)
 }
 export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasures, refusals = [], readOnly = false, revision = null }: ReportAuthoringEditorProps) {
   const current = useRef(value)
@@ -20,6 +21,8 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
   const held = useRef<{ draft: ReportDraft; revision: string | null } | null>(null)
   const generation = useRef(0)
   const lookupSerial = useRef(0)
+  const resolver = useRef(resolveMeasures)
+  resolver.current = resolveMeasures
   const staleRefusals = useRef<readonly ReportRefusal[] | null>(null)
   const [draft, setDraft] = useState(value)
   const [hasHeld, setHasHeld] = useState(false)
@@ -45,27 +48,27 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
     if (dirty.current) { held.current = { draft: value, revision }; setHasHeld(true); setIncoming(true) } else adopt(value)
   }, [value, revision])
   useEffect(() => {
-    if (!open || !resolveMeasures) return
+    if (!open || !resolver.current) return
     let live = true
     const ticket = ++lookupSerial.current
     setOptions([])
     setSelected('')
     setResolverError(false)
-    void resolveMeasures(query).then(result => { if (live && ticket === lookupSerial.current) setOptions(result) }).catch(() => { if (live && ticket === lookupSerial.current) setResolverError(true) })
+    void resolver.current(query).then(result => { if (live && ticket === lookupSerial.current) setOptions(result) }).catch(() => { if (live && ticket === lookupSerial.current) setResolverError(true) })
     return () => { live = false }
-  }, [open, query, resolveMeasures])
+  }, [open, query])
   if (!value) return <button type="button" disabled={readOnly} onClick={() => onCreate({ tenant: '', key: '', version: '', measures: [], parameters: [] })}>Create report</button>
   const active = draft ?? value
   const located = incoming || hasHeld || refusals === staleRefusals.current ? [] : refusals
   const change = (next: ReportDraft) => { current.current = next; staleRefusals.current = refusals; currentRevision.current = revision; dirty.current = true; generation.current++; setDraft(next); resetPicker(); onChange(next) }
   const edit = (update: () => void) => { dirty.current = true; generation.current++; update(); resetPicker() }
   const addParameter = () => {
-    const text = parameterDefault.trim()
+    const text = parameterDefault.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
     const valid = parameterType === 'boolean' ? text === 'true' || text === 'false'
-      : parameterType === 'integer' ? /^-?\d+$/.test(text) && Number.isSafeInteger(Number(text))
-      : parameterType === 'float' ? text.length > 0 && Number.isFinite(Number(text))
+      : parameterType === 'integer' ? /^-?(?:0|[1-9][0-9]*)$/.test(text) && Number.isSafeInteger(Number(text))
+      : parameterType === 'float' ? /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(text) && Number.isFinite(Number(text))
       : parameterType === 'date_time' ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$/.test(text) && realDateTime(text) : true
-    if (!valid) { setInvalidDefault(true); return }
+    if (!valid || (parameterName === 'as_at' && (parameterType !== 'date_time' || !effectiveType.trim()))) { setInvalidDefault(true); return }
     setInvalidDefault(false)
     change({ ...active, parameters: [...(active.parameters ?? []), { name: parameterName, type: parameterType, default: { kind: parameterType === 'date_time' ? 'datetime' : parameterType, type: parameterType, is_valid: true, value: parameterType === 'boolean' ? text === 'true' : parameterType === 'integer' || parameterType === 'float' ? Number(text) : parameterType === 'date_time' ? text : parameterDefault }, ...(parameterName === 'as_at' ? { effective_dated_type: effectiveType } : {}) }] })
   }
