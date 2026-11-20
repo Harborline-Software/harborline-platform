@@ -17,11 +17,12 @@ import { resolve } from 'node:path'
 import test from 'node:test'
 import {EventEmitter} from 'node:events'
 import {createServer} from 'node:net'
+import {spawnSync} from 'node:child_process'
 
 import { mergeShardReports } from '../gallery-shard-merge.mjs'
 import { observeGalleryRun } from '../gallery-observations.mjs'
 import {
-  assertPortAvailable, stopServers, withServerCleanup, aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
+  linuxGroupHasRunningMembers, assertPortAvailable, stopServers, withServerCleanup, aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
 } from '../run-gallery-gate.mjs'
 
 const SUFFIX = ' is accessible and visually conformant'
@@ -242,7 +243,7 @@ test('gallery cleanup preserves Windows tree kill and waits for exit', async () 
 test('gallery cleanup ignores exited groups and reports unkillable groups', async () => {
   await stopServers([{child: {pid: 1234}}], {platform: 'linux', kill: gone})
   await assert.rejects(stopServers([{child: {pid: 1234}}], {
-    platform: 'linux', kill: () => {}, timeoutMs: 1,
+    platform: 'linux', kill: () => {}, groupRunning: () => true, timeoutMs: 1,
   }), /gallery server cleanup failed/)
 })
 for (const failure of [false, true]) {
@@ -276,3 +277,77 @@ for (const [signal, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]
     for (const name of ['SIGINT', 'SIGTERM', 'SIGHUP']) assert.equal(host.listenerCount(name), 0)
   })
 }
+
+// proc_pid_stat(5): after comm, fields 3/4/5 are state/parent PID/process group.
+const procFixture = records => ({
+  list: path => { assert.equal(path, '/proc'); return Object.keys(records) },
+  read: path => {
+    const record = records[path.split('/')[2]]
+    if (record instanceof Error) throw record
+    return record
+  },
+})
+test('Linux group probe ignores zombies, unrelated groups, and vanished PIDs', () => {
+  const records = {
+    1234: '1234 (node (server)) Z 1 1234 1234 0',
+    1235: '1235 (node worker) Z 1 1234 1234 0',
+    9876: '9876 (unrelated) R 1 9876 9876 0',
+    9999: Object.assign(new Error('gone'), {code: 'ENOENT'}),
+    self: 'not a PID',
+  }
+  assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), false)
+  for (const state of ['R', 'S', 'D', 'T']) {
+    records[1235] = `1235 (node worker) ${state} 1 1234 1234 0`
+    assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), true)
+  }
+  records[1235] = Object.assign(new Error('denied'), {code: 'EACCES'})
+  assert.throws(() => linuxGroupHasRunningMembers(1234, procFixture(records)), /denied/)
+  records[1235] = 'unparseable stat'
+  assert.throws(() => linuxGroupHasRunningMembers(1234, procFixture(records)), /stat/)
+})
+test('Linux cleanup accepts a zombie-only group even while kill(0) succeeds', async () => {
+  const calls = []
+  await stopServers([{child: {pid: 1234}}], {platform: 'linux', timeoutMs: 1,
+    kill: (pid, signal) => calls.push([pid, signal]),
+    groupRunning: pid => linuxGroupHasRunningMembers(pid, procFixture({
+      1235: '1235 (orphan worker) Z 1 1234 1234 0',
+    })),
+  })
+  assert.deepEqual(calls, [[-1234, 'SIGTERM'], [-1234, 0]])
+})
+test('Linux cleanup escalates while a member runs, then accepts its zombie', async () => {
+  const calls = []
+  let state = 'S'
+  await stopServers([{child: {pid: 1234}}], {platform: 'linux', timeoutMs: 1,
+    kill: (pid, signal) => { calls.push([pid, signal]); if (signal === 'SIGKILL') state = 'Z' },
+    groupRunning: pid => linuxGroupHasRunningMembers(pid, procFixture({
+      1235: `1235 (worker) ${state} 1 1234 1234 0`,
+    })),
+  })
+  assert.deepEqual(calls, [[-1234, 'SIGTERM'], [-1234, 0], [-1234, 'SIGKILL'], [-1234, 0]])
+})
+test('cleanup failure after completed work still emits the gate failure report', () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'gallery-cleanup-report-'))
+  writeFileSync(resolve(directory, 'gallery-shard-1.json'), JSON.stringify({
+    shard: 1, shards: 1,
+    results: requiredGalleryStepIds.map(id => ({id, passed: true, durationMs: 1})),
+    playwrightReport: shard([]),
+  }))
+  try {
+    const script = `
+      process.argv.push('--merge=' + process.argv[1])
+      const {main, stopServers} = await import(${JSON.stringify(new URL('../run-gallery-gate.mjs', import.meta.url).href)})
+      await main({stop: () => stopServers([{child: {pid: 1234}}], {
+        platform: 'linux', timeoutMs: 1, kill: () => {},
+        groupRunning: () => { throw new Error('injected process probe failure') },
+      })})
+    `
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script, directory], {encoding: 'utf8'})
+    assert.equal(result.status, 1)
+    const report = JSON.parse(result.stdout)
+    assert.equal(report.status, 'FAIL')
+    assert.match(report.failure, /gallery server cleanup failed/)
+    assert.equal(report.results.length, 9)
+    assert.ok(report.results.every(entry => entry.passed), 'work completed before the injected cleanup failure')
+  } finally { rmSync(directory, {recursive: true, force: true}) }
+})

@@ -408,8 +408,27 @@ export async function assertPortAvailable(port, {platform = process.platform, in
   })
 }
 
+// /proc stat fields after comm are state, parent PID, then process group ID.
+export function linuxGroupHasRunningMembers(groupId, {list = readdirSync, read = readFileSync} = {}) {
+  return list('/proc').filter(name => /^\d+$/.test(name)).some(pid => {
+    let stat
+    try { stat = read(`/proc/${pid}/stat`, 'utf8') }
+    catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'ESRCH') return false
+      throw error
+    }
+    const end = stat.lastIndexOf(')')
+    const fields = stat.slice(end + 2).trim().split(/\s+/)
+    if (end < 0 || fields[0]?.length !== 1 || !/^\d+$/.test(fields[2] ?? '')) {
+      throw new Error(`invalid /proc/${pid}/stat`)
+    }
+    return Number(fields[2]) === groupId && fields[0] !== 'Z'
+  })
+}
+
 export async function stopServers(owned = servers, {
   platform = process.platform, kill = process.kill, treeKill = spawnSync, timeoutMs = 5000,
+  groupRunning = linuxGroupHasRunningMembers,
 } = {}) {
   const waitUntilGone = async pid => {
     const deadline = Date.now() + timeoutMs
@@ -419,6 +438,7 @@ export async function stopServers(owned = servers, {
         if (error.code === 'ESRCH') return true
         throw error
       }
+      if (platform === 'linux' && !groupRunning(pid)) return true
       await new Promise(resolveWait => setTimeout(resolveWait, 50))
     } while (Date.now() < deadline)
     return false
@@ -490,7 +510,7 @@ export const requiredGalleryStepIds = [
 ]
 const shardReportName = shardAssignment ? `test-results/results-shard-${shardAssignment.index}.json` : undefined
 
-if (import.meta.main) {
+export async function main({stop = stopServers} = {}) {
   let prepared
   let failure
   // Set by the collector; the observation below reads it instead of a results.json this job never
@@ -499,8 +519,8 @@ if (import.meta.main) {
   // T-962: each producer's step and suite wall clock and tab-walk share, taken before the merge
   // drops `config` and `stats.duration`.
   let shardTiming
-  await withServerCleanup(async () => {
   try {
+  await withServerCleanup(async () => {
     if (mergeDirectory) {
       const shardReports = readdirSync(mergeDirectory, {recursive: true, withFileTypes: true})
         .filter(entry => entry.isFile() && /^gallery-shard-\d+\.json$/.test(entry.name))
@@ -582,10 +602,10 @@ if (import.meta.main) {
       )
     }
     }
+  }, {stop})
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error)
   }
-  })
   
   if (failure) {
     for (const server of servers) {
@@ -798,3 +818,5 @@ if (import.meta.main) {
   process.exitCode = passed ? 0 : 1
   }
 }
+
+if (import.meta.main) await main()
