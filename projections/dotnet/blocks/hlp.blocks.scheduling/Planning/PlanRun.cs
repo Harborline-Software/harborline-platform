@@ -47,7 +47,8 @@ public sealed class PlanRun
         var run = await lifecycle.StartAsync(new(new("plan-run"), tenant,
             new(RetryProfileName.ImmediateOrFail, [RetryProfileName.ImmediateOrFail]), CausedBy: causedBy), cancellationToken).ConfigureAwait(false);
         var attemptBegan = false;
-        SchedulingPlan plan;
+        // Keep mutants that remove the catch rethrow compilable.
+        SchedulingPlan? plan = null;
         try
         {
             await lifecycle.BeginAttemptAsync(tenant, run.Id, cancellationToken).ConfigureAwait(false);
