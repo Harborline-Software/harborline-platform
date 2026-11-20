@@ -19,6 +19,8 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Scheduling.Tests" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(HarborlineSchedulingExperiments)' == 'true'">
     <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Data" />
     <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Evaluation" />
     <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Tests" />

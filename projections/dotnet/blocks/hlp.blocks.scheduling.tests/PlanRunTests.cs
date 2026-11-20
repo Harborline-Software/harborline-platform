@@ -16,6 +16,19 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class PlanRunTests
 {
+    [Theory]
+    [InlineData("Harborline.Experiments.SchedulingDecisionModel.Data")]
+    [InlineData("Harborline.Experiments.SchedulingDecisionModel.Evaluation")]
+    [InlineData("Harborline.Experiments.SchedulingDecisionModel.Tests")]
+    public void Default_block_does_not_grant_internals_to_experiments(string experimentAssembly)
+    {
+        var friends = typeof(PlanRun).Assembly
+            .GetCustomAttributes(typeof(System.Runtime.CompilerServices.InternalsVisibleToAttribute), inherit: false)
+            .Cast<System.Runtime.CompilerServices.InternalsVisibleToAttribute>();
+        Assert.DoesNotContain(friends,
+            friend => new System.Reflection.AssemblyName(friend.AssemblyName).Name == experimentAssembly);
+    }
+
     [Fact]
     public void PlanRun_is_the_only_exported_planning_entry_point()
     {
@@ -283,7 +296,15 @@ public sealed class PlanRunTests
                 pin ?? new("t", "job", "job@1.0.0"), facts ?? Facts(), invalid == "backend" ? "missing" : "prototype.exhaustive-proof.v2",
                 SolverGuarantee.FeasibleProof, 100, DateTimeOffset.Parse("2027-01-01T00:00:00Z"), invalid == "axis" ? TimeSpan.Zero : TimeSpan.FromHours(1),
                 invalid == "binding" ? new Dictionary<string, ResourceCapacity>() : new() { ["r"] = ResourceCapacity.Exclusive(ParticipantRef.Asset("room")) }, cause, ct);
-        public void Dispose() { provider.Dispose(); Store.Dispose(); Directory.Delete(directory, recursive: true); }
+        public void Dispose()
+        {
+            provider.Dispose();
+            Store.Dispose();
+            // Best-effort cleanup must not fail tests when temporary files remain locked or inaccessible.
+            try { Directory.Delete(directory, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
     }
     private sealed class FaultingRunStore : IRunStore
     {
