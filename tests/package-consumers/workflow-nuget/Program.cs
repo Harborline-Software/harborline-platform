@@ -188,6 +188,16 @@ if (effectStagedCount != 1)
     throw new InvalidOperationException("redelivery staged a second effect — the idempotency guard failed.");
 }
 
+var lifecycle = (await ((IWorkflowStore)hostStore).EventsAsync("inst-1"))
+    .SelectMany(fact => WorkflowLifecycleProjection.Map(fact, new("host-store", Tenant))).ToArray();
+if (!lifecycle.Select(e => e.Type).SequenceEqual(new[]
+    {
+        "io.serverlessworkflow.workflow.started.v1", "io.serverlessworkflow.task.completed.v1",
+        "io.serverlessworkflow.workflow.completed.v1",
+    }) || lifecycle[1].Id == lifecycle[2].Id
+    || lifecycle[0].Data.GetProperty("definition").GetProperty("version").GetString() != "1.0.0")
+    throw new InvalidOperationException("packaged lifecycle history did not preserve start, completion and distinct event identities");
+
 var sink = provider.GetRequiredService<CountingWorkflowApprovalDecisionSink>();
 
 // ── 7. The narrowed route seam: a loopback HTTP host composed from packages only ──
@@ -414,6 +424,10 @@ using (var failure = JsonDocument.Parse(failureResult!.ResultJson))
 }
 if (await failureDispatcher.DispatchAsync(failureTrigger, Authorized("failed-definition")) != WorkflowDispatchResult.Terminal)
     throw new InvalidOperationException("packaged interpreter failure was retried");
+var faultEvents = (await ((IWorkflowStore)hostStore).EventsAsync("failed-definition"))
+    .SelectMany(fact => WorkflowLifecycleProjection.Map(fact, new("host-store", Tenant))).Select(e => e.Type);
+if (!faultEvents.SequenceEqual(new[] { "io.serverlessworkflow.workflow.started.v1", "io.serverlessworkflow.task.faulted.v1", "io.serverlessworkflow.workflow.faulted.v1" }))
+    throw new InvalidOperationException("packaged interpreter failure did not publish its committed fault history");
 
 Console.WriteLine("WORKFLOW_PACKAGE_PASS:" + JsonSerializer.Serialize(new
 {
@@ -709,6 +723,17 @@ sealed class HostInMemoryWorkflowStore : IWorkflowStore
     private readonly Dictionary<string, WorkflowStepIdempotencyRecord> _steps = new();
     private readonly List<WorkflowEventRecord> _events = new();
 
+    public Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
+    {
+        lock (_gate)
+            return Task.FromResult<IReadOnlyList<WorkflowEventRecord>>(_events.Where(e => e.InstanceId == instanceId)
+                .OrderBy(e => e.Seq).Select(e => new WorkflowEventRecord
+                {
+                    InstanceId = e.InstanceId, Seq = e.Seq, Step = e.Step, EventType = e.EventType,
+                    DataJson = e.DataJson, OccurredAt = e.OccurredAt,
+                }).ToArray());
+    }
+
     public Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default)
     {
         lock (_gate)
@@ -722,6 +747,17 @@ sealed class HostInMemoryWorkflowStore : IWorkflowStore
         lock (_gate)
         {
             _instances.Add(instance.Id, Clone(instance));
+            _events.Add(new WorkflowEventRecord
+            {
+                InstanceId = instance.Id, Seq = 1, Step = instance.CurrentStep, EventType = "WorkflowStarted",
+                OccurredAt = instance.CreatedAt,
+                DataJson = JsonSerializer.Serialize(new
+                {
+                    name = instance.Id,
+                    definition = new { name = instance.DefinitionKey, @namespace = instance.TenantId, version = instance.DefinitionVersion },
+                    startedAt = instance.CreatedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                }),
+            });
         }
         return Task.CompletedTask;
     }
@@ -747,14 +783,27 @@ sealed class HostInMemoryWorkflowStore : IWorkflowStore
         lock (_gate)
         {
             var instance = _instances[key.InstanceId];
+            var now = DateTimeOffset.UtcNow;
+            var failed = nextStatus == WorkflowStatus.Failed;
+            var step = failed ? nextStep : key.Step;
+            var data = new JsonObject
+            {
+                ["workflow"] = instance.Id,
+                ["task"] = "/" + step.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal),
+                [failed ? "faultedAt" : "completedAt"] = now.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                ["outcomeType"] = eventType, ["outcome"] = JsonNode.Parse(eventDataJson),
+            };
+            if (nextStatus is WorkflowStatus.Completed or WorkflowStatus.Failed)
+                data["workflowStatus"] = failed ? "faulted" : "completed";
+            if (failed) data["error"] = new JsonObject { ["type"] = "urn:harborline:workflow:step-failed", ["status"] = 500 };
             _events.Add(new WorkflowEventRecord
             {
                 InstanceId = key.InstanceId,
                 Seq = _events.Count(e => e.InstanceId == key.InstanceId) + 1,
-                Step = key.Step,
-                EventType = eventType,
-                DataJson = eventDataJson,
-                OccurredAt = DateTimeOffset.UtcNow,
+                Step = step,
+                EventType = failed ? "TaskFaulted" : "TaskCompleted",
+                DataJson = data.ToJsonString(),
+                OccurredAt = now,
             });
             _steps[key.Value] = new WorkflowStepIdempotencyRecord
             {

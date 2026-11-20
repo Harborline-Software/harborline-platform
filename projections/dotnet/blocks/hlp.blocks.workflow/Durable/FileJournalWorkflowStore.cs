@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -72,7 +73,7 @@ public sealed class FileJournalWorkflowUnitOfWork
 public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposable
 {
     private const uint Magic = 0x4A574C48; // HLWJ in little-endian byte order.
-    private const byte FormatVersion = 1;
+    private const byte FormatVersion = 2;
     private const int HeaderBytes = 12;
     private const int HeaderChecksumBytes = 32;
     private const int ChecksumBytes = 32;
@@ -137,10 +138,19 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         await EnterAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_instances.ContainsKey(instance.Id))
-                throw new InvalidOperationException($"A workflow instance '{instance.Id}' already exists (instances are create-once).");
-            await AppendAsync(JournalRecordType.InstanceCreated, ToDto(instance), ct).ConfigureAwait(false);
-            _instances.Add(instance.Id, Clone(instance));
+            var created = Clone(instance);
+            if (_instances.ContainsKey(created.Id))
+                throw new InvalidOperationException($"A workflow instance '{created.Id}' already exists (instances are create-once).");
+            var fact = new EventDto(created.Id, 1, created.CurrentStep, "WorkflowStarted",
+                JsonSerializer.Serialize(new
+                {
+                    name = created.Id,
+                    definition = new { name = created.DefinitionKey, @namespace = created.TenantId, version = created.DefinitionVersion },
+                    startedAt = Format(created.CreatedAt),
+                }), Format(created.CreatedAt));
+            await AppendAsync(JournalRecordType.InstanceCreated, new CreationDto(ToDto(created), fact), ct).ConfigureAwait(false);
+            _instances.Add(created.Id, created);
+            _events.Add(FromDto(fact));
         }
         finally { _gate.Release(); }
     }
@@ -203,10 +213,24 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
 
             var now = _clock.GetUtcNow();
             var seq = NextSeq(key.InstanceId);
+            var failed = nextStatus == WorkflowStatus.Failed;
+            var step = failed ? nextStep : key.Step;
+            var data = new JsonObject
+            {
+                ["workflow"] = instance.Id,
+                ["task"] = "/" + step.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal),
+                [failed ? "faultedAt" : "completedAt"] = Format(now),
+                ["outcomeType"] = eventType,
+                ["outcome"] = JsonNode.Parse(eventDataJson),
+            };
+            if (nextStatus is WorkflowStatus.Completed or WorkflowStatus.Failed)
+                data["workflowStatus"] = failed ? "faulted" : "completed";
+            if (failed)
+                data["error"] = new JsonObject { ["type"] = "urn:harborline:workflow:step-failed", ["status"] = 500 };
             var dto = new AdvanceDto(
                 key.InstanceId, key.Iteration, key.Step, key.Value,
                 unitOfWork.Staged.ToArray(), resultJson,
-                new EventDto(key.InstanceId, seq, key.Step, eventType, eventDataJson, Format(now)),
+                new EventDto(key.InstanceId, seq, step, failed ? "TaskFaulted" : "TaskCompleted", data.ToJsonString(), Format(now)),
                 nextStep, (int)nextStatus, Format(now));
             await AppendAsync(JournalRecordType.Advanced, dto, ct).ConfigureAwait(false);
             ApplyAdvance(dto);
@@ -381,7 +405,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             _journal.ReadExactly(header);
             if (BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(0, 4)) != Magic)
                 throw new InvalidDataException("The workflow journal contains an invalid frame marker.");
-            if (header[4] != FormatVersion)
+            if (header[4] is not (1 or FormatVersion))
                 throw new InvalidDataException("The workflow journal version is unsupported.");
             if (_journal.Length - _journal.Position < HeaderChecksumBytes)
             {
@@ -412,7 +436,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             payload.CopyTo(prefix, HeaderBytes);
             if (!CryptographicOperations.FixedTimeEquals(SHA256.HashData(prefix), checksum))
                 throw new InvalidDataException("The workflow journal checksum is invalid.");
-            try { Apply(type, payload); }
+            try { Apply(type, payload, header[4]); }
             catch (Exception exception) when (exception is not InvalidDataException)
             {
                 throw new InvalidDataException("The workflow journal record is invalid.", exception);
@@ -420,15 +444,17 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
         }
     }
 
-    private void Apply(JournalRecordType type, ReadOnlySpan<byte> payload)
+    private void Apply(JournalRecordType type, ReadOnlySpan<byte> payload, byte version)
     {
         switch (type)
         {
             case JournalRecordType.InstanceCreated:
-                var created = Deserialize<InstanceDto>(payload);
+                var creation = version == 1 ? null : Deserialize<CreationDto>(payload);
+                var created = version == 1 ? Deserialize<InstanceDto>(payload) : creation!.Instance;
                 if (_instances.ContainsKey(created.Id))
                     throw new InvalidDataException("Instance-created record duplicates an existing instance.");
                 _instances.Add(created.Id, FromDto(created));
+                if (creation is not null) _events.Add(FromDto(creation.Event));
                 break;
             case JournalRecordType.Advanced:
                 ApplyAdvance(Deserialize<AdvanceDto>(payload));
@@ -597,6 +623,7 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
 
     private enum JournalRecordType : byte { InstanceCreated = 1, Advanced = 2, Parked = 3, Migrated = 4 }
     private sealed record InstanceDto(string Id, string TenantId, string DefinitionKey, string DefinitionVersion, string CurrentStep, int Iteration, int Status, string StateJson, string CreatedAt, string UpdatedAt, WorkflowSubjectRecordReference? SubjectRecord = null, string[]? MovedAwaySteps = null, long MigrationGeneration = 0, long StoreGeneration = 0);
+    private sealed record CreationDto(InstanceDto Instance, EventDto Event);
     private sealed record EventDto(string InstanceId, long Seq, string Step, string EventType, string DataJson, string At);
     private sealed record AdvanceDto(string InstanceId, int Iteration, string Step, string Key, string[] EffectPayloads, string ResultJson, EventDto Event, string NextStep, int NextStatus, string At);
     private sealed record ParkDto(string InstanceId, string Step, int Iteration, EventDto Event, string At);
