@@ -55,7 +55,7 @@
     "conformance/hlp.blocks.scheduling/authoring-refusals.json": "23684286716a484e78990dfd16b4ce7ed8d81b789d576974f37c270f20ea7c19",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanRun.cs": "4f3d41498212cfe8811dd26c4ddebda30a54d7254c95a777b8cd4ea68b28c813",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingPermissions.cs": "d7cf877050862c4aded952c7a8259331956bb8b18241718d274fc4b48fe74884",
-    "projections/dotnet/blocks/hlp.blocks.scheduling.tests/PlanRunTests.cs": "560494247b107715879fa82af04f7a94cdca21f852554200c784b5420d09d21e",
+    "projections/dotnet/blocks/hlp.blocks.scheduling.tests/PlanRunTests.cs": "3b2793e835a61155b45d173ae5347552d3cb2c80c6fef5d0aa11fabc755f9fa6",
     "projections/dotnet/blocks/hlp.blocks.scheduling.tests/SchedulingPermissionsTests.cs": "8d19245857f597032e4fdd1fcf044b59673e32afa282c91965f013566289c2fd",
     "projections/dotnet/blocks/hlp.blocks.scheduling.tests/FileJournalSchedulingStoreTests.cs": "3baa09eafe5cc0a4723492f17a829c2e07a7cda82d4f8e92c846903f81a649c2",
     "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml": "f9e01b8379f79f1d5e6542d0a162d211a09e6f1d6e0fbf0c956b212d0274fd84",

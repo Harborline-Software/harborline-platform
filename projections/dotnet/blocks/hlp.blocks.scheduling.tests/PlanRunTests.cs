@@ -123,19 +123,21 @@ public sealed class PlanRunTests
     }
 
     [Theory(DisplayName = "execution-runtime-cc-4: caller cancellation and unexpected errors finish the run without a Plan")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Failure(bool cancel)
+    [InlineData(true, true, RunStatus.Cancelled)]
+    [InlineData(false, false, RunStatus.DeadLettered)]
+    [InlineData(true, false, RunStatus.DeadLettered)]
+    [InlineData(false, true, RunStatus.DeadLettered)]
+    public async Task Failure(bool cancellationException, bool requestCancellation, RunStatus expectedStatus)
     {
         using var f = await Fixture.Create();
         using var cts = new CancellationTokenSource();
-        Exception error = cancel ? new OperationCanceledException(cts.Token) : new InvalidOperationException("private detail");
-        f.Availability.OnRead = () => { if (cancel) cts.Cancel(); throw error; };
+        Exception error = cancellationException ? new OperationCanceledException(cts.Token) : new InvalidOperationException("private detail");
+        f.Availability.OnRead = () => { if (requestCancellation) cts.Cancel(); throw error; };
         Assert.Same(error, await Assert.ThrowsAnyAsync<Exception>(() => f.Run(ct: cts.Token)));
-        var run = Assert.Single(await f.Runs.ListByStatusAsync(new("t"), cancel ? RunStatus.Cancelled : RunStatus.DeadLettered));
+        var run = Assert.Single(await f.Runs.ListByStatusAsync(new("t"), expectedStatus));
         Assert.Empty(await f.Runs.ListByStatusAsync(new("t"), RunStatus.Running));
         Assert.Equal(RetryProfileName.ImmediateOrFail, run.RetryProfile);
-        if (!cancel)
+        if (expectedStatus == RunStatus.DeadLettered)
         {
             Assert.Equal("PLAN_FAILED", run.DeadLetter!.LastFailure.Code);
             Assert.Equal(DeadLetterReason.RetriesExhausted, run.DeadLetter!.Reason);
