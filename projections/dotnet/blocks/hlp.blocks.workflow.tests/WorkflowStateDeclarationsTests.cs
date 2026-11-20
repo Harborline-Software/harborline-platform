@@ -7,6 +7,16 @@ namespace Harborline.Blocks.Workflow.Tests;
 // Oracle: DES-0019 workflows-ck-20 to ck-22 and ADR-0057.
 public sealed class WorkflowStateDeclarationsTests
 {
+    [Theory(DisplayName = "workflows-ck-21: mapper refuses escalation on action or notification")]
+    [InlineData("\"escalation\":null")]
+    [InlineData("\"notification\":{\"eventKey\":\"event\",\"tier\":\"information\",\"escalation\":null}")]
+    public void Mapper_refuses_escalation_on_notification_or_action(string member)
+    {
+        using var json = JsonDocument.Parse("{\"initialState\":\"Open\",\"states\":[],\"actions\":[{\"id\":\"notify\",\"on\":{\"state\":\"Open\"},\"kind\":\"Notify\",\"capabilityRef\":\"notify.email\",\"classification\":\"AP\"," + member + "}]}");
+        var error = Assert.Throws<WorkflowGateReferenceException>(() => WorkflowDefinitionWireMapper.ToModel(json.RootElement, "t", "k", "1.0.0"));
+        Assert.Equal("workflow.escalation_on_notification", error.Code);
+    }
+
     [Fact(DisplayName = "workflows-ck-20 workflows-ck-21 workflows-ck-22 workflows-auth-13 workflows-auth-14 workflows-auth-19: mapper retains state declarations and action notification")]
     public void Mapper_retains_state_declarations_and_action_notification()
     {
