@@ -1,0 +1,8 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)../../Directory.Build.props" />
+  <ItemDefinitionGroup>
+    <ProjectReference>
+      <AdditionalProperties>HarborlineSchedulingExperiments=true</AdditionalProperties>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+</Project>

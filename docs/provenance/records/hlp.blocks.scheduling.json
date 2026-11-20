@@ -36,7 +36,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling/ScheduleReservationCoordinator.cs": "454d8534626301cac45fa455c0ee509e49de9a274786ba61b2b6d72a5f8b8901",
     "projections/dotnet/blocks/hlp.blocks.scheduling/SchedulingDurableRecords.cs": "3e51fad9f5b738b06cee71f7aeb1de12f94d37e3084e133d4bda0c552d206296",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Telemetry/SchedulingTelemetry.cs": "d6208d668b415fded2349c978799373f6a879cc4caad80946fc7d3583c5dba8f",
-    "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "20ab026fd4920154fa30e2856c8f55b81f3d21161401d92eefc01eeb54a9f50e",
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj": "86ef169e4bb825941eecd81de3f3f5bc7065d372d92a6852e33d9ec63823b664",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/OccurrenceModels.cs": "a5df38b4eb1f6acea11636323d0a7b3b2c54e6d3eacf4fb87f1c89bcf2a4b5cc",
     "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/OccurrenceTime.cs": "618699051bbc2ff384327006ab9ed7b1d8b5b760f3a686f4ce4ae15ba1fe83e1",
