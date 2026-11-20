@@ -939,12 +939,14 @@
     "projections/react/ui/hlp.ui.report-authoring": {
       "baseline": 70,
       "break": 70,
-      "score": 70.59,
-      "tested": 378,
-      "observed": [
-        70.59
-      ],
-      "measured": "2026-11-16, PC, T-489 full run (--all, every mutable file) on f000edad plus the gallery parity fix committed with this entry, StrykerJS 10.1.1 vitest-runner, 15 workers: 276 Killed / 102 Survived / 13 NoCoverage"
+      "score": 81.25,
+      "tested": 494,
+      "observed": {
+        "NoCoverage": 2,
+        "Killed": 403,
+        "Survived": 91
+      },
+      "measured": "2026-11-20"
     }
   }
 }
