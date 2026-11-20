@@ -1,5 +1,4 @@
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 
 namespace Harborline.Foundation.Forms.Engine;
 
@@ -22,7 +21,7 @@ public static class FormsExpressionEnvironment
             ["field"] = "record-type-schema-field",
             ["row"] = "record-type-schema-child-row",
         },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "evaluated-at",
