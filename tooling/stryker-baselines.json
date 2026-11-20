@@ -277,7 +277,7 @@
     "detected": 2342,
     "undetected": 941,
     "measured": "2026-11-19",
-    "commit": "9981792895f0fa571ff2a5246b9fc79867d220ec"
+    "commit": "6cf61c2f96734710408198ae6fea20af0303d482"
   },
   "projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj": {
     "break": 72,

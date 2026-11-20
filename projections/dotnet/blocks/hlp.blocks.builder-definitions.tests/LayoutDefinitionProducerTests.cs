@@ -756,6 +756,28 @@ public sealed class LayoutDefinitionProducerTests
             (await store.ListHistoryAsync(key)).Select(revision => (revision.Revision, revision.Status, revision.Document.VersionId)));
     }
 
+    [Theory(DisplayName = "T-1194: Layout cannot publish Views-only revision-7 operations in show_when")]
+    [InlineData("""{"some":[[true],{"var":""}]}""")]
+    [InlineData("""{"all":[[true],{"var":""}]}""")]
+    [InlineData("""{"none":[[false],{"var":""}]}""")]
+    [InlineData("""{"startsWith":["invoice","inv"]}""")]
+    [InlineData("""{"endsWith":["invoice","ice"]}""")]
+    public async Task ViewsOnlyGuardOperationsNeverPublish(string expression)
+    {
+        var definition = ScreenDefinition(block => block.Id == "root"
+            ? block with { ShowWhen = new LayoutShowWhen(Expression: expression) } : block);
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Layout, "surface.customer");
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission> { [DefinitionKind.Layout] = LayoutStoreAdmission });
+        await store.SaveDraftAsync(new(key, "v1", "1.0.0", Encoding.UTF8.GetString(LayoutDefinitionJson.SerializeCanonical(definition))), 0, "draft-1");
+
+        var refused = await Assert.ThrowsAsync<DefinitionRefusalException>(async () => await store.PublishAsync(key, "v1", 1, "publish-1"));
+        Assert.Equal(DefinitionAdmissionPhase.Publish, refused.Stage);
+        Assert.Equal([new DefinitionRefusal("layout.guard.variable_not_admitted", "/blocks/0/show_when")], refused.Refusals);
+        Assert.Null(await store.GetPublishedHeadAsync(key));
+        Assert.Null(await store.ResolvePublishedAsync(new DefinitionBinding(key, "v1")));
+        Assert.Equal([DefinitionStatus.Draft], (await store.ListHistoryAsync(key)).Select(revision => revision.Status));
+    }
+
     [Fact(DisplayName = "layout-ck-4: medium is screen or page, declared on the surface; the same tree admits on both media and an unknown medium refuses")]
     [Trait("Holds", "layout-ck-4")]
     public void MediumIsScreenOrPageDeclaredOnTheSurface()
