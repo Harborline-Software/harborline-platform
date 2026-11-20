@@ -3,12 +3,14 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Harborline.Blocks.BuilderDefinitions;
+using Harborline.Contracts.Authorization;
 using Harborline.Contracts.Fields;
 using Harborline.Foundation.Assets.Common;
 using Harborline.Foundation.Authorization;
 using Harborline.Foundation.ContentStore;
 using Harborline.Foundation.Definitions;
 using Harborline.Foundation.FieldRuntime;
+using Harborline.Foundation.Forms;
 using Harborline.Foundation.Forms.Engine.Persistence;
 using Harborline.Foundation.Forms.Engine.Projection;
 using Harborline.Foundation.Forms.Engine.Security;
@@ -136,6 +138,24 @@ public sealed class FormAttachmentSubmissionTests
         Assert.False((await unbound.Engine.ValidateAsync(unbound.Definition.Id, candidate)).IsValid);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(RecordTypeCreationGate.Role)]
+    public async Task Bound_attachments_without_an_accepted_Records_command_refuse_stages(RecordTypeCreationGate? creationGate)
+    {
+        var f = await Fixture.Create(creationGate: creationGate);
+        using var candidate = Candidate(await f.Upload("first"));
+        // Oracle: ADR-0142 decision 2, DES-0054 cc-1/cc-2 and DES-0030 cc-13 require references outside a Records write.
+        // Required reference members are missing at entry 0; RFC 6901 escapes the fixture's proof/~ field as proof~1~0.
+        var result = await f.Form.Engine.ValidateAsync(f.Form.Definition.Id, candidate);
+        Assert.Contains(("required", "/proof~1~0/0"), result.Errors.Select(e => (e.Code.Value, e.JsonPointer)));
+        var refusal = await Assert.ThrowsAsync<FormEngineValidationException>(async () =>
+            await f.Form.Engine.SubmitAsync(new(f.Form.Definition.Id, candidate, "no-accepted-command")));
+        Assert.Contains(("required", "/proof~1~0/0"), refusal.Errors.Select(e => (e.Code.Value, e.JsonPointer)));
+        Assert.Empty(f.Form.State.Commands);
+        Assert.Empty(f.Form.State.Idempotency);
+    }
+
     [Fact]
     public async Task Required_attachment_count_refuses_before_acceptance_with_the_shared_code()
     {
@@ -170,7 +190,7 @@ public sealed class FormAttachmentSubmissionTests
     { ["proof/~"] = stages.Select((id, i) => new { stage_id = id, display_name = i == 0 ? "first.txt" : "second.txt" }).ToArray() }));
     private static ContentStoreWrite Evidence(string actor) => new(new(Guid.NewGuid().ToString("N"), Guid.NewGuid().ToString("N"), "fixture"), new(Guid.NewGuid().ToString("N"), actor, DateTimeOffset.UtcNow, ReadOnlyMemory<byte>.Empty));
 
-    private sealed class Fixture : IFormFieldBindingSource, IFormProjectionSink, IFormAcceptedRecordBodies
+    private sealed class Fixture : IFormFieldBindingSource, IFormProjectionSink, IFormAcceptedRecordBodies, IFormRecordTypePolicyReader
     {
         public InMemoryContentStore Store { get; private set; } = null!;
         public InMemorySchemaRegistry Registry { get; private set; } = null!;
@@ -180,10 +200,11 @@ public sealed class FormAttachmentSubmissionTests
         public List<string> BodyRequests { get; } = [];
         private RecordWriteOperation operation = null!;
         private NewRecordType type = null!;
+        private RecordTypeCreationGate? creationGate;
         public bool Execute { get; set; }
-        public static async Task<Fixture> Create(bool evidence = false, bool required = false)
+        public static async Task<Fixture> Create(bool evidence = false, bool required = false, RecordTypeCreationGate? creationGate = RecordTypeCreationGate.FormOnly)
         {
-            var f = new Fixture();
+            var f = new Fixture { creationGate = creationGate };
             var storage = new InMemoryContentStoreStorage();
             f.Store = new(new(100, 1000, 10000, TimeSpan.FromHours(1)), new Keys(), TimeProvider.System, storage);
             var kinds = new FieldKindRuntime(new FieldKindRegistry([new("attachment", "1.0.0", null, FieldScalarValueShape.ContentReference), new("text", "1.0.0", null, FieldScalarValueShape.Text)]), 100);
@@ -199,9 +220,10 @@ public sealed class FormAttachmentSubmissionTests
             await classes.CreateDraftAsync(new("tenant-engine", "eam", "Equipment", "1.0.0", new(1, 0), "eam-core"), "class");
             await classes.PublishAsync("tenant-engine", "eam.equipment", "1.0.0", 1, "publish-class");
             f.Registry = new(fieldKindRuntime: kinds);
-            var records = new RecordTypeDefinitionStore(catalogue, compiler, new(kinds), f.Registry, window);
+            var roles = RoleVocabulary.FromApi([new(Guid.Parse("11111111-1111-1111-1111-111111111111"), RoleReference.Domain("evidence-author"), "Evidence author", new(RoleOwnerKind.Package, "eam-core"), false)]);
+            var records = new RecordTypeDefinitionStore(catalogue, compiler, new(kinds), f.Registry, window, roles: roles);
             f.type = new("tenant-engine", "eam", "Evidence", "1.0.0",
-                [new FieldDefinition("proof/~", "Proof", new(kind, new(required, 0, null, [], null))) { RequiredCondition = evidence ? JsonSerializer.Deserialize<JsonElement>("{\"==\":[1,1]}") : null }, new("originator", "Untrusted request data")], new(1, 0), ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: RecordCreationGate.FormOnly);
+                [new FieldDefinition("proof/~", "Proof", new(kind, new(required, 0, null, [], null))) { RequiredCondition = evidence ? JsonSerializer.Deserialize<JsonElement>("{\"==\":[1,1]}") : null }, new("originator", "Untrusted request data")], new(1, 0), ClassId: "eam.equipment", RecordClass: RecordClass.Master, PackageId: "eam-core", CreationGate: creationGate == RecordTypeCreationGate.Role ? RecordCreationGate.Role : RecordCreationGate.FormOnly, CreationRoleId: creationGate == RecordTypeCreationGate.Role ? "evidence-author" : null);
             await records.CreateDraftAsync(f.type, "type");
             var publication = await records.PublishAsync("tenant-engine", "eam.evidence", "1.0.0", 1, "publish");
             f.Rows = new(storage.Bookkeeping);
@@ -209,12 +231,13 @@ public sealed class FormAttachmentSubmissionTests
             f.Form = await Harness.CreateAsync(schemaRegistry: f.Registry, schemaJson: publication.Schema.JsonSchemaText,
                 fieldBindings: f, fieldKinds: kinds, fieldDomains: domains, projectionSink: f, security: new PlaintextSecurity(),
                 options: new() { AcceptedCommandWorkerId = "sys.forms-worker" }, clock: TimeProvider.System,
-                submitGates: new AccessProviderFormSubmitGateAccess(new AccessProvider(new AcceptedCommandFixtures.Decider()), TimeProvider.System), recordTypePolicies: new AcceptedCommandFixtures.FormOnlyReader(),
-                definitionFactory: (schema, tenant) => Harness.CreateDefinition(schema, tenant) with { RecordTypeId = "eam.evidence", SubmitGate = AcceptedCommandFixtures.InspectorGate,
+                submitGates: new AccessProviderFormSubmitGateAccess(new AccessProvider(new AcceptedCommandFixtures.Decider()), TimeProvider.System), recordTypePolicies: f,
+                definitionFactory: (schema, tenant) => Harness.CreateDefinition(schema, tenant) with { RecordTypeId = creationGate is null ? null : "eam.evidence", SubmitGate = AcceptedCommandFixtures.InspectorGate,
                     Overlay = new(new Dictionary<string, FieldOverlay> { ["proof/~"] = new(InternationalizedText.FromInvariant("Proof")), ["originator"] = new(InternationalizedText.FromInvariant("Data")) }, [new("main", InternationalizedText.FromInvariant("Main"), ["proof/~", "originator"], new([], []))], []) });
             return f;
         }
         public ValueTask<Guid> Upload(string text, string actor = "alice") => Store.PutAsync(new("tenant-engine"), new MemoryStream(Encoding.UTF8.GetBytes(text)), "text/plain", null, Evidence(actor));
+        public ValueTask<RecordTypeCreationGate?> GetCreationGateAsync(TenantId tenant, string recordTypeId, CancellationToken cancellationToken = default) => ValueTask.FromResult(creationGate);
         public ValueTask<FormSchemaFieldBindings?> ResolveAsync(TenantId tenant, string schemaRef, CancellationToken cancellationToken = default) => ValueTask.FromResult<FormSchemaFieldBindings?>(new(tenant, schemaRef, type.Fields.ToDictionary(field => field.FieldKey, field => field.Binding ?? new(new("text", "1.0.0", new Dictionary<string, string>()), new(false, 0, 1, [], null)))));
         public bool ExecutesAcceptedCommands => Execute;
         public ValueTask<FormProjectionDeliveryResult> DeliverAsync(FormProjectionEnvelope envelope, CancellationToken cancellationToken = default) => throw new NotSupportedException();

@@ -103,7 +103,7 @@ internal static class FormCandidateEvaluator
 
         errors.AddRange(schemaResult.Errors
             .Where(row => !TargetsPrunedField(row.JsonPointer, hidden, readOnly))
-            // Published schemas describe reads; bound attachment entries use the shared submission validator below.
+            // Only accepted Records commands supply bindings here to admit staged attachments through submission validation.
             .Where(row => bindings is null || !bindings.Any(pair =>
                 pair.Value.Kind is Harborline.Contracts.Fields.ICompiledAttachmentFieldKind
                 && row.JsonPointer.StartsWith(FormFieldBinding.Pointer(pair.Key) + "/", StringComparison.Ordinal)))

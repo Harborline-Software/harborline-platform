@@ -152,7 +152,10 @@ public sealed class FormEngine : IFormEngine
             return Invalid(new Contract.ValidationError { JsonPointer = "", Message = "The form was not found.", Kind = Contract.ValidationErrorKind.NotFound, Code = "form.engine.not-found" });
         }
 
-        using var evaluation = await EvaluateAsync(scope, definition, candidate, _clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+        var creationGate = _fieldBinding is not null && definition.RecordTypeId is { } target && _recordTypePolicies is not null
+            ? await ProviderAsync(() => _recordTypePolicies.GetCreationGateAsync(definition.Tenant, target, cancellationToken), cancellationToken).ConfigureAwait(false)
+            : null;
+        using var evaluation = await EvaluateAsync(scope, definition, candidate, _clock.GetUtcNow(), FormAcceptedCommandReadings.Qualifies(definition, creationGate), cancellationToken).ConfigureAwait(false);
         return new Contract.ValidationResult { IsValid = evaluation.Errors.Count == 0, Errors = evaluation.Errors };
     }
 
@@ -202,7 +205,7 @@ public sealed class FormEngine : IFormEngine
                     }
                     var definition = effective ?? throw new InvalidOperationException("The effective definition was not resolved.");
                     var instant = _clock.GetUtcNow();
-                    using var evaluation = await EvaluateAsync(scope, definition, request.Candidate, instant, token).ConfigureAwait(false);
+                    using var evaluation = await EvaluateAsync(scope, definition, request.Candidate, instant, accepted, token).ConfigureAwait(false);
                     if (evaluation.Errors.Count > 0) throw new FormEngineValidationException(evaluation.Errors);
 
                     var instanceId = new Harborline.Foundation.Assets.Common.EntityId("harborline", "forms", Guid.NewGuid().ToString("N"));
@@ -609,12 +612,13 @@ public sealed class FormEngine : IFormEngine
     private static bool ContainsReference(IReadOnlyList<State.FormItem>? items) =>
         items?.Any(item => item.Kind == State.FormItemKind.Reference || ContainsReference(item.Items)) == true;
 
-    private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, DateTimeOffset instant, CancellationToken cancellationToken)
+    private async ValueTask<FormCandidateEvaluation> EvaluateAsync(FormExecutionScope scope, State.FormDefinition definition, JsonDocument candidate, DateTimeOffset instant, bool acceptsStagedAttachments, CancellationToken cancellationToken)
     {
         try
         {
             var bindings = _fieldBinding is null ? null : await _fieldBinding.ResolveAsync(scope, definition, cancellationToken);
-            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, instant, cancellationToken, bindings).ConfigureAwait(false);
+            var evaluation = await FormCandidateEvaluator.EvaluateAsync(scope, definition, candidate, _schemas, _options.MaximumCandidateBytes, instant, cancellationToken,
+                acceptsStagedAttachments ? bindings : null).ConfigureAwait(false);
             if (bindings is null || evaluation.AcceptedCandidate.RootElement.ValueKind != JsonValueKind.Object) return evaluation;
             var errors = evaluation.Errors.ToList();
             foreach (var (name, binding) in bindings)
