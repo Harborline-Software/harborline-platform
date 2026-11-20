@@ -50,6 +50,7 @@ export const WORKFLOW_ADMISSION_CODES = {
   invalidEscalation: 'workflow.invalid_escalation',
   invalidNotification: 'workflow.invalid_notification',
   notificationOnState: 'workflow.notification_on_state',
+  escalationOnNotification: 'workflow.escalation_on_notification',
   declarationOnTerminal: 'workflow.declaration_on_terminal',
 } as const
 
@@ -149,10 +150,10 @@ export function validateWorkflowAdmission(
   const add = (code: WorkflowAdmissionCode, message: string, locator: string) =>
     v.push({ code, message, locator })
 
-  const declarationCodes = new Set<string>([WORKFLOW_ADMISSION_CODES.invalidFieldRequirement, WORKFLOW_ADMISSION_CODES.invalidFieldLock, WORKFLOW_ADMISSION_CODES.invalidEscalation, WORKFLOW_ADMISSION_CODES.invalidNotification, WORKFLOW_ADMISSION_CODES.notificationOnState, WORKFLOW_ADMISSION_CODES.declarationOnTerminal, 'missing-required-property', 'invalid-object', 'invalid-array', 'invalid-string', 'unknown-closed-value'])
+  const declarationCodes = new Set<string>([WORKFLOW_ADMISSION_CODES.invalidFieldRequirement, WORKFLOW_ADMISSION_CODES.invalidFieldLock, WORKFLOW_ADMISSION_CODES.invalidEscalation, WORKFLOW_ADMISSION_CODES.invalidNotification, WORKFLOW_ADMISSION_CODES.notificationOnState, WORKFLOW_ADMISSION_CODES.escalationOnNotification, WORKFLOW_ADMISSION_CODES.declarationOnTerminal, 'missing-required-property', 'invalid-object', 'invalid-array', 'invalid-string', 'unknown-closed-value'])
   for (const [type, rows] of [['WorkflowState', def.states], ['WorkflowActionBinding', def.actions]] as const) {
     for (const row of rows) {
-      const names = type === 'WorkflowState' ? ['notification', 'fieldRequirements', 'locks', 'escalation'] : ['notification']
+      const names = type === 'WorkflowState' ? ['notification', 'fieldRequirements', 'locks', 'escalation'] : ['notification', 'escalation']
       if (!names.some(name => Object.hasOwn(row, name))) continue
       const probe: Record<string, unknown> = type === 'WorkflowState'
         ? { id: 'probe', label: { defaultLocale: 'en', values: { en: 'probe' } }, kind: row.kind }

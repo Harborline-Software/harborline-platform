@@ -219,6 +219,7 @@ public static class WorkflowWire
     private static void Action(JsonElement value)
     {
         Object(value, "WorkflowActionBinding");
+        Require(!value.TryGetProperty("escalation", out _), "workflow.escalation_on_notification", "WorkflowActionBinding.escalation");
         String(Required(value, "id", "WorkflowActionBinding"), "WorkflowActionBinding.id");
         var on = Required(value, "on", "WorkflowActionBinding");
         Object(on, "WorkflowActionBinding.on");
@@ -233,7 +234,7 @@ public static class WorkflowWire
         Optional(value, "requiredRoles", item => RoleArray(item, "WorkflowActionBinding.requiredRoles"));
         Optional(value, "requiredStandings", item => StandingArray(item, "WorkflowActionBinding.requiredStandings"));
         Optional(value, "params", item => Object(item, "WorkflowEffectParams"));
-        Optional(value, "notification", item => { Object(item, "WorkflowNotification"); foreach (var name in new[] { "eventKey", "tier" }) String(Required(item, name, "WorkflowNotification"), $"WorkflowNotification.{name}");
+        Optional(value, "notification", item => { Object(item, "WorkflowNotification"); Require(!item.TryGetProperty("escalation", out _), "workflow.escalation_on_notification", "WorkflowNotification.escalation"); foreach (var name in new[] { "eventKey", "tier" }) String(Required(item, name, "WorkflowNotification"), $"WorkflowNotification.{name}");
             var key = item.GetProperty("eventKey").GetString(); var hasWindow = item.TryGetProperty("batchingWindow", out var windowValue); if (hasWindow) String(windowValue, "WorkflowNotification.batchingWindow"); var window = hasWindow ? windowValue.GetString() : null; var tier = item.GetProperty("tier").GetString();
             Require(value.GetProperty("kind").GetString() == "Notify" && !string.IsNullOrWhiteSpace(key) && tier is "decision" or "observation" or "information" && (window is null || (tier != "decision" && System.Text.RegularExpressions.Regex.IsMatch(window, @"^P(?=[0-9]|T[0-9])(?:[0-9]+D)?(?:T(?=[0-9])(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?\z"))), "workflow.invalid_notification", "WorkflowNotification"); });
     }
