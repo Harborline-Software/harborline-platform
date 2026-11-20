@@ -9,10 +9,6 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>Interface revision 9: explicit authoring refusals for recovery replanning, regulator-rule-set requirements and upstream-plan inputs; authoring-only K9 facade reusing the shared checker. Internal-only projection; public distribution is not authorized.</PackageReleaseNotes>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(HarborlineSchedulingExperiments)' == 'true'">
-    <OutputPath>bin/$(Configuration)/experiments/</OutputPath>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/experiments/</IntermediateOutputPath>
-  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
     <ProjectReference Include="../../foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
@@ -23,11 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Harborline.Blocks.Scheduling.Tests" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(HarborlineSchedulingExperiments)' == 'true'">
-    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Data" />
-    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Evaluation" />
-    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Tests" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="/" />
