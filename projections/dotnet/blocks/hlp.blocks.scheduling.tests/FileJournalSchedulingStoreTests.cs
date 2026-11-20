@@ -6,6 +6,58 @@ namespace Harborline.Blocks.Scheduling.DurableDraft.Tests;
 
 public sealed class FileJournalSchedulingStoreTests
 {
+    [Fact(DisplayName = "execution-runtime-cc-4, scheduling-run-3: Plans replay every member, coexist with old calendar frames, and are tenant scoped and write once")]
+    public async Task PlansReplayBesideLegacyCalendarFrames()
+    {
+        var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "harborline", "platform527", Guid.NewGuid() + ".journal");
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+        // Literal version-one calendar frame: the pre-Plan journal contract.
+        await File.WriteAllBytesAsync(path, Frame(2, System.Text.Encoding.UTF8.GetBytes(
+            "{\"TenantId\":\"tenant-a\",\"Kind\":1,\"EntityId\":\"calendar-1\",\"PayloadJson\":\"{}\"}")));
+        using (var store = new FileJournalSchedulingStore(new() { JournalPath = path }))
+        {
+            await store.SavePlanAsync(LiteralPlan());
+            var length = store.JournalLength;
+            await Assert.ThrowsAsync<InvalidOperationException>(() => store.SavePlanAsync(LiteralPlan() with
+                { Proposal = LiteralPlan().Proposal with { ReasonCode = "changed" } }));
+            Assert.Equal(length, store.JournalLength);
+        }
+        using var reopened = new FileJournalSchedulingStore(new() { JournalPath = path });
+        Assert.Equal(new SchedulingCalendarEntity("tenant-a", SchedulingCalendarEntityKind.OwnedCalendar, "calendar-1", "{}"),
+            await reopened.GetCalendarEntityAsync("tenant-a", SchedulingCalendarEntityKind.OwnedCalendar, "calendar-1"));
+        var actual = Assert.IsType<SchedulingPlan>(await reopened.GetPlanAsync("tenant-a", LiteralPlan().RunId));
+        var expected = LiteralPlan();
+        Assert.Equal(expected.RunId, actual.RunId);
+        Assert.Equal(expected.ScheduleId, actual.ScheduleId);
+        Assert.Equal(expected.CausedBy, actual.CausedBy);
+        Assert.Equal(expected.GateAt, actual.GateAt);
+        Assert.Equal(expected.FactSetPins, actual.FactSetPins);
+        Assert.Equal(expected.Proposal.ProposalId, actual.Proposal.ProposalId);
+        Assert.Equal(expected.Proposal.ProfileId, actual.Proposal.ProfileId);
+        Assert.Equal(expected.Proposal.InputVersion, actual.Proposal.InputVersion);
+        Assert.Equal(expected.Proposal.SolverId, actual.Proposal.SolverId);
+        Assert.Equal(expected.Proposal.Guarantee, actual.Proposal.Guarantee);
+        Assert.Equal(expected.Proposal.Status, actual.Proposal.Status);
+        Assert.Equal(expected.Proposal.WorkUnits, actual.Proposal.WorkUnits);
+        Assert.Equal(expected.Proposal.ReasonCode, actual.Proposal.ReasonCode);
+        Assert.Equal(expected.Proposal.IncompleteFactSets, actual.Proposal.IncompleteFactSets);
+        var assignment = Assert.Single(actual.Proposal.Assignments);
+        Assert.Equal("activity", assignment.ActivityId);
+        Assert.Equal(2, assignment.StartSlot);
+        Assert.Equal(5, assignment.EndSlotExclusive);
+        Assert.Equal(["room", "nurse"], assignment.ResourceIds);
+        Assert.Null(await reopened.GetPlanAsync("tenant-b", expected.RunId));
+    }
+
+    private static SchedulingPlan LiteralPlan() => new(
+        new(new("plan-run"), Guid.Parse("10000000-0000-0000-0000-000000000001")),
+        new("tenant-a", "schedule-1", "schedule-1@2.3.4"),
+        new Harborline.Foundation.ExecutionRuntime.RunId(new("workflow-run"), Guid.Parse("20000000-0000-0000-0000-000000000002")),
+        DateTimeOffset.Parse("2027-01-02T03:04:05Z"),
+        [new("activities", "version-7", true), new("resources", "version-8", false)],
+        new("proposal-1", "profile-1", "input-9", "solver-2", Planning.SolverGuarantee.BoundedHeuristic,
+            Planning.SolveStatus.Partial, [new("activity", 2, 5, ["room", "nurse"])], 17, "PINNED_FACTS_INCOMPLETE", ["resources"]));
+
     [Fact]
     public async Task NodeEfCalendarCollectionStoreTests_Calendar_RoundTrips_AcrossContextReopen()
     {
