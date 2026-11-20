@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using Harborline.Foundation.ExecutionRuntime;
 
 namespace Harborline.Blocks.Scheduling.Durable;
 
@@ -35,6 +37,8 @@ public sealed class FileJournalSchedulingStore : IDisposable
     private const int DigestBytes = 32;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly Dictionary<string, SchedulingCalendarEntity> calendars = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Tenant, RunId Run), byte[]> plans = new();
+    private static readonly JsonSerializerOptions PlanJson = new() { Converters = { new RunIdConverter() } };
     private readonly FileJournalSchedulingStoreOptions options;
     private readonly FileStream processLock;
     private readonly FileStream journal;
@@ -102,6 +106,35 @@ public sealed class FileJournalSchedulingStore : IDisposable
 
     /// <summary>Current byte length of the append-only journal.</summary>
     public long JournalLength => journal.Length;
+
+    /// <summary>Appends a Plan once; an existing tenant/run identity is never overwritten.</summary>
+    public async Task SavePlanAsync(SchedulingPlan plan, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ValidateText(plan.ScheduleId.Tenant); ValidateText(plan.ScheduleId.DefinitionId); ValidateText(plan.ScheduleId.VersionId);
+        if (plan.RunId.Kind.Value != "plan-run" || plan.RunId.Value == Guid.Empty)
+            throw new ArgumentException("A Plan requires a plan-run identity.", nameof(plan));
+        ArgumentNullException.ThrowIfNull(plan.Proposal);
+        ArgumentNullException.ThrowIfNull(plan.FactSetPins);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(plan, PlanJson);
+        await EnterAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var key = (plan.ScheduleId.Tenant, plan.RunId);
+            if (plans.ContainsKey(key)) throw new InvalidOperationException("The Plan is already saved.");
+            await AppendAsync(RecordType.PlanSaved, JsonSerializer.Deserialize<JsonElement>(payload), cancellationToken).ConfigureAwait(false);
+            plans.Add(key, payload);
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Reads a detached Plan by its tenant and run identity.</summary>
+    public async Task<SchedulingPlan?> GetPlanAsync(string tenantId, RunId runId, CancellationToken cancellationToken = default)
+    {
+        await EnterAsync(cancellationToken).ConfigureAwait(false);
+        try { return plans.TryGetValue((tenantId, runId), out var payload) ? JsonSerializer.Deserialize<SchedulingPlan>(payload, PlanJson) : null; }
+        finally { gate.Release(); }
+    }
 
     private async ValueTask AppendAsync<T>(RecordType type, T value, CancellationToken cancellationToken)
     {
@@ -172,6 +205,11 @@ public sealed class FileJournalSchedulingStore : IDisposable
                 var entity = Deserialize<SchedulingCalendarEntity>(payload);
                 calendars[CalendarKey(entity.TenantId, entity.Kind, entity.EntityId)] = entity;
                 break;
+            case RecordType.PlanSaved:
+                var plan = JsonSerializer.Deserialize<SchedulingPlan>(payload, PlanJson)
+                    ?? throw new InvalidDataException("Scheduling Plan payload is empty.");
+                plans.Add((plan.ScheduleId.Tenant, plan.RunId), payload);
+                break;
             default: throw new InvalidDataException("Scheduling journal record type is unsupported.");
         }
     }
@@ -179,7 +217,7 @@ public sealed class FileJournalSchedulingStore : IDisposable
     private void Truncate(long start) { journal.SetLength(start); journal.Position = start; journal.Flush(flushToDisk: true); }
     private static T Deserialize<T>(byte[] value) => JsonSerializer.Deserialize<T>(value) ?? throw new InvalidDataException("Scheduling journal payload is empty.");
     private static string CalendarKey(string tenantId, SchedulingCalendarEntityKind kind, string id) => tenantId + "\u001f" + (byte)kind + "\u001f" + id;
-    private static void ValidateText(string value) => ArgumentException.ThrowIfNullOrWhiteSpace(value);
+    private static void ValidateText(string? value) => ArgumentException.ThrowIfNullOrWhiteSpace(value);
     private async ValueTask EnterAsync(CancellationToken token)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -198,5 +236,16 @@ public sealed class FileJournalSchedulingStore : IDisposable
     }
 
     // Value 1 stays reserved so a retired draft frame is recognised and refused rather than misread.
-    private enum RecordType : byte { RetiredIntegerRevisionDraft = 1, CalendarUpserted = 2 }
+    private enum RecordType : byte { RetiredIntegerRevisionDraft = 1, CalendarUpserted = 2, PlanSaved = 3 }
+
+    // Runtime identities are immutable structs with no JSON constructor; preserve their validated wire form.
+    private sealed class RunIdConverter : JsonConverter<RunId>
+    {
+        public override RunId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var parts = reader.GetString()!.Split(':', 2);
+            return new(new(parts[0]), Guid.Parse(parts[1]));
+        }
+        public override void Write(Utf8JsonWriter writer, RunId value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
+    }
 }
