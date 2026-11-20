@@ -160,10 +160,10 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal("2.1.0", (await fixture.Store.GetCurrentPublishedAsync(new("tenant-a"), new("form.customer")))!.Version.ToString());
     }
 
-    private static ServiceProvider BuildImpactHost(ImpactFixture fixture)
+    private static ServiceProvider BuildImpactHost(ImpactFixture fixture, IFormDefinitionStore? store = null)
     {
         var services = new ServiceCollection();
-        services.AddSingleton<IFormDefinitionStore>(fixture.Store);
+        services.AddSingleton<IFormDefinitionStore>(store ?? fixture.Store);
         services.AddSingleton<Harborline.Kernel.SchemaValidation.ISchemaRegistry>(fixture.Schemas);
         services.AddSingleton<IFormPublishedSurfaceSource>(fixture.Context.Surfaces);
         AuthoringFieldFixture.Add(services, fixture.Candidate.Tenant, fixture.Candidate.SchemaRef.Value, "name");
@@ -715,6 +715,239 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(1, store.Calls);
     }
 
+    // Oracle: the default interface members state these four unsupported-operation diagnostics.
+    [Theory]
+    [InlineData("create", "Draft creation is not supported by this publisher.")]
+    [InlineData("save-next", "Draft saving is not supported by this publisher.")]
+    [InlineData("restore", "Draft restoration is not supported by this publisher.")]
+    [InlineData("publish", "Stored draft publication is not supported by this publisher.")]
+    public void Legacy_publisher_names_the_unsupported_operation(string entry, string message)
+    {
+        IFormDefinitionAuthoringPublisher publisher = new LegacyPublisher(null!);
+        var definition = Definition("legacy-unsupported", "true");
+        var error = Assert.Throws<NotSupportedException>(() => entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            _ => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+        });
+        Assert.Equal(message, error.Message);
+    }
+
+    [Fact]
+    public async Task Legacy_publisher_requires_an_assessment_context()
+    {
+        IFormDefinitionAuthoringPublisher publisher = new LegacyPublisher(null!);
+        var error = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            publisher.RegisterAndPublishWithImpactAsync(Definition("legacy-context", "true"), null!).AsTask());
+        Assert.Equal("context", error.ParamName);
+    }
+
+    // Oracles: policy admission's stated codes/messages; resolver refusal is an independent port input.
+    [Theory]
+    [InlineData(FormGovernanceRefusal.PolicyInvalid, "aspect.policy_invalid", "FormDefinition 'policy-refusal' failed overlay validation: aspect.policy_invalid: field 'a' failed publish policy admission.")]
+    [InlineData(FormGovernanceRefusal.PolicyUnresolved, "aspect.policy_unresolved", "FormDefinition 'policy-refusal' failed overlay validation: aspect.policy_unresolved: field 'a' failed publish policy admission.")]
+    public void Policy_resolver_refusals_keep_their_literal_code_and_message(FormGovernanceRefusal reason, string code, string message)
+    {
+        var admission = new DefaultFormDefinitionPolicyAdmission(new FixedGovernance(new(false, false, false, false, Refusal: reason)));
+        var error = Assert.Throws<FormDefinitionValidationException>(() => admission.ValidateOrThrow(Definition("policy-refusal", "true")));
+        Assert.Equal(code, error.Code);
+        Assert.Equal(message, error.Message);
+    }
+
+    [Fact]
+    public void Policy_admission_requires_a_definition()
+    {
+        var error = Assert.Throws<ArgumentNullException>(() => PolicyAdmission().ValidateOrThrow(null!));
+        Assert.Equal("definition", error.ParamName);
+    }
+
+    // Oracle: AsyncValidationCheck's contract requires acknowledgment for either the target or any classified input.
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Sensitive_connector_inputs_require_acknowledgment(bool input, bool acknowledged)
+    {
+        var definition = Definition("sensitive-input", "true");
+        var fields = definition.Overlay.Fields.ToDictionary(pair => pair.Key, pair => pair.Value);
+        fields["a"] = fields["a"] with { PiiSensitivity = PiiSensitivity.Sensitive };
+        definition = definition with { Overlay = definition.Overlay with
+        {
+            Fields = fields,
+            AsyncChecks = [new("lookup", "registry", input ? "b" : "a", "lookup.failed",
+                input ? ["a"] : null, AllowsSensitiveInputs: acknowledged)],
+        } };
+        if (acknowledged) PolicyAdmission().ValidateOrThrow(definition);
+        else
+        {
+            var error = Assert.Throws<FormDefinitionValidationException>(() => PolicyAdmission().ValidateOrThrow(definition));
+            Assert.Equal("aspect.sensitive_input_unacknowledged", error.Code);
+            Assert.Equal("FormDefinition 'sensitive-input' failed overlay validation: aspect.sensitive_input_unacknowledged: async check 'lookup' feeds classified field 'a' to connector 'registry' without allowsSensitiveInputs.", error.Message);
+        }
+    }
+
+    [Fact]
+    public void Connector_policy_ignores_inputs_absent_from_the_field_registry()
+    {
+        var definition = Definition("unknown-check-input", "true");
+        definition = definition with { Overlay = definition.Overlay with
+            { AsyncChecks = [new("lookup", "registry", "missing", "lookup.failed")] } };
+        PolicyAdmission().ValidateOrThrow(definition);
+    }
+
+    // Oracles: AspectOverlay's monotonic contract and policy admission's malformed-token refusal.
+    [Theory]
+    [InlineData("", "pii")]
+    [InlineData("harborline/data-classification", " ")]
+    public void Malformed_classification_tokens_are_policy_invalid(string system, string code)
+    {
+        var definition = WithFieldAspect(Definition("invalid-tag", "true"), new(Classification: new(
+            [new("harborline/data-classification", "pii"), new(system, code)])));
+        AssertPolicyRefusal(definition, "aspect.policy_invalid");
+    }
+
+    [Theory]
+    [InlineData(null, "Identity", 1)]
+    [InlineData("", "Identity", 1)]
+    [InlineData(" ", "Identity", 1)]
+    [InlineData("GDPR", null, 1)]
+    [InlineData("GDPR", "", 1)]
+    [InlineData("GDPR", " ", 1)]
+    [InlineData("GDPR", "Identity", -1)]
+    public void Malformed_retention_is_policy_invalid(string? regime, string? floor, int days)
+        => AssertPolicyRefusal(WithFieldAspect(Definition("invalid-retention", "true"),
+            new(Lifecycle: new(Retention: new(regime!, floor!, days)))), "aspect.policy_invalid");
+
+    [Theory]
+    [InlineData(0, 0, false)]
+    [InlineData(10, 9, true)]
+    [InlineData(10, 10, false)]
+    [InlineData(10, 11, false)]
+    public void Retention_may_stay_equal_or_lengthen_but_never_shorten(int inherited, int declared, bool refuses)
+    {
+        var definition = WithFieldAspect(Definition("retention-floor", "true"), Retention(declared));
+        definition = definition with { Overlay = definition.Overlay with { Aspects = Retention(inherited) } };
+        if (refuses) AssertPolicyRefusal(definition, "aspect.relax_forbidden");
+        else PolicyAdmission().ValidateOrThrow(definition);
+    }
+
+    [Theory]
+    [InlineData(Immutability.WriteOnce, Immutability.AppendOnly, true)]
+    [InlineData(Immutability.AppendOnly, Immutability.AppendOnly, false)]
+    [InlineData(Immutability.AppendOnly, Immutability.WriteOnce, false)]
+    public void Immutability_only_strengthens(Immutability inherited, Immutability declared, bool refuses)
+    {
+        var definition = WithFieldAspect(Definition("immutability-floor", "true"), new(Lifecycle: new(Immutability: declared)));
+        definition = definition with { Overlay = definition.Overlay with { Aspects = new(Lifecycle: new(Immutability: inherited)) } };
+        if (refuses) AssertPolicyRefusal(definition, "aspect.relax_forbidden");
+        else PolicyAdmission().ValidateOrThrow(definition);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Malformed_residency_tokens_are_policy_invalid(bool prohibited)
+        => AssertPolicyRefusal(WithFieldAspect(Definition("invalid-residency", "true"), new(Lifecycle: new(
+            Residency: prohibited ? new(["US"], ["CA", " "]) : new(["US", " "])))), "aspect.policy_invalid");
+
+    [Fact]
+    public void Inherited_residency_prohibitions_win_over_a_descendants_allowed_set()
+    {
+        var definition = WithFieldAspect(Definition("prohibited-residency", "true"), new(Lifecycle: new(Residency: new(["CA"]))));
+        definition = definition with { Overlay = definition.Overlay with
+            { Aspects = new(Lifecycle: new(Residency: new(["US", "CA"], ["ca"]))) } };
+        AssertPolicyRefusal(definition, "aspect.residency_unsatisfiable");
+    }
+
+    [Theory]
+    [InlineData(null, "author")]
+    [InlineData("", "author")]
+    [InlineData(" ", "author")]
+    [InlineData("domain", null)]
+    [InlineData("domain", "")]
+    [InlineData("domain", " ")]
+    public void Malformed_role_tokens_are_policy_invalid(string? vocabulary, string? name)
+        => AssertPolicyRefusal(WithFieldAspect(Definition("invalid-role", "true"), new(Access: new(
+            ReadRoles: [new("domain", "author"), new(vocabulary!, name!)]))), "aspect.policy_invalid");
+
+    [Fact]
+    public void Duplicate_roles_are_policy_invalid()
+        => AssertPolicyRefusal(WithFieldAspect(Definition("duplicate-role", "true"), new(Access: new(
+            WriteRoles: [new("domain", "author"), new("domain", "author")]))), "aspect.policy_invalid");
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Read_and_write_roles_can_narrow_but_never_widen(bool write, bool widens)
+    {
+        var definition = Definition("role-narrowing", "true");
+        Harborline.Contracts.Authorization.RoleReference[] inherited = [new("domain", "author"), new("domain", "reader")];
+        Harborline.Contracts.Authorization.RoleReference[] declared = widens ? [new("domain", "outsider")] : [new("domain", "author")];
+        definition = WithFieldAspect(definition, new(Access: write ? new(WriteRoles: declared) : new(ReadRoles: declared)));
+        definition = definition with { Overlay = definition.Overlay with
+            { Aspects = new(Access: write ? new(WriteRoles: inherited) : new(ReadRoles: inherited)) } };
+        if (widens) AssertPolicyRefusal(definition, "aspect.relax_forbidden");
+        else PolicyAdmission().ValidateOrThrow(definition);
+    }
+
+    [Theory]
+    [InlineData("flat-section")]
+    [InlineData("item-section")]
+    [InlineData("nested-container")]
+    [InlineData("container-order")]
+    public void Section_and_nested_container_retention_are_inherited_in_order(string shape)
+    {
+        var definition = WithFieldAspect(Definition("grain-retention", "true"), Retention(shape == "container-order" ? 30 : 9));
+        var section = definition.Overlay.Sections[0];
+        section = shape switch
+        {
+            "flat-section" => section with { Aspects = Retention(10) },
+            "item-section" => section with { Fields = [], Aspects = Retention(10), Items = [new(FormItemKind.Field, "b"), new(FormItemKind.Field, "a")] },
+            "nested-container" => section with { Fields = [], Items = [new(FormItemKind.Group, "outer", Items:
+                [new(FormItemKind.Group, "inner", Items: [new(FormItemKind.Field, "a")], Aspects: Retention(10))])] },
+            _ => section with { Fields = [], Items = [new(FormItemKind.Group, "outer", Aspects: Retention(20), Items:
+                [new(FormItemKind.Group, "inner", Aspects: Retention(10), Items: [new(FormItemKind.Field, "a")])])] },
+        };
+        definition = definition with { Overlay = definition.Overlay with { Sections = [section] } };
+        AssertPolicyRefusal(definition, "aspect.relax_forbidden");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Container_keys_and_sibling_fields_do_not_inherit_each_others_aspects(bool separateSections)
+    {
+        var definition = WithFieldAspect(Definition("separate-grains", "true"), Retention(20));
+        var fields = definition.Overlay.Fields.ToDictionary(pair => pair.Key, pair => pair.Value);
+        fields["b"] = fields["b"] with { Aspects = Retention(200) };
+        definition = definition with { Overlay = definition.Overlay with { Fields = fields, Sections =
+        [definition.Overlay.Sections[0] with { Fields = [], Aspects = Retention(100), Items =
+            [new(FormItemKind.Group, "a", Aspects: Retention(100), Items: [new(FormItemKind.Field, "b")])] },
+         definition.Overlay.Sections[0] with { Id = "other-section", Fields = [], Aspects = Retention(10), Items =
+            [new(FormItemKind.Group, "other", Aspects: Retention(10), Items: [new(FormItemKind.Field, "a")])] }] } };
+        if (!separateSections) definition = definition with { Overlay = definition.Overlay with { Sections =
+            [definition.Overlay.Sections[0] with { Aspects = null, Items =
+                [new(FormItemKind.Group, "a", Aspects: Retention(100), Items: [new(FormItemKind.Field, "b")]),
+                 new(FormItemKind.Group, "other", Aspects: Retention(10), Items: [new(FormItemKind.Field, "a")])] }] } };
+        PolicyAdmission().ValidateOrThrow(definition);
+    }
+
+    private static AspectOverlay Retention(int days) => new(Lifecycle: new(Retention: new("GDPR", "Identity", days)));
+    private static DefaultFormDefinitionPolicyAdmission PolicyAdmission() => new(new FixedGovernance(new(true, false, false, false)));
+    private sealed class FixedGovernance(FormFieldGovernancePolicy policy) : IFormFieldGovernanceResolver
+    {
+        public FormFieldGovernancePolicy Resolve(FormDefinition definition, string fieldName) => policy;
+    }
+    private static void AssertPolicyRefusal(FormDefinition definition, string code)
+    {
+        var error = Assert.Throws<FormDefinitionValidationException>(() => PolicyAdmission().ValidateOrThrow(definition));
+        Assert.Equal(code, error.Code);
+    }
+
     private sealed class BlankPrincipal : IAuthenticatedActorContext
     {
         public string UserId => " ";
@@ -723,7 +956,7 @@ public sealed class AuthoringHostIntegrationTests
     }
 
     // Accepts any status and records each publication call, so only the publisher's own checks can refuse.
-    private sealed class RecordingStore(FormDefinitionValidationException? refusal = null) : IFormDefinitionStore
+    private sealed class RecordingStore(Exception? refusal = null, IFormDefinitionStore? reads = null) : IFormDefinitionStore
     {
         public int Calls { get; private set; }
         public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default)
@@ -731,9 +964,10 @@ public sealed class AuthoringHostIntegrationTests
             Calls++;
             return refusal is null ? ValueTask.FromResult(definition) : throw refusal;
         }
-        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
-        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
-        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
+        public ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => reads!.GetAsync(tenant, id, version, ct);
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => reads!.GetCurrentPublishedAsync(tenant, id, ct);
         public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
@@ -741,6 +975,177 @@ public sealed class AuthoringHostIntegrationTests
         public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
         public IAsyncEnumerable<FormDefinition> ListByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
         public IAsyncEnumerable<FormDefinition> ListCurrentPublishedByTenantAsync(TenantId tenant, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    // Oracle: the forms-engine authoring invariant requires a matching active, non-sentinel tenant.
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("system")]
+    [InlineData("suspended")]
+    public async Task Authoring_requires_an_active_non_system_tenant(string tenant)
+    {
+        var metadata = tenant == "missing" ? null : new TenantMetadata
+        {
+            Id = tenant == "system" ? TenantId.System : new("tenant-authoring-host"),
+            Name = "Test tenant",
+            Status = tenant == "suspended" ? TenantStatus.Suspended : TenantStatus.Active,
+        };
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store, new TenantPrincipal(metadata));
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            publisher.RegisterAndPublishAsync(Definition("tenant-required", "true")).AsTask());
+
+        Assert.Equal("publish", error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("field.value_domain_tenant_required", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Equal(0, store.Calls);
+    }
+
+    private sealed class TenantPrincipal(TenantMetadata? tenant) : IAuthenticatedActorContext
+    {
+        public string UserId => "author";
+        public IReadOnlyList<string> Roles => ["author"];
+        public TenantMetadata? Tenant => tenant;
+    }
+
+    // Oracle: the authoring envelope preserves typed lifecycle codes and phase, at the definition root.
+    [Theory]
+    [InlineData("create", "author")]
+    [InlineData("save-next", "author")]
+    [InlineData("register-publish", "publish")]
+    public async Task Lifecycle_write_refusal_has_an_empty_root_pointer(string entry, string phase)
+    {
+        var definition = Definition("lifecycle-write-refusal", "true");
+        var store = new RecordingStore(new FormDefinitionLifecycleException(
+            definition.Id, definition.Version, "form.lifecycle.transition_illegal", "store detail"));
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            _ => publisher.RegisterAndPublishAsync(definition),
+        }).AsTask());
+
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form.lifecycle.transition_illegal", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Equal(1, store.Calls);
+    }
+
+    // Oracle: the publisher's stated pointer contract passes Target only for the two dotted code families.
+    [Theory]
+    [InlineData("form.submit_gate")]
+    [InlineData("form.record_type")]
+    [InlineData("vendor.validation_refused")]
+    public async Task Other_code_families_do_not_echo_pointer_shaped_targets(string code)
+    {
+        var store = new RecordingStore(new FormDefinitionValidationException(
+            new("other-code"), "refused", code, "/private-node"));
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() =>
+            publisher.RegisterAndPublishAsync(Definition("other-code", "true")).AsTask());
+
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("/overlay", refusal.Pointer);
+    }
+
+    // Oracle: public argument guards reject absent definition/context before dereferencing or writing.
+    [Theory]
+    [InlineData("create")]
+    [InlineData("save-next")]
+    [InlineData("register-publish")]
+    public async Task Missing_definition_is_an_argument_error(string entry)
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var error = await Assert.ThrowsAsync<ArgumentNullException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(null!),
+            "save-next" => publisher.SaveNextAsync(null!),
+            _ => publisher.RegisterAndPublishAsync(null!),
+        }).AsTask());
+        Assert.Equal("definition", error.ParamName);
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Fact]
+    public async Task Missing_assessment_context_is_an_argument_error()
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var error = Assert.Throws<ArgumentNullException>(() =>
+            publisher.RegisterAndPublishWithImpactAsync(Definition("missing-context", "true"), null!));
+        Assert.Equal("context", error.ParamName);
+        Assert.Equal(0, store.Calls);
+    }
+
+    // Oracle: cancellation prevents the store write, even when an adapter does not check the token itself.
+    [Fact]
+    public async Task Cancelled_draft_save_does_not_reach_an_adapter_that_ignores_cancellation()
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            publisher.CreateAsync(Definition("cancelled-save", "{not-json"), cancellation.Token).AsTask());
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Fact]
+    public async Task Cancelled_publication_is_cancelled_before_the_Draft_guard()
+    {
+        var store = new RecordingStore();
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var definition = Definition("cancelled-non-draft", "true") with { Status = FormDefinitionStatus.Published };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            publisher.RegisterAndPublishAsync(definition, cancellation.Token).AsTask());
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cancellation_after_assessment_does_not_reach_an_adapter_that_ignores_cancellation(bool unavailable)
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        var store = new RecordingStore(reads: fixture.Store);
+        await using var provider = BuildImpactHost(fixture, store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        using var cancellation = new CancellationTokenSource();
+        var context = fixture.Context with { Surfaces = new ImpactFixture.Source(_ =>
+        {
+            cancellation.Cancel();
+            return ValueTask.FromResult<FormPublishedSurfaceRead>(unavailable
+                ? new FormPublishedSurfaceRead.Unavailable("partial")
+                : new FormPublishedSurfaceRead.Complete("tenant-a", []));
+        }) };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate, context, cancellation.Token).AsTask());
+        Assert.Equal(0, store.Calls);
     }
 
     [Fact]
