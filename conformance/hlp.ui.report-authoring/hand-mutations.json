@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "scope": "T-489/parameter-and-measure-editor",
-  "method": "2026-11-20: one literal source edit at a time; named targeted tests rerun against each edit; actual outcomes recorded below; every source restored byte-identically. Restored full-suite counts are recorded in the PR review round. No full mutation score is claimed for this snapshot.",
-  "oracle": "DES-0020 sections 2, 4 and 6 and DES-0002 section 15; literal conformance fixtures and stated pending-edit, read-only and resolver properties. Shared parameter-defaults.json follows Reports producer wire rules, RFC 8259, and exact integer interoperability limits.",
+  "method": "2026-11-20: one literal source edit at a time; named targeted tests rerun against each edit; actual outcomes recorded below; every source restored byte-identically. Restored full-suite counts are recorded in the PR review round. Hand-mutation evidence only; the current full StrykerJS score is recorded separately.",
+  "oracle": "DES-0020 sections 2, 4 and 6, DES-0002 section 15, independent literal conformance fixtures, and stated resolver/read-only/pending-edit properties. parameter-defaults.json is the editor input profile; accepted values are checked by Reports admission. The field-specific error text is an independent literal.",
   "sourceSha256": {
-    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "4097b7db84f01ef80b00443d6b679f30ef3d87b75a7f48eef392a22ab789440c",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "f8e85f5eb8c191f5cd26a002fca0b56f07fba5d78a14388fbfa1fad3bd8422ed",
     "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe",
-    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "fcb988b836480d512e3977d8d1eb2b0509d6048063288cfafc9de280055cc867",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "e773f34e24615afe42fccafac6cd91015822e2a82352750de70b3ced30665066",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
     "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
     "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c"
@@ -457,10 +457,34 @@
       "restored": true
     },
     {
-      "name": "review-as-at",
+      "name": "review-as-at-type",
       "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
-      "old": "if (!valid || (parameterName === 'as_at' && (parameterType !== 'date_time' || !effectiveType.trim())))",
+      "old": "if (!valid || (parameterName === 'as_at' && parameterType !== 'date_time'))",
       "new": "if (!valid)",
+      "test": "refuses invalid as_at",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at-effective",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "if (parameterName === 'as_at' && !effectiveType.trim())",
+      "new": "if (false)",
+      "test": "refuses invalid as_at",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at-message",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "Enter an effective-dated type.",
+      "new": "Enter a valid default.",
       "test": "refuses invalid as_at",
       "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
       "exit": 1,
@@ -951,10 +975,34 @@
       "restored": true
     },
     {
-      "name": "review-as-at",
+      "name": "review-as-at-type",
       "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
-      "old": "if (parsed is null || (parameterName == \"as_at\" && (parameterType != \"date_time\" || string.IsNullOrWhiteSpace(effectiveType))))",
+      "old": "if (parsed is null || (parameterName == \"as_at\" && parameterType != \"date_time\"))",
       "new": "if (parsed is null)",
+      "test": "RefusesInvalidAsAt",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at-effective",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "if (parameterName == \"as_at\" && string.IsNullOrWhiteSpace(effectiveType))",
+      "new": "if (parameterName == \"not-as-at\" && string.IsNullOrWhiteSpace(effectiveType))",
+      "test": "RefusesInvalidAsAt",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at-message",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Enter an effective-dated type.",
+      "new": "Enter a valid default.",
       "test": "RefusesInvalidAsAt",
       "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
       "exit": 1,
@@ -1208,6 +1256,16 @@
       "lane": "historical",
       "name": "blazor-held-refusals",
       "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "react",
+      "name": "review-as-at",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "review-as-at",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
     }
   ]
 }
