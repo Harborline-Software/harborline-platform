@@ -33,9 +33,10 @@ public sealed class ScheduleDefinitionCatalogueTests
     public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
     {
         Assert.Empty(typeof(ScheduleDefinitionCatalogue).GetConstructors());
-        Assert.NotNull(typeof(ScheduleDefinitionCatalogue).GetConstructor(
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic, binder: null,
-            [typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)], modifiers: null));
+        var constructor = Assert.Single(typeof(ScheduleDefinitionCatalogue).GetConstructors(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic));
+        Assert.Equal([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)],
+            constructor.GetParameters().Select(parameter => parameter.ParameterType));
     }
 
     [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]

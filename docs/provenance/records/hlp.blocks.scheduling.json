@@ -60,7 +60,7 @@
     "projections/dotnet/blocks/hlp.blocks.scheduling.tests/FileJournalSchedulingStoreTests.cs": "74cf55e9605ec4798e9d4983ea0c7056396ee2b316971480d715e01498595eae",
     "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml": "b64c2f99e642f6b0b14afb79911506c911f84f0c817a020aa923092dbabf497f",
     "catalog/modules/hlp.blocks.scheduling.json": "da230cc08ceaf40b4f6d3ca2a093691217724e3d24e9f6e3dc071a44ce0c214d",
-    "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDefinitionCatalogueTests.cs": "dfea4321f95ba4c280922e89518f633a99bc063340e9710786ed636528c690ee"
+    "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDefinitionCatalogueTests.cs": "c7f9591cb89b55134a01926c42f66f97cb43c2b5795bbaa795caee94754797e6"
   },
   "nextGate": "Kernel-clock due generation and the four declared bases are owned by Scheduling; API chain consumers follow under T-311."
 }
