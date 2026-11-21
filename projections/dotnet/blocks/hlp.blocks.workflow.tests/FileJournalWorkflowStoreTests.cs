@@ -56,18 +56,18 @@ public sealed class FileJournalWorkflowStoreTests
         });
         await store.ParkAsync("copy-1", "wait", "{\"reason\":\"first\"}");
 
-        var leaked = Assert.Single(await store.EventsAsync("copy-1"));
+        var leaked = Assert.Single(await store.EventsAsync("copy-1"), e => e.EventType == "Parked");
         leaked.EventType = "Forged";
         leaked.DataJson = "{\"forged\":true}";
         leaked.Seq = 41;
 
-        var reread = Assert.Single(await store.EventsAsync("copy-1"));
+        var reread = Assert.Single(await store.EventsAsync("copy-1"), e => e.EventType == "Parked");
         Assert.Equal("Parked", reread.EventType);
         Assert.Equal("{\"reason\":\"first\"}", reread.DataJson);
-        Assert.Equal(1, reread.Seq);
+        Assert.Equal(2, reread.Seq);
 
         await store.ParkAsync("copy-1", "wait", "{\"reason\":\"second\"}");
-        Assert.Equal(new long[] { 1, 2 }, (await store.EventsAsync("copy-1")).Select(e => e.Seq).ToArray());
+        Assert.Equal(new long[] { 1, 2, 3 }, (await store.EventsAsync("copy-1")).Select(e => e.Seq).ToArray());
     }
 
     [Theory]
@@ -87,11 +87,11 @@ public sealed class FileJournalWorkflowStoreTests
             await store.CreateInstanceAsync(instance);
             length = new FileInfo(fixture.JournalPath).Length;
             await Assert.ThrowsAnyAsync<Exception>(() => store.MigrateAsync(instance, "2.0.0", "new", data));
-            Assert.Empty(await store.EventsAsync("run-1"));
+            Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
             Assert.Equal(length, new FileInfo(fixture.JournalPath).Length);
         }
         using var reopened = fixture.Open();
-        Assert.Empty(await reopened.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await reopened.EventsAsync("run-1")).EventType);
         Assert.Equal("1.0.0", (await reopened.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await reopened.LoadAsync("run-1"))!.CurrentStep);
     }
@@ -118,7 +118,7 @@ public sealed class FileJournalWorkflowStoreTests
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"c-1\"}", run.StateJson);
         Assert.Contains("old", run.MovedAwaySteps);
         Assert.Equal(1, run.MigrationGeneration);
-        var entry = Assert.Single(await reopened.EventsAsync("migration-restart"));
+        var entry = Assert.Single(await reopened.EventsAsync("migration-restart"), e => e.EventType == "Migrated");
         Assert.Equal("Migrated", entry.EventType);
         Assert.Equal("{\"principal\":\"operator\",\"map\":{\"old\":\"new\"}}", entry.DataJson);
     }
@@ -189,7 +189,7 @@ public sealed class FileJournalWorkflowStoreTests
         using var restarted = fixture.Open();
         Assert.Equal(new[] { "restart-effect" }, await restarted.CommittedEffectPayloadsAsync("restart-1"));
         Assert.NotNull(await restarted.FindStepResultAsync(new WorkflowStepKey("restart-1", 0, "post")));
-        Assert.Equal((1, 2, 1, 1), await restarted.CountsAsync());
+        Assert.Equal((1, 3, 1, 1), await restarted.CountsAsync());
     }
 
     [Fact]
@@ -248,13 +248,13 @@ public sealed class FileJournalWorkflowStoreTests
 
         using var restarted = fixture.Open();
         var before = await restarted.EventsAsync("restart-1");
-        Assert.Equal(new long[] { 1, 2 }, before.Select(e => e.Seq).ToArray());
+        Assert.Equal(new long[] { 1, 2, 3 }, before.Select(e => e.Seq).ToArray());
 
         await restarted.ParkAsync("restart-1", "approve", "{}", iteration: 1);
         var after = await restarted.EventsAsync("restart-1");
-        Assert.Equal(new long[] { 1, 2, 3 }, after.Select(e => e.Seq).ToArray());
+        Assert.Equal(new long[] { 1, 2, 3, 4 }, after.Select(e => e.Seq).ToArray());
         // The earlier rows are untouched — append-only history.
-        Assert.Equal(before.Select(e => (e.Seq, e.EventType)), after.Take(2).Select(e => (e.Seq, e.EventType)));
+        Assert.Equal(before.Select(e => (e.Seq, e.EventType)), after.Take(3).Select(e => (e.Seq, e.EventType)));
     }
 
     // ── Journal-format fail-closed rows (the narrowed EF migration-path analogues) ──

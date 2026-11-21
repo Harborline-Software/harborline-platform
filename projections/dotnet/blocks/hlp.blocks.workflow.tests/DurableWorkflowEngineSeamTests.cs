@@ -90,6 +90,9 @@ public sealed class DurableWorkflowEngineSeamTests
         Task<bool> IWorkflowStore.AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
             string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
             => inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        Task<bool> IWorkflowStore.AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+            string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct)
+            => inner.AdvanceFailedIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, faultedTask, ct);
         Task<bool> IWorkflowStore.ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct)
             => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
     }
@@ -140,7 +143,7 @@ public sealed class DurableWorkflowEngineSeamTests
         });
         await store.AdvanceAsync(new WorkflowStepKey("migrating", 0, "old"), null, "{}", "Advanced", "{}", "other", WorkflowStatus.Running);
         await store.ParkAsync("migrating", "old", "{}");
-        Assert.Equal(2, (await store.EventsAsync("migrating")).Count);
+        Assert.Equal(3, (await store.EventsAsync("migrating")).Count);
         var staleTrigger = WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "old");
         await new WorkflowMigration(store, new MigrationDefinitions(), new WorkflowTriggerDispatcher(store, [])).MigrateAsync("migrating", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
@@ -150,9 +153,9 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Empty(await store.CommittedEffectPayloadsAsync("migrating"));
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}", (await store.LoadAsync("migrating"))!.StateJson);
         var events = await store.EventsAsync("migrating");
-        Assert.Equal(3, events.Count);
-        Assert.Equal("Parked", events[1].EventType);
-        Assert.Equal("Migrated", events[2].EventType);
+        Assert.Equal(4, events.Count);
+        Assert.Equal("Parked", events[2].EventType);
+        Assert.Equal("Migrated", events[3].EventType);
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "migrating", "new"), Authorized("migrating")));
         Assert.NotNull(await store.FindStepResultAsync(new WorkflowStepKey("migrating", 0, "new")));
@@ -196,8 +199,10 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal("not-retryable", payload.RootElement.GetProperty("reason").GetString());
         Assert.Equal("step-2", payload.RootElement.GetProperty("step").GetString());
         var events = await store.EventsAsync("definition-error");
-        Assert.Equal("Failed", events.Last().EventType);
-        Assert.Equal(result.ResultJson, events.Last().DataJson);
+        Assert.Equal("TaskFaulted", events.Last().EventType);
+        using var eventData = JsonDocument.Parse(events.Last().DataJson);
+        Assert.Equal("interpreter-failure", eventData.RootElement.GetProperty("outcome").GetProperty("kind").GetString());
+        Assert.Equal("not-retryable", eventData.RootElement.GetProperty("outcome").GetProperty("reason").GetString());
         Assert.Empty(await store.CommittedEffectPayloadsAsync("definition-error"));
         Assert.Equal(WorkflowDispatchResult.Terminal,
             await dispatcher.DispatchAsync(trigger, Authorized("definition-error")));
@@ -208,7 +213,7 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(WorkflowStatus.Failed, (await reopened.LoadAsync("definition-error"))!.Status);
         Assert.Equal("step-2", (await reopened.LoadAsync("definition-error"))!.CurrentStep);
         Assert.Equal(result.ResultJson, (await reopened.FindStepResultAsync(key))!.ResultJson);
-        Assert.Equal("Failed", (await reopened.EventsAsync("definition-error")).Last().EventType);
+        Assert.Equal("TaskFaulted", (await reopened.EventsAsync("definition-error")).Last().EventType);
     }
 
     [Theory]
@@ -433,7 +438,7 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Equal(expected, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Event, "inactive", "step-1"), Authorized("inactive")));
         Assert.Equal(status, (await store.LoadAsync("inactive"))!.Status);
-        Assert.Empty(await store.EventsAsync("inactive"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("inactive")).EventType);
         Assert.Empty(await store.CommittedEffectPayloadsAsync("inactive"));
     }
 
@@ -523,21 +528,30 @@ public sealed class DurableWorkflowEngineSeamTests
 
         var escalated = await store.LoadAsync("inst-runaway");
         Assert.Equal(WorkflowStatus.Failed, escalated!.Status);
-        Assert.Equal(WorkflowTriggerDispatcher.EscalatedStep, escalated.CurrentStep);
+        Assert.Equal("__escalated-max-iterations", escalated.CurrentStep);
         Assert.Equal(WorkflowDispatchResult.Advanced, last);
 
         // The cap is a different failure from ADR-0141, with its own durable diagnosis.
         var events = await store.EventsAsync("inst-runaway");
-        Assert.Equal("Escalated", events.Last().EventType);
+        Assert.Equal("TaskFaulted", events.Last().EventType);
+        Assert.Equal("decide", events.Last().Step);
         using var payload = JsonDocument.Parse(events.Last().DataJson);
-        Assert.Equal("max-iterations-escalation", payload.RootElement.GetProperty("kind").GetString());
-        Assert.Equal("loop-back iteration cap reached", payload.RootElement.GetProperty("reason").GetString());
-        Assert.Equal("decide", payload.RootElement.GetProperty("step").GetString());
-        Assert.Equal(2, payload.RootElement.GetProperty("iteration").GetInt32());
-        Assert.Equal(3, payload.RootElement.GetProperty("maxIterations").GetInt32());
+        Assert.Equal("/decide", payload.RootElement.GetProperty("task").GetString());
+        Assert.Equal("faulted", payload.RootElement.GetProperty("workflowStatus").GetString());
+        var projected = WorkflowLifecycleProjection.Map(events.Last(), new("file-journal", Tenant));
+        Assert.Equal(new[] { "io.serverlessworkflow.task.faulted.v1", "io.serverlessworkflow.workflow.faulted.v1" },
+            projected.Select(entry => entry.Type));
+        Assert.Equal("/decide", projected[0].Data.GetProperty("task").GetString());
+        var outcomeData = payload.RootElement.GetProperty("outcome");
+        Assert.Equal("max-iterations-escalation", outcomeData.GetProperty("kind").GetString());
+        Assert.Equal("loop-back iteration cap reached", outcomeData.GetProperty("reason").GetString());
+        Assert.Equal("decide", outcomeData.GetProperty("step").GetString());
+        Assert.Equal(2, outcomeData.GetProperty("iteration").GetInt32());
+        Assert.Equal(3, outcomeData.GetProperty("maxIterations").GetInt32());
         var result = await store.FindStepResultAsync(new WorkflowStepKey("inst-runaway", 2, "decide"));
         Assert.NotNull(result);
-        Assert.Equal(events.Last().DataJson, result.ResultJson);
+        using var resultData = JsonDocument.Parse(result.ResultJson);
+        Assert.Equal("max-iterations-escalation", resultData.RootElement.GetProperty("kind").GetString());
     }
 
     [Fact]
@@ -670,7 +684,7 @@ public sealed class DurableWorkflowEngineSeamTests
         // instantiation maps to the same id and is refused, leaving the original untouched.
         await CreateAsync(store, "invoice:inv-77", step: "decide");
         await Assert.ThrowsAsync<InvalidOperationException>(() => CreateAsync(store, "invoice:inv-77", step: "decide"));
-        Assert.Equal((1, 0, 0, 0), await store.CountsAsync());
+        Assert.Equal((1, 1, 0, 0), await store.CountsAsync());
     }
 
     // ── Recurring-generation rows (Handler B) ──
@@ -689,7 +703,7 @@ public sealed class DurableWorkflowEngineSeamTests
         Assert.Contains("generate@2026-08-15", error.Message, StringComparison.Ordinal);
         Assert.Equal(before, new FileInfo(fixture.JournalPath).Length);
         Assert.Empty((await store.LoadAsync("recurring-extra"))!.MovedAwaySteps);
-        Assert.Empty(await store.EventsAsync("recurring-extra"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("recurring-extra")).EventType);
         Assert.Equal(WorkflowDispatchResult.Advanced, await dispatcher.DispatchAsync(
             WorkflowTrigger.For(WorkflowTriggerKind.Schedule, "recurring-extra", "generate@2026-08-15"), Authorized("recurring-extra")));
     }
@@ -802,7 +816,7 @@ public sealed class DurableWorkflowEngineSeamTests
         await CreateAsync(store, "recurring:sched-9", key: "recurring-generation", step: "generate@2026-07-01");
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => CreateAsync(store, "recurring:sched-9", key: "recurring-generation", step: "generate@2026-07-01"));
-        Assert.Equal((1, 0, 0, 0), await store.CountsAsync());
+        Assert.Equal((1, 1, 0, 0), await store.CountsAsync());
     }
 
     // ── Proposed-CP-action rows (Handler C over the durable seam) ──
@@ -907,7 +921,7 @@ public sealed class DurableWorkflowEngineSeamTests
         using var reopened = ReopenAfter(store, fixture);
         var advance = (await reopened.EventsAsync("inst-attr")).Last();
         using var payload = JsonDocument.Parse(advance.DataJson);
-        Assert.Equal(confirmer.ToString("D"), payload.RootElement.GetProperty("confirmedBy").GetString());
+        Assert.Equal(confirmer.ToString("D"), payload.RootElement.GetProperty("outcome").GetProperty("confirmedBy").GetString());
         Assert.Single(await reopened.CommittedEffectPayloadsAsync("inst-attr"));
     }
 

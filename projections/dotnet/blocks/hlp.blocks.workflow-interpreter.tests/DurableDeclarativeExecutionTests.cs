@@ -125,6 +125,12 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
             await Continue.Task;
             return await inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
         }
+        public async Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await inner.AdvanceFailedIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, faultedTask, ct);
+        }
         public Task ParkAsync(string id, string step, string reasonJson, int iteration = 0, CancellationToken ct = default) => inner.ParkAsync(id, step, reasonJson, iteration, ct);
         public Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default) => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
     }
@@ -233,8 +239,12 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         Assert.Equal("not-retryable", payload.RootElement.GetProperty("reason").GetString());
         Assert.Equal("B", payload.RootElement.GetProperty("step").GetString());
         var events = await store.EventsAsync("bad-1");
-        Assert.Equal("Failed", events.Last().EventType);
-        Assert.Equal(result.ResultJson, events.Last().DataJson);
+        Assert.Equal("TaskFaulted", events.Last().EventType);
+        Assert.Equal("B", events.Last().Step);
+        using var historyData = JsonDocument.Parse(events.Last().DataJson);
+        Assert.Equal("/B", historyData.RootElement.GetProperty("task").GetString());
+        Assert.Equal("faulted", historyData.RootElement.GetProperty("workflowStatus").GetString());
+        Assert.Equal("not-retryable", historyData.RootElement.GetProperty("outcome").GetProperty("reason").GetString());
         Assert.Empty(await store.CommittedEffectPayloadsAsync("bad-1"));
 
         Assert.Equal(WorkflowDispatchResult.Terminal, await dispatcher.DispatchAsync(trigger, Authorized("bad-1")));
@@ -250,6 +260,11 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         Assert.Equal(result.ResultJson,
             (await reopened.FindStepResultAsync(new WorkflowStepKey("bad-1", 0, "A")))!.ResultJson);
         Assert.Equal(events.Count, (await reopened.EventsAsync("bad-1")).Count);
+        var projected = (await reopened.EventsAsync("bad-1"))
+            .SelectMany(fact => WorkflowLifecycleProjection.Map(fact, new("file-journal", "tenant:acme"))).ToArray();
+        Assert.Equal(new[] { "io.serverlessworkflow.workflow.started.v1", "io.serverlessworkflow.task.faulted.v1", "io.serverlessworkflow.workflow.faulted.v1" }, projected.Select(e => e.Type));
+        Assert.Equal("/B", projected[1].Data.GetProperty("task").GetString());
+        Assert.NotEqual(projected[1].Id, projected[2].Id);
     }
 
     // ── Harness ─────────────────────────────────────────────────────────────

@@ -1,8 +1,16 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.blocks.workflow",
-  "interfaceRevision": 16,
+  "interfaceRevision": 17,
   "durableCases": [
+    {"id": "lifecycle-facts-cap-task-identity", "expect": "iteration-cap TaskFaulted names /decide and workflowStatus faulted; mapper emits task.faulted then workflow.faulted while terminal position stays __escalated-max-iterations", "test": "DurableWorkflowEngineSeamTests.PathologicalSendBackLoop_TerminatesAtCap_Escalates"},
+    {"id": "lifecycle-facts-interpreter-task-identity", "expect": "a dispatch beginning at A that fails internally at B records /B and maps task.faulted before workflow.faulted after reopen", "test": "DurableDeclarativeExecutionTests.Interpreter_decision_error_atomically_fails_the_run_at_the_actual_step_without_retry"},
+    {"id": "lifecycle-facts-start-atomic", "expect": "start fact and pinned coordinates co-commit with instance; pre-frame fault leaves neither; restart keeps both", "test": "WorkflowLifecycleFactsTests.Start_commits_pinned_fact_with_instance_and_survives_reopen"},
+    {"id": "lifecycle-facts-start-rollback", "expect": "pre-frame bound failure leaves no instance or fact; retry commits one creation frame", "test": "WorkflowLifecycleFactsTests.Start_failure_before_frame_leaves_neither_instance_nor_fact_and_retry_is_atomic"},
+    {"id": "lifecycle-facts-advance-atomic", "expect": "staging throw writes no frame; committed completion and fault map after restart", "test": "WorkflowLifecycleFactsTests.Staging_failure_leaves_no_advance_fact_and_committed_outcome_survives_reopen"},
+    {"id": "lifecycle-facts-engine-mapper", "expect": "real start and each advance map from history alone; final task and workflow ids differ; no standalone frames", "test": "WorkflowLifecycleFactsTests.Engine_start_and_each_advance_map_from_reopened_history_alone"},
+    {"id": "lifecycle-facts-legacy", "expect": "v1 instances effects replay rows and history survive; absent starts stay missing; new writes use v2", "test": "WorkflowLifecycleFactsTests.Legacy_history_stays_missing_while_new_frames_use_version_two"},
+    {"id": "lifecycle-facts-unreadable-version", "expect": "unknown frame versions fail closed without truncation", "test": "WorkflowLifecycleFactsTests.Unreadable_frame_version_is_refused_without_truncation"},
     {"id": "lifecycle-events-history-order", "expect": "EventsAsync returns committed per-run history in sequence order after reopening", "test": "WorkflowLifecycleJournalReadbackTests.Lifecycle_history_is_ordered_and_survives_reopening_the_journal"},
     {"id": "lifecycle-projection", "expect": "committed workflow and task facts map to their CNCF lifecycle types and payloads", "test": "WorkflowLifecycleProjectionTests.Projects_workflow_and_task_history_with_the_CNCF_type_and_payload"},
     {"id": "operator-migration", "expect": "authorized explicit map atomically re-pins and records principal versions and map; state survives recovery"},
