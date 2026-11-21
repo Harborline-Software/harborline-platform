@@ -190,7 +190,7 @@ public sealed record SchedulingProposal(
     IReadOnlyList<string> IncompleteFactSets);
 
 /// <summary>Contract for deterministic solvers operating on compiled planning problems.</summary>
-public interface IPlanningSolver
+internal interface IPlanningSolver
 {
     /// <summary>The modules, problem classes, guarantees and work budget this backend offers.</summary>
     SolverBackend Backend { get; }

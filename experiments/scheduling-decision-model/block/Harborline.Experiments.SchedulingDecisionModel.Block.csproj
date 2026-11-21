@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>$(HarborlineLibraryTargetFramework)</TargetFramework>
+    <AssemblyName>Harborline.Blocks.Scheduling</AssemblyName>
+    <PackageId>Harborline.Experiments.SchedulingDecisionModel.Block</PackageId>
+    <RootNamespace>Harborline.Blocks.Scheduling</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(HarborlineReleasedMicrosoftPackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/**/*.cs" Exclude="../../../projections/dotnet/blocks/hlp.blocks.scheduling/bin/**;../../../projections/dotnet/blocks/hlp.blocks.scheduling/obj/**" />
+    <None Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Planning/Fixtures/*.json" Link="Planning/Fixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../projections/dotnet/foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/foundation/hlp.foundation.scheduling/Harborline.Foundation.Scheduling.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj" />
+    <ProjectReference Include="../../../projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Harborline.Blocks.Scheduling.Tests" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Data" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Evaluation" />
+    <InternalsVisibleTo Include="Harborline.Experiments.SchedulingDecisionModel.Tests" />
+  </ItemGroup>
+</Project>
