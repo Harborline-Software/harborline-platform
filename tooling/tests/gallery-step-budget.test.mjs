@@ -55,7 +55,11 @@ test('a gallery gate step past its budget fails by step id, budget and command',
     const started = performance.now()
     await assert.rejects(
       () => galleryRun('react-gallery-typecheck', process.execPath, OUTLIVES_BUDGET_ARGS),
-      /react-gallery-typecheck exceeded its 300ms budget and was killed: .*setTimeout/)
+      error => {
+        assert.match(error.message, /react-gallery-typecheck exceeded its 300ms budget and was killed: .*setTimeout/,
+          JSON.stringify(error.errors?.map(cause => ({message: cause.message, code: cause.code}))))
+        return true
+      })
     assert.ok(performance.now() - started < 8_000, 'the timed out step must stop before its 10000ms lifetime')
   })
 })
