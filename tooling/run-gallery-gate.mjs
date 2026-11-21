@@ -311,24 +311,25 @@ export async function run(id, executable, args, cwd = root, extraEnv = {}) {
   const started = performance.now()
   process.stderr.write(`gallery step ${id} started (budget ${stepBudgetMs()}ms)\n`)
   const server = start(id, executable, args, cwd, extraEnv)
-  let cleanup
   const result = await new Promise(resolveStep => {
+    let timedOut = false
     let error
-    const budget = setTimeout(() => {
+    const finish = (status, cleanupError) => resolveStep({status, error, cleanupError, stdout: server.output.join(''), stderr: ''})
+    const budget = setTimeout(async () => {
+      timedOut = true
       error = Object.assign(new Error('step timed out'), {code: 'ETIMEDOUT'})
-      cleanup = stopServers([server]).then(() => undefined, cleanupError => cleanupError)
+      try { await stopServers([server]); finish(server.child.exitCode) }
+      catch (cleanupError) { finish(server.child.exitCode, cleanupError) }
     }, stepBudgetMs())
-    server.child.once('error', spawnError => { error = spawnError })
+    server.child.once('error', spawnError => { if (!timedOut) error = spawnError })
     server.child.once('close', status => {
       clearTimeout(budget)
-      resolveStep({status, error, stdout: server.output.join(''), stderr: ''})
+      if (!timedOut) finish(status)
     })
   })
-  const cleanupError = await cleanup
-  if (cleanupError) throw cleanupError
-  servers.splice(servers.indexOf(server), 1)
+  if (!result.cleanupError) servers.splice(servers.indexOf(server), 1)
   if (result.error?.code === 'ETIMEDOUT') {
-    throw new Error(`${id} exceeded its ${stepBudgetMs()}ms budget and was killed: ${[executable, ...args].join(' ')}`)
+    throw new Error(`${id} exceeded its ${stepBudgetMs()}ms budget and was killed: ${[executable, ...args].join(' ')}`, {cause: result.cleanupError})
   }
   const entry = {
     id,

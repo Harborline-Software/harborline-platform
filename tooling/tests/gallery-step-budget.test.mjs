@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
+import childProcess from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, resolve } from 'node:path'
 import test from 'node:test'
@@ -61,6 +64,36 @@ test('a gallery gate step past its budget fails by step id, budget and command',
         return true
       })
     assert.ok(performance.now() - started < 8_000, 'the timed out step must stop before its 10000ms lifetime')
+  })
+})
+
+test('a timed out gallery step settles when cleanup rejects without child close', async t => {
+  const child = Object.assign(new EventEmitter(), {
+    pid: 424242, exitCode: null, stdout: new EventEmitter(), stderr: new EventEmitter(),
+  })
+  const denyCleanup = () => { throw Object.assign(new Error('literal cleanup denied'), {code: 'EPERM'}) }
+  t.mock.method(childProcess, 'spawn', () => child)
+  t.mock.method(childProcess, 'spawnSync', denyCleanup)
+  t.mock.method(process, 'kill', denyCleanup)
+  syncBuiltinESMExports()
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports() })
+
+  await withTinyBudget(async () => {
+    let deadline
+    try {
+      const outcome = await Promise.race([
+        galleryRun('cleanup-rejection', 'literal-node', ['literal-command']).then(
+          () => 'unexpected success', error => error),
+        new Promise(resolveDeadline => { deadline = setTimeout(() => resolveDeadline('step still pending'), 1500) }),
+      ])
+      assert.notEqual(outcome, 'step still pending', 'timeout cleanup must settle without child close')
+      assert.equal(outcome.message, 'cleanup-rejection exceeded its 300ms budget and was killed: literal-node literal-command')
+      assert.equal(outcome.cause.message, 'gallery server cleanup failed')
+      assert.equal(outcome.cause.errors[0].code, 'EPERM')
+      assert.equal(outcome.cause.errors[0].message, 'literal cleanup denied')
+    } finally {
+      clearTimeout(deadline)
+    }
   })
 })
 
