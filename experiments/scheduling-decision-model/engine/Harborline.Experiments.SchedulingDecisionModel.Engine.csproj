@@ -7,6 +7,6 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../../projections/dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
+    <ProjectReference Include="../block/Harborline.Experiments.SchedulingDecisionModel.Block.csproj" PrivateAssets="all" />
   </ItemGroup>
 </Project>
