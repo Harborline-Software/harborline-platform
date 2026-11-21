@@ -45,6 +45,14 @@ public interface IWorkflowStore
         => this is IWorkflowMigrationStore ? throw new NotSupportedException("Migration-capable stores must fence advances.")
             : AdvanceLegacyAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
 
+    /// <summary>
+    /// Commits a failed advance with the actual faulted task, independently of the terminal nextStep.
+    /// Lifecycle-history providers override this to retain faultedTask; the default preserves legacy fencing.
+    /// </summary>
+    Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+        => AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, WorkflowStatus.Failed, ct);
+
     private async Task<bool> AdvanceLegacyAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson,
         string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
     {

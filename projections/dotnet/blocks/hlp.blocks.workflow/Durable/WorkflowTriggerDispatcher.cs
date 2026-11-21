@@ -160,6 +160,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         // matches, it executes the instance's pinned, re-admitted declarative definition. With neither a
         // handler nor an interpreter, an unhandled definition throws (the pre-A1 posture — unchanged).
         using var approvalDecisions = new WorkflowApprovalDecisionScope();
+        var faultedTask = key.Step;
         WorkflowStepOutcome outcome;
         if (_handlers.TryGetValue(instance.DefinitionKey, out var handler))
         {
@@ -176,6 +177,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                 // Only the interpreter's typed definition error becomes a terminal failure.
                 // Gate refusals, cancellation, admission and action errors retain their semantics.
                 ct.ThrowIfCancellationRequested();
+                faultedTask = error.Step;
                 outcome = WorkflowStepOutcome.InterpreterFailure(error.Step);
             }
         }
@@ -199,16 +201,27 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
         }
 
         // ATOMIC ADVANCE — effect (if any) + outcome event + idempotency row + position, one transaction.
-        var committed = await _store.AdvanceIfCurrentAsync(
-            expected: instance,
-            key: key,
-            effect: outcome.Effect,
-            resultJson: outcome.ResultJson,
-            eventType: outcome.EventType,
-            eventDataJson: outcome.EventDataJson,
-            nextStep: outcome.NextStep,
-            nextStatus: outcome.NextStatus,
-            ct: ct).ConfigureAwait(false);
+        var committed = outcome.NextStatus == WorkflowStatus.Failed
+            ? await _store.AdvanceFailedIfCurrentAsync(
+                expected: instance,
+                key: key,
+                effect: outcome.Effect,
+                resultJson: outcome.ResultJson,
+                eventType: outcome.EventType,
+                eventDataJson: outcome.EventDataJson,
+                nextStep: outcome.NextStep,
+                faultedTask: faultedTask,
+                ct: ct).ConfigureAwait(false)
+            : await _store.AdvanceIfCurrentAsync(
+                expected: instance,
+                key: key,
+                effect: outcome.Effect,
+                resultJson: outcome.ResultJson,
+                eventType: outcome.EventType,
+                eventDataJson: outcome.EventDataJson,
+                nextStep: outcome.NextStep,
+                nextStatus: outcome.NextStatus,
+                ct: ct).ConfigureAwait(false);
 
         if (committed)
             approvalDecisions.Commit();
@@ -254,7 +267,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                 iteration = instance.Iteration,
                 maxIterations = _options.MaxIterations,
             });
-            var committed = await _store.AdvanceIfCurrentAsync(
+            var committed = await _store.AdvanceFailedIfCurrentAsync(
                 expected: instance,
                 key: decidedKey,
                 effect: null,
@@ -262,7 +275,7 @@ public sealed class WorkflowTriggerDispatcher : IWorkflowTriggerDispatcher
                 eventType: "Escalated",
                 eventDataJson: escalationJson,
                 nextStep: EscalatedStep,
-                nextStatus: WorkflowStatus.Failed,
+                faultedTask: decidedKey.Step,
                 ct: ct).ConfigureAwait(false);
             return committed ? WorkflowDispatchResult.Advanced : WorkflowDispatchResult.Discarded;
         }

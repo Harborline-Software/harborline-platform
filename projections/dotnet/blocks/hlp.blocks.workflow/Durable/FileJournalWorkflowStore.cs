@@ -182,16 +182,21 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
     public async Task AdvanceAsync(
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
         string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
-        => await AdvanceCoreAsync(null, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct).ConfigureAwait(false);
+        => await AdvanceCoreAsync(null, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, key.Step, ct).ConfigureAwait(false);
 
     /// <inheritdoc />
     public Task<bool> AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
         string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
-        => AdvanceCoreAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        => AdvanceCoreAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, key.Step, ct);
+
+    /// <inheritdoc />
+    public Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+        => AdvanceCoreAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, WorkflowStatus.Failed, faultedTask, ct);
 
     private async Task<bool> AdvanceCoreAsync(WorkflowInstanceRecord? expected,
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
-        string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
+        string eventDataJson, string nextStep, WorkflowStatus nextStatus, string step, CancellationToken ct)
     {
         await EnterAsync(ct).ConfigureAwait(false);
         try
@@ -214,7 +219,6 @@ public sealed class FileJournalWorkflowStore : IWorkflowMigrationStore, IDisposa
             var now = _clock.GetUtcNow();
             var seq = NextSeq(key.InstanceId);
             var failed = nextStatus == WorkflowStatus.Failed;
-            var step = failed ? nextStep : key.Step;
             var data = new JsonObject
             {
                 ["workflow"] = instance.Id,

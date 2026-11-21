@@ -125,6 +125,12 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
             await Continue.Task;
             return await inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
         }
+        public async Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+        {
+            Entered.SetResult();
+            await Continue.Task;
+            return await inner.AdvanceFailedIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, faultedTask, ct);
+        }
         public Task ParkAsync(string id, string step, string reasonJson, int iteration = 0, CancellationToken ct = default) => inner.ParkAsync(id, step, reasonJson, iteration, ct);
         public Task<bool> ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct = default) => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
     }
@@ -236,6 +242,7 @@ public sealed class DurableDeclarativeExecutionTests : IDisposable
         Assert.Equal("TaskFaulted", events.Last().EventType);
         Assert.Equal("B", events.Last().Step);
         using var historyData = JsonDocument.Parse(events.Last().DataJson);
+        Assert.Equal("/B", historyData.RootElement.GetProperty("task").GetString());
         Assert.Equal("faulted", historyData.RootElement.GetProperty("workflowStatus").GetString());
         Assert.Equal("not-retryable", historyData.RootElement.GetProperty("outcome").GetProperty("reason").GetString());
         Assert.Empty(await store.CommittedEffectPayloadsAsync("bad-1"));

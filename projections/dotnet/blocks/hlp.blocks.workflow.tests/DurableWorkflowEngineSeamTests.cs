@@ -90,6 +90,9 @@ public sealed class DurableWorkflowEngineSeamTests
         Task<bool> IWorkflowStore.AdvanceIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
             string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
             => inner.AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+        Task<bool> IWorkflowStore.AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+            string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct)
+            => inner.AdvanceFailedIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, faultedTask, ct);
         Task<bool> IWorkflowStore.ParkIfCurrentAsync(WorkflowInstanceRecord expected, string step, string reasonJson, int iteration, CancellationToken ct)
             => inner.ParkIfCurrentAsync(expected, step, reasonJson, iteration, ct);
     }
@@ -525,13 +528,20 @@ public sealed class DurableWorkflowEngineSeamTests
 
         var escalated = await store.LoadAsync("inst-runaway");
         Assert.Equal(WorkflowStatus.Failed, escalated!.Status);
-        Assert.Equal(WorkflowTriggerDispatcher.EscalatedStep, escalated.CurrentStep);
+        Assert.Equal("__escalated-max-iterations", escalated.CurrentStep);
         Assert.Equal(WorkflowDispatchResult.Advanced, last);
 
         // The cap is a different failure from ADR-0141, with its own durable diagnosis.
         var events = await store.EventsAsync("inst-runaway");
         Assert.Equal("TaskFaulted", events.Last().EventType);
+        Assert.Equal("decide", events.Last().Step);
         using var payload = JsonDocument.Parse(events.Last().DataJson);
+        Assert.Equal("/decide", payload.RootElement.GetProperty("task").GetString());
+        Assert.Equal("faulted", payload.RootElement.GetProperty("workflowStatus").GetString());
+        var projected = WorkflowLifecycleProjection.Map(events.Last(), new("file-journal", Tenant));
+        Assert.Equal(new[] { "io.serverlessworkflow.task.faulted.v1", "io.serverlessworkflow.workflow.faulted.v1" },
+            projected.Select(entry => entry.Type));
+        Assert.Equal("/decide", projected[0].Data.GetProperty("task").GetString());
         var outcomeData = payload.RootElement.GetProperty("outcome");
         Assert.Equal("max-iterations-escalation", outcomeData.GetProperty("kind").GetString());
         Assert.Equal("loop-back iteration cap reached", outcomeData.GetProperty("reason").GetString());

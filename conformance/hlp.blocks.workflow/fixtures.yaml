@@ -3,6 +3,8 @@
   "moduleId": "hlp.blocks.workflow",
   "interfaceRevision": 17,
   "durableCases": [
+    {"id": "lifecycle-facts-cap-task-identity", "expect": "iteration-cap TaskFaulted names /decide and workflowStatus faulted; mapper emits task.faulted then workflow.faulted while terminal position stays __escalated-max-iterations", "test": "DurableWorkflowEngineSeamTests.PathologicalSendBackLoop_TerminatesAtCap_Escalates"},
+    {"id": "lifecycle-facts-interpreter-task-identity", "expect": "a dispatch beginning at A that fails internally at B records /B and maps task.faulted before workflow.faulted after reopen", "test": "DurableDeclarativeExecutionTests.Interpreter_decision_error_atomically_fails_the_run_at_the_actual_step_without_retry"},
     {"id": "lifecycle-facts-start-atomic", "expect": "start fact and pinned coordinates co-commit with instance; pre-frame fault leaves neither; restart keeps both", "test": "WorkflowLifecycleFactsTests.Start_commits_pinned_fact_with_instance_and_survives_reopen"},
     {"id": "lifecycle-facts-start-rollback", "expect": "pre-frame bound failure leaves no instance or fact; retry commits one creation frame", "test": "WorkflowLifecycleFactsTests.Start_failure_before_frame_leaves_neither_instance_nor_fact_and_retry_is_atomic"},
     {"id": "lifecycle-facts-advance-atomic", "expect": "staging throw writes no frame; committed completion and fault map after restart", "test": "WorkflowLifecycleFactsTests.Staging_failure_leaves_no_advance_fact_and_committed_outcome_survives_reopen"},

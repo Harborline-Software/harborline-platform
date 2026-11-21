@@ -770,9 +770,20 @@ sealed class HostInMemoryWorkflowStore : IWorkflowStore
         }
     }
 
-    public async Task AdvanceAsync(
+    public Task AdvanceAsync(
         WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
         string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
+        => AdvanceCoreAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, key.Step, ct);
+
+    public async Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+    {
+        await AdvanceCoreAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, WorkflowStatus.Failed, faultedTask, ct);
+        return true;
+    }
+
+    private async Task AdvanceCoreAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson, string eventType,
+        string eventDataJson, string nextStep, WorkflowStatus nextStatus, string step, CancellationToken ct)
     {
         // Stage the effect BEFORE committing anything — a throwing effect aborts the whole advance.
         if (effect is not null)
@@ -785,7 +796,6 @@ sealed class HostInMemoryWorkflowStore : IWorkflowStore
             var instance = _instances[key.InstanceId];
             var now = DateTimeOffset.UtcNow;
             var failed = nextStatus == WorkflowStatus.Failed;
-            var step = failed ? nextStep : key.Step;
             var data = new JsonObject
             {
                 ["workflow"] = instance.Id,
