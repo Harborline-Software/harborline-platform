@@ -205,7 +205,7 @@ test('shard reports carry host, source HEAD and run id; a recording matrix refus
   assert.match(provenance.galleryHostKey, /^(windows-11-|macos-|linux-)/)
   const report = (shard, overrides = {}) => ({shard, provenance: {...provenance, ...overrides}})
   assert.equal(recordingProvenanceProblem([report(1), report(2), report(3)]), undefined)
-  assert.match(recordingProvenanceProblem([report(1), report(2, {galleryHostKey: 'windows-11-x64'})]), /disagree on galleryHostKey/)
+  assert.match(recordingProvenanceProblem([report(1), report(2, {galleryHostKey: 'test-host-other'})]), /disagree on galleryHostKey/)
   assert.match(recordingProvenanceProblem([report(1), report(2, {sourceHead: 'b'.repeat(40)})]), /disagree on sourceHead/)
   assert.match(recordingProvenanceProblem([report(1), report(2, {runId: 'run-8'})]), /disagree on runId/)
   assert.match(recordingProvenanceProblem([report(1), {shard: 2}]), /needs galleryHostKey on every shard; shard\(s\) 2/)
