@@ -13,7 +13,7 @@ import { registeredFlakeRecords, unregisteredFlakes, validateFlakeRegistry } fro
 import { readBaselineCaptures, recordGalleryBaselines, unionShardBaselineCaptures, writeBaselineCaptures } from './gallery-baseline-store.mjs'
 import { prepareGalleries } from './prepare-galleries.mjs'
 import { mergeShardReports } from './gallery-shard-merge.mjs'
-import { killProcessTreeSync, resolveCommand, runnerEnvironment, spawnWithBudget, stepBudgetMs } from './resolve-command.mjs'
+import { resolveCommand, runnerEnvironment, stepBudgetMs } from './resolve-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const galleryModules = readdirSync(resolve(root, 'gallery/scenarios'))
@@ -41,6 +41,7 @@ const localeCount = galleryModules.reduce((total, module) => total + module.loca
 const qualityCaseCount = galleryModules.reduce((total, module) => total + module.qualityCases, 0)
 const results = []
 const servers = []
+let interrupted = false
 // Ticket 254: the ports are overridable so a measurement run can coexist with a gate holding
 // 6106/6107. The DEFAULTS are unchanged, so the ordinary gate is byte-for-byte what it was.
 const reactPort = Number(process.env.HARBORLINE_GALLERY_REACT_PORT ?? 6106) || 6106
@@ -235,8 +236,10 @@ if (galleryCaptureRoot) mkdirSync(galleryCaptureRoot, { recursive: true })
 // set, each shard writes its OWN json report and they are merged before observation -- which is not
 // bookkeeping: reconciliation demands every declared scenario be observed, so a shard that silently
 // failed to run shows up as declared-but-not-run rather than as a smaller, quietly passing suite.
-function runShardedGallery(id, cwd, extraEnv, shardCount) {
+export function runShardedGallery(id, cwd, extraEnv, shardCount, {spawnChild = spawn, stop = stopServers} = {}) {
+  if (interrupted) throw new Error('gallery gate interrupted')
   const started = performance.now()
+  process.stderr.write(`gallery step ${id} started (${shardCount} shards, budget ${stepBudgetMs()}ms)\n`)
   // Shards DIVIDE a worker budget, they do not multiply one. Four shards at the config's four
   // workers put sixteen browsers plus two gallery servers on sixteen cores: the suite got faster
   // (9.0 -> 5.2 min) and grew fourteen flaky tests and one failure that did not reproduce alone.
@@ -246,34 +249,37 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
   const shards = Array.from({length: shardCount}, (_, index) => {
     const shard = index + 1
     const reportPath = `test-results/results-shard-${shard}.json`
-    const resolved = resolveCommand('npm', ['test', '--', `--shard=${shard}/${shardCount}`])
     return new Promise(resolveShard => {
-      const child = spawn(resolved.executable, resolved.args, {
-        cwd,
-        detached,
-        env: {
-          ...process.env, ...runnerEnvironment, ...extraEnv,
-          PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
-          PW_WORKERS: String(workersPerShard),
-        },
-      })
-      let output = ''
+      const server = start(`${id}-shard-${shard}`, 'npm', ['test', '--', `--shard=${shard}/${shardCount}`], cwd, {
+        ...extraEnv,
+        PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
+        PW_WORKERS: String(workersPerShard),
+      }, spawnChild)
+      const {child, output} = server
       let timedOut = false
-      child.stdout.on('data', chunk => { output += chunk })
-      child.stderr.on('data', chunk => { output += chunk })
-      const budget = setTimeout(() => {
+      let error
+      const finish = (code, cleanupError) => resolveShard({
+        shard, code, output: output.join(''), reportPath, timedOut, error: cleanupError ?? error,
+      })
+      const budget = setTimeout(async () => {
         timedOut = true
-        if (child.pid) killProcessTreeSync(child.pid)
+        // A timeout settles after group cleanup, even if a failed cleanup cannot close
+        // the leader's pipes. A close event during cleanup must not finish the step early.
+        try { await stop([server]); finish(child.exitCode) }
+        catch (cleanupError) { finish(child.exitCode, cleanupError) }
       }, stepBudgetMs())
-      child.on('close', code => {
+      child.once('error', spawnError => { error = spawnError })
+      child.once('close', code => {
         clearTimeout(budget)
-        resolveShard({shard, code, output, reportPath, timedOut})
+        // Retain completed shard groups for final cleanup too: a leader can exit while
+        // descendants still run.
+        if (!timedOut) finish(code)
       })
     })
   })
 
   return Promise.all(shards).then(finished => {
-    const failed = finished.filter(shardResult => shardResult.code !== 0)
+    const failed = finished.filter(shardResult => shardResult.code !== 0 || shardResult.timedOut || shardResult.error)
     // Merge every shard's report into the single file the observation path already reads, so
     // sharding changes how the suite RUNS and nothing about how it is judged.
     const merged = mergeShardReports(finished.map(shardResult => {
@@ -284,12 +290,12 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
 
     const entry = {
       id,
-      exitCode: failed.length === 0 ? 0 : (failed[0].code ?? 1),
+      exitCode: failed.length === 0 ? 0 : (failed[0].code || 1),
       durationMs: Math.round(performance.now() - started),
       passed: failed.length === 0,
       shards: finished.map(shardResult => ({shard: shardResult.shard, exitCode: shardResult.code})),
       failureOutput: failed.length === 0 ? undefined
-        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount}${shardResult.timedOut ? ` (exceeded ${stepBudgetMs()}ms budget)` : ''} ---\n${shardResult.output}`)
+        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount}${shardResult.timedOut ? ` (exceeded ${stepBudgetMs()}ms budget)` : ''} ---\n${shardResult.error?.message ?? ''}\n${shardResult.output}`)
             .join('\n').trimEnd().split('\n').slice(-120).join('\n'),
     }
     results.push(entry)
@@ -300,12 +306,30 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
 // Ticket 275: unbounded steps (npm ci, dotnet restore --no-cache, playwright install) made a
 // wedge and a slow-but-fine step look identical -- no output, no CPU. The breadcrumb makes the
 // silence attributable to a step id; the budget turns "forever" into a named, diagnosable failure.
-export function run(id, executable, args, cwd = root, extraEnv = {}) {
+// Keep the event loop available to signal handlers while gallery servers are live.
+export async function run(id, executable, args, cwd = root, extraEnv = {}) {
   const started = performance.now()
   process.stderr.write(`gallery step ${id} started (budget ${stepBudgetMs()}ms)\n`)
-  const result = spawnWithBudget(executable, args, { cwd, extraEnv })
+  const server = start(id, executable, args, cwd, extraEnv)
+  const result = await new Promise(resolveStep => {
+    let timedOut = false
+    let error
+    const finish = (status, cleanupError) => resolveStep({status, error, cleanupError, stdout: server.output.join(''), stderr: ''})
+    const budget = setTimeout(async () => {
+      timedOut = true
+      error = Object.assign(new Error('step timed out'), {code: 'ETIMEDOUT'})
+      try { await stopServers([server]); finish(server.child.exitCode) }
+      catch (cleanupError) { finish(server.child.exitCode, cleanupError) }
+    }, stepBudgetMs())
+    server.child.once('error', spawnError => { if (!timedOut) error = spawnError })
+    server.child.once('close', status => {
+      clearTimeout(budget)
+      if (!timedOut) finish(status)
+    })
+  })
+  if (!result.cleanupError) servers.splice(servers.indexOf(server), 1)
   if (result.error?.code === 'ETIMEDOUT') {
-    throw new Error(`${id} exceeded its ${stepBudgetMs()}ms budget and was killed: ${[executable, ...args].join(' ')}`)
+    throw new Error(`${id} exceeded its ${stepBudgetMs()}ms budget and was killed: ${[executable, ...args].join(' ')}`, {cause: result.cleanupError})
   }
   const entry = {
     id,
@@ -318,18 +342,22 @@ export function run(id, executable, args, cwd = root, extraEnv = {}) {
   if (!entry.passed) throw new Error(`${id} failed:\n${entry.failureOutput}`)
 }
 
-function start(id, executable, args, cwd) {
+function start(id, executable, args, cwd, extraEnv = {}, spawnChild = spawn) {
+  if (interrupted) throw new Error('gallery gate interrupted')
   const output = []
   const resolved = resolveCommand(executable, args)
-  const child = spawn(resolved.executable, resolved.args, {
+  const child = spawnChild(resolved.executable, resolved.args, {
     cwd,
     detached,
-    env: { ...process.env, ...runnerEnvironment },
+    env: { ...process.env, ...runnerEnvironment, ...extraEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   child.stdout.on('data', chunk => output.push(chunk.toString()))
   child.stderr.on('data', chunk => output.push(chunk.toString()))
-  servers.push({ id, child, output })
+  const server = { id, child, output }
+  child.on('error', error => output.push(error.message))
+  servers.push(server)
+  return server
 }
 
 // Ticket 254: a FLAT 120s budget is not a measurement of anything. Measured on this machine, the
@@ -345,6 +373,7 @@ async function waitFor(label, url, timeoutMs = QUIET_STARTUP_MS[label] * READY_B
   const started = performance.now()
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    if (interrupted) throw new Error('gallery gate interrupted')
     try {
       if (await probeUrl(url)) {
         process.stderr.write(`${label} gallery ready at ${url} after ${Math.round(performance.now() - started)}ms (budget ${timeoutMs}ms)\n`)
@@ -369,27 +398,97 @@ function probeUrl(url) {
   })
 }
 
-async function assertPortAvailable(port) {
+export async function assertPortAvailable(port, {platform = process.platform, inspect = spawnSync} = {}) {
   await new Promise((resolvePort, rejectPort) => {
     const probe = createServer()
     probe.unref()
-    probe.once('error', error => rejectPort(new Error(`gallery port ${port} is unavailable: ${error.message}`)))
+    probe.once('error', error => {
+      const owner = platform === 'darwin' || platform === 'linux'
+        ? inspect('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN'], {encoding: 'utf8', timeout: 2000})
+        : undefined
+      rejectPort(new Error(`gallery port ${port} is unavailable: ${error.message}`
+        + (owner?.stdout?.trim() ? `\nListening process (command and PID):\n${owner.stdout.trim()}` : '')))
+    })
     probe.listen(port, '127.0.0.1', () => probe.close(resolvePort))
   })
 }
 
-function stopServers() {
-  for (const { child } of servers) {
-    if (!child.pid || child.killed) continue
-    try {
-      if (detached) process.kill(-child.pid, 'SIGTERM')
-      // On Windows child.kill() reaches only the direct child; the dev server it spawned
-      // would survive and hold its port for the next run. taskkill /T fells the whole tree.
-      else if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
-      else child.kill('SIGTERM')
-    } catch {
-      // The process already exited.
+// /proc stat fields after comm are state, parent PID, then process group ID.
+export function linuxGroupHasRunningMembers(groupId, {list = readdirSync, read = readFileSync} = {}) {
+  return list('/proc').filter(name => /^\d+$/.test(name)).some(pid => {
+    let stat
+    try { stat = read(`/proc/${pid}/stat`, 'utf8') }
+    catch (error) {
+      if (error.code === 'ENOENT' || error.code === 'ESRCH') return false
+      // Foreign records may be inaccessible (hidepid). An unreadable owned leader
+      // cannot prove the group gone; keep waiting and let cleanup escalate.
+      return Number(pid) === groupId
     }
+    const end = stat.lastIndexOf(')')
+    const fields = stat.slice(end + 2).trim().split(/\s+/)
+    if (end < 0 || !/^\d+$/.test(fields[2] ?? '')) return Number(pid) === groupId
+    if (Number(fields[2]) !== groupId) return false
+    if (!/^[A-Z]$/.test(fields[0] ?? '')) throw new Error(`invalid /proc/${pid}/stat for owned group ${groupId}`)
+    return fields[0] !== 'Z'
+  })
+}
+
+export async function stopServers(owned = servers, {
+  platform = process.platform, kill = process.kill, treeKill = spawnSync, timeoutMs = 5000,
+  groupRunning = linuxGroupHasRunningMembers,
+} = {}) {
+  const waitUntilGone = async pid => {
+    const deadline = Date.now() + timeoutMs
+    do {
+      try { kill(platform === 'win32' ? pid : -pid, 0) }
+      catch (error) {
+        if (error.code === 'ESRCH') return true
+        throw error
+      }
+      if (platform === 'linux' && !groupRunning(pid)) return true
+      await new Promise(resolveWait => setTimeout(resolveWait, 50))
+    } while (Date.now() < deadline)
+    return false
+  }
+  const outcomes = await Promise.allSettled(owned.map(async ({child}) => {
+    if (!child.pid) return
+    try {
+      if (platform === 'win32') {
+        // Windows needs the whole tree, not just the direct child.
+        treeKill('taskkill', ['/pid', String(child.pid), '/T', '/F'], {stdio: 'ignore'})
+      } else kill(-child.pid, 'SIGTERM')
+    } catch (error) {
+      if (error.code === 'ESRCH') return
+      throw error
+    }
+    if (await waitUntilGone(child.pid)) return
+    if (platform !== 'win32') {
+      try { kill(-child.pid, 'SIGKILL') }
+      catch (error) { if (error.code !== 'ESRCH') throw error }
+    }
+    if (!await waitUntilGone(child.pid)) throw new Error(`gallery process group ${child.pid} did not exit`)
+  }))
+  const failures = outcomes.filter(outcome => outcome.status === 'rejected')
+  if (failures.length) throw new AggregateError(failures.map(outcome => outcome.reason), 'gallery server cleanup failed')
+}
+
+export async function withServerCleanup(work, {stop = stopServers, host = process} = {}) {
+  let stopping
+  const cleanup = () => stopping ??= Promise.resolve().then(stop)
+  const removeHandlers = () => { for (const [signal, handler] of handlers) host.removeListener(signal, handler) }
+  const handlers = new Map(['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal, index) => [signal, () => {
+    interrupted = true
+    void cleanup().then(() => { removeHandlers(); host.exit([130, 143, 129][index]) }, error => {
+      removeHandlers()
+      host.stderr.write(`gallery cleanup failed: ${error.message}\n`)
+      host.exit(1)
+    })
+  }]))
+  for (const [signal, handler] of handlers) host.on(signal, handler)
+  try { return await work() }
+  finally {
+    try { await cleanup() }
+    finally { removeHandlers() }
   }
 }
 
@@ -418,7 +517,7 @@ export const requiredGalleryStepIds = [
 ]
 const shardReportName = shardAssignment ? `test-results/results-shard-${shardAssignment.index}.json` : undefined
 
-if (import.meta.main) {
+export async function main({stop = stopServers} = {}) {
   let prepared
   let failure
   // Set by the collector; the observation below reads it instead of a results.json this job never
@@ -428,6 +527,7 @@ if (import.meta.main) {
   // drops `config` and `stats.duration`.
   let shardTiming
   try {
+  await withServerCleanup(async () => {
     if (mergeDirectory) {
       const shardReports = readdirSync(mergeDirectory, {recursive: true, withFileTypes: true})
         .filter(entry => entry.isFile() && /^gallery-shard-\d+\.json$/.test(entry.name))
@@ -451,26 +551,28 @@ if (import.meta.main) {
     } else {
     await Promise.all([assertPortAvailable(reactPort), assertPortAvailable(blazorPort)])
     prepared = prepareGalleries({ packagesReady: process.argv.includes('--packages-ready') })
-    run('gallery-structure', process.execPath, ['tooling/validate-gallery.mjs'])
-    run('react-gallery-typecheck', 'npm', ['run', 'typecheck'], prepared.reactGallery)
-    run('react-storybook-build', 'npm', ['run', 'build'], prepared.reactGallery)
-    run('blazor-gallery-clean', prepared.dotnet.executable, [
+    await run('gallery-structure', process.execPath, ['tooling/validate-gallery.mjs'])
+    await run('react-gallery-typecheck', 'npm', ['run', 'typecheck'], prepared.reactGallery)
+    await run('react-storybook-build', 'npm', ['run', 'build'], prepared.reactGallery)
+    await run('blazor-gallery-clean', prepared.dotnet.executable, [
       'clean', prepared.blazorProject, '--configuration', 'Release', '-v:quiet',
     ])
-    run('blazor-gallery-build', prepared.dotnet.executable, [
+    await run('blazor-gallery-build', prepared.dotnet.executable, [
       'build', prepared.blazorProject, '--configuration', 'Release', '--no-restore', '-v:minimal',
     ])
-    run('gallery-tests-typecheck', 'npm', ['run', 'typecheck'], prepared.galleryTests)
-    run('playwright-browser', 'npm', ['exec', '--', 'playwright', 'install', 'chromium'], prepared.galleryTests)
+    await run('gallery-tests-typecheck', 'npm', ['run', 'typecheck'], prepared.galleryTests)
+    await run('playwright-browser', 'npm', ['exec', '--', 'playwright', 'install', 'chromium'], prepared.galleryTests)
     // Installation success only says the package manager completed. Prove the executable can launch
     // under this host's headless/sandbox conditions before a 529-spec run turns that cause into 529
     // indistinguishable failures.
-    run('playwright-browser-launch', process.execPath, ['verify-browser.mjs'], prepared.galleryTests)
+    await run('playwright-browser-launch', process.execPath, ['verify-browser.mjs'], prepared.galleryTests)
   
+    await assertPortAvailable(reactPort)
     start('react-storybook', 'npm', [
       'run', 'dev', '--', '--host', '127.0.0.1',
       ...(reactPort === 6106 ? [] : ['--port', String(reactPort)]),
     ], prepared.reactGallery)
+    await assertPortAvailable(blazorPort)
     start('blazor-blazing-story', prepared.dotnet.executable, [
       'run', '--project', prepared.blazorProject,
       '--configuration', 'Release', '--no-build', '--no-restore',
@@ -488,7 +590,7 @@ if (import.meta.main) {
     if (shardAssignment) {
       // MATRIX producer. One shard, alone on this runner, so it takes the whole PW_WORKERS budget
       // -- the opposite of runShardedGallery, which divides one budget among co-resident shards.
-      run(
+      await run(
         'gallery-accessibility-and-parity',
         'npm',
         ['test', '--', `--shard=${shardAssignment.index}/${shardAssignment.total}`],
@@ -498,7 +600,7 @@ if (import.meta.main) {
     } else if (shardCount > 1 && !focusedPattern && !recordBaselines) {
       await runShardedGallery('gallery-accessibility-and-parity', prepared.galleryTests, galleryEnv, shardCount)
     } else {
-      run(
+      await run(
         'gallery-accessibility-and-parity',
         'npm',
         focusedPattern ? ['test', '--', '--grep', focusedPattern] : ['test'],
@@ -507,10 +609,9 @@ if (import.meta.main) {
       )
     }
     }
+  }, {stop})
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error)
-  } finally {
-    stopServers()
   }
   
   if (failure) {
@@ -724,3 +825,5 @@ if (import.meta.main) {
   process.exitCode = passed ? 0 : 1
   }
 }
+
+if (import.meta.main) await main()
