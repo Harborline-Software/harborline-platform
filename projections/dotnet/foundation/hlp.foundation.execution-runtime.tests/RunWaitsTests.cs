@@ -73,7 +73,8 @@ public sealed class RunWaitsTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new RunWait("step", (RunWaitReason)99, now));
         Assert.Throws<ArgumentException>(() => new RunWait("step", RunWaitReason.Timer, now));
         Assert.Throws<ArgumentException>(() => new RunWait("step", RunWaitReason.Dependency, now, now));
-        Assert.Throws<ArgumentException>(() => new RunWait("step", RunWaitReason.Timer, now, now.ToOffset(TimeSpan.FromHours(1))));
+        var nonUtc = Assert.Throws<ArgumentException>(() => new RunWait("step", RunWaitReason.Timer, now, now.ToOffset(TimeSpan.FromHours(1))));
+        Assert.Contains("UTC", nonUtc.Message, StringComparison.Ordinal);
         Assert.Throws<ArgumentException>(() => new RunWait("step", RunWaitReason.Dependency, now.ToOffset(TimeSpan.FromHours(1))));
     }
 }

@@ -52,10 +52,15 @@ public sealed class ReportAuthoringTests : BunitContext
     }
 
     [Theory]
-    [InlineData("boolean", "true", "lease")]
-    [InlineData("date_time", "2026-01-01T00:00:00Z", "")]
-    [InlineData("date_time", "2026-01-01T00:00:00Z", " \t ")]
-    public void RefusesInvalidAsAt(string type, string input, string effective)
+    [InlineData("boolean", "true", "lease", "Use date_time for as_at.")]
+    [InlineData("boolean", "true", "", "Use date_time for as_at.")]
+    [InlineData("boolean", "not-bool", "", "Enter a valid default.")]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", "\u0085", "Enter an effective-dated type.")]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", "\ufeff", null)]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", "", "Enter an effective-dated type.")]
+    [InlineData("date_time", "2026-01-01T00:00:00Z", " \t ", "Enter an effective-dated type.")]
+    [InlineData("date_time", "not-a-date", "", "Enter a valid default.")]
+    public void RefusesInvalidAsAt(string type, string input, string effective, string? message)
     {
         ReportDraft? changed = null;
         var cut = Render<HarborlineReportAuthoringEditor>(p => p.Add(x => x.Value, ReportDraft.Empty).Add(x => x.ValueChanged, value => changed = value));
@@ -64,8 +69,16 @@ public sealed class ReportAuthoringTests : BunitContext
         cut.Find("[aria-label='Parameter default']").Change(input);
         cut.Find("[aria-label='Effective-dated type']").Change(effective);
         cut.Find("[aria-label='Add parameter']").Click();
-        Assert.Null(changed);
-        Assert.Equal("Enter a valid default.", cut.Find("[role='alert']").TextContent);
+        if (message is null)
+        {
+            Assert.Equal("\ufeff", Assert.Single(changed!.Parameters).EffectiveDatedType);
+            Assert.Empty(cut.FindAll("[role='alert']"));
+        }
+        else
+        {
+            Assert.Null(changed);
+            Assert.Equal(message, cut.Find("[role='alert']").TextContent);
+        }
     }
 
     [Fact(DisplayName = "reports-auth-12: creates a report from nothing")]
