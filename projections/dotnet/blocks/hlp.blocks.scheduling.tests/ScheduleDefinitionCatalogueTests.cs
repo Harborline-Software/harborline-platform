@@ -71,12 +71,26 @@ public sealed class ScheduleDefinitionCatalogueTests
         var solvers = new IPlanningSolver[] { new LimitedSolver() };
         var catalogue = new ScheduleDefinitionCatalogue(_store, solvers);
         var save = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save").AsTask());
-        Assert.Equal([new DefinitionRefusal(code, pointer)], save.Refusals);
+        // Oracle: T-491/solver-refusal-detail acceptance 3, independent of backend production values.
+        var detail = code switch
+        {
+            "scheduling.definition.backend_unsupported" => """{"observed":"missing","required":["prototype.exhaustive-proof.v2"]}""",
+            "scheduling.definition.problem_class_unsupported" => problem == ScheduleProblemClass.None
+                ? """{"observed":"None","required":["JobShop","Project"]}"""
+                : """{"observed":"Workforce","required":["JobShop","Project"]}""",
+            "scheduling.definition.guarantee_unsupported" => """{"observed":"optimal_proof","required":["feasible_proof"]}""",
+            _ => budget == -1 ? """{"observed":-1,"minimum":0,"maximum":10}""" : """{"observed":11,"minimum":0,"maximum":10}""",
+        };
+        var expected = JsonSerializer.Deserialize<DefinitionRefusal>("{\"Code\":\"" + code + "\",\"Pointer\":\"" + pointer + "\",\"detail\":" + detail + "}")!;
+        Assert.Equal([expected], save.Refusals);
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(save.Refusals)));
+        using var expectedWire = JsonDocument.Parse(detail);
+        Assert.True(JsonElement.DeepEquals(expectedWire.RootElement, wire.RootElement.GetProperty("detail")));
         Assert.Empty(await _store.ListHistoryAsync(Key));
         var document = new DefinitionDocument(Key, Id + "@1.0.0", "1.0.0", ScheduleDefinitionJson.Serialize(definition with { Envelope = definition.Envelope! with { Version = null } }));
         await _store.SaveDraftAsync(document, 0, "raw");
         var publish = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish").AsTask());
-        Assert.Equal([new DefinitionRefusal(code, pointer)], publish.Refusals);
+        Assert.Equal([expected], publish.Refusals);
         Assert.Null(await _store.GetPublishedHeadAsync(Key));
     }
 
