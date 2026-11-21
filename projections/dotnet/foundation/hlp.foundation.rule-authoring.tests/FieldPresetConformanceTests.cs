@@ -52,6 +52,7 @@ public sealed class FieldPresetConformanceTests
         Assert.Empty(result.Diagnostics);
         Assert.True(JsonNode.DeepEquals(row["lowered"], result.Lowered), result.Lowered?.ToJsonString());
         Assert.Equal(Canonical(row["source"]!["envelope"]!), Canonical(JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(document))!["envelope"]!));
+        Assert.Equal(Canonical(row["source"]!["envelope"]!), Canonical(JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(result.Document!))!["envelope"]!));
     }
 
     [Fact(DisplayName = "rules-auth-17 producer parity: Number remains an ordinary editable Formula at threshold 5")]
@@ -77,6 +78,7 @@ public sealed class FieldPresetConformanceTests
         Assert.Empty(result.Diagnostics);
         Assert.True(JsonNode.DeepEquals(edit["lowered"], result.Lowered), result.Lowered?.ToJsonString());
         Assert.Equal(Canonical(row["source"]!["envelope"]!), Canonical(JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(document))!["envelope"]!));
+        Assert.Equal(Canonical(row["source"]!["envelope"]!), Canonical(JsonNode.Parse(RuleDefinitionCodec.SerializeCanonical(result.Document!))!["envelope"]!));
     }
 
     private static JsonNode Case(string kind) => Fixture()["cases"]!.AsArray().Single(row => row!["kind"]!.GetValue<string>() == kind)!;

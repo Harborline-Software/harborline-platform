@@ -39,6 +39,7 @@ describe('rules-auth-17 producer parity', () => {
     expect(result.diagnostics).toEqual([])
     expect(result.lowered).toEqual(lowered)
     expect(document.envelope).toEqual(source.envelope)
+    expect(result.document!.envelope).toEqual(source.envelope)
   })
 
   it('Number remains an ordinary editable Formula after changing the threshold to 5', () => {
@@ -53,5 +54,6 @@ describe('rules-auth-17 producer parity', () => {
     expect(result.diagnostics).toEqual([])
     expect(result.lowered).toEqual(fixture.numberEdit.lowered)
     expect(document.envelope).toEqual(source.envelope)
+    expect(result.document!.envelope).toEqual(source.envelope)
   })
 })
