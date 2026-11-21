@@ -681,6 +681,51 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal("", refusal.Pointer);
     }
 
+    // Oracle: ADR-0197 decisions 4/5 require caller-before-lookup in every publisher entry.
+    // Literal caller codes are the existing FormFieldBinding refusal contract; no production constant is read.
+    [Theory]
+    [InlineData("create", "author", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("save-next", "author", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("register-publish", "publish", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("publish-with-impact", "publish", false, "field.value_domain_tenant_mismatch")]
+    [InlineData("create", "author", true, "field.value_domain_principal_required")]
+    [InlineData("save-next", "author", true, "field.value_domain_principal_required")]
+    [InlineData("register-publish", "publish", true, "field.value_domain_principal_required")]
+    [InlineData("publish-with-impact", "publish", true, "field.value_domain_principal_required")]
+    public async Task Refused_caller_precedes_occupied_id_lookup_in_definition_entries(
+        string entry, string phase, bool blankPrincipal, string code)
+    {
+        var definition = Definition("refused-occupied-id", "true");
+        if (!blankPrincipal) definition = definition with { Tenant = new("tenant-other") };
+        var reads = new InMemoryFormDefinitionStore();
+        await reads.CreateAsync(definition);
+        var store = new RecordingStore(new FormDefinitionConflictException(
+            definition.Id, definition.Version, new("private-store-tenant")), reads);
+        await using var provider = BuildHost(store, blankPrincipal ? new BlankPrincipal() : null);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "register-publish" => publisher.RegisterAndPublishAsync(definition),
+            _ => PublishWithImpact(),
+        }).AsTask());
+
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(refusal.Target);
+        Assert.Empty(error.Data);
+        Assert.Equal(0, store.ReadCalls);
+        Assert.Equal(0, store.Calls);
+
+        async ValueTask<FormDefinition> PublishWithImpact() =>
+            (await publisher.RegisterAndPublishWithImpactAsync(definition, (await ImpactFixture.CreateAsync()).Context)).Definition;
+    }
+
     [Fact]
     public async Task Publication_refuses_a_non_Draft_before_the_store_is_called()
     {
@@ -961,6 +1006,7 @@ public sealed class AuthoringHostIntegrationTests
     private sealed class RecordingStore(Exception? refusal = null, IFormDefinitionStore? reads = null) : IFormDefinitionStore
     {
         public int Calls { get; private set; }
+        public int ReadCalls { get; private set; }
         public ValueTask<FormDefinition> RegisterAndPublishAsync(FormDefinition definition, CancellationToken ct = default)
         {
             Calls++;
@@ -969,8 +1015,16 @@ public sealed class AuthoringHostIntegrationTests
         public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
         public ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
         public ValueTask<FormDefinition> RestoreAsDraftAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => RegisterAndPublishAsync(Definition(id.Value, "true"), ct);
-        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => reads!.GetAsync(tenant, id, version, ct);
-        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => reads!.GetCurrentPublishedAsync(tenant, id, ct);
+        public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default)
+        {
+            ReadCalls++;
+            return reads!.GetAsync(tenant, id, version, ct);
+        }
+        public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default)
+        {
+            ReadCalls++;
+            return reads!.GetCurrentPublishedAsync(tenant, id, ct);
+        }
         public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => RegisterAndPublishAsync(Definition(id.Value, "true"), ct);
         public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
@@ -1105,6 +1159,8 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(2, error.Data.Count);
         Assert.Equal("store-outcome", error.Data["definitionId"]);
         Assert.Equal("1.0.0", error.Data["revision"]);
+        Assert.DoesNotContain("private-store-tenant", System.Text.Json.JsonSerializer.Serialize(
+            new { error.Message, error.Data, error.Refusals }), StringComparison.Ordinal);
         Assert.Equal(1, store.Calls);
 
         async ValueTask<FormDefinition> PublishWithImpact() =>
@@ -1148,6 +1204,8 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Equal(2, error.Data.Count);
         Assert.Equal("store-outcome", error.Data["definitionId"]);
         Assert.Equal("1.0.0", error.Data["revision"]);
+        Assert.DoesNotContain("private-store-tenant", System.Text.Json.JsonSerializer.Serialize(
+            new { error.Message, error.Data, error.Refusals }), StringComparison.Ordinal);
         Assert.Equal(1, store.Calls);
 
         async ValueTask<FormDefinition> PublishWithImpact() =>

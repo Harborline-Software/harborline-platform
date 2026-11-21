@@ -6,7 +6,7 @@
   "contentHashes": {
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Program.cs": "3202f8f4e5dc168c2df5bccf3fc4375b305bdcc3270e6be7ed03e2d8e8b73d96",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.restart-probe/Harborline.Foundation.Forms.Engine.RestartProbe.csproj": "c7614aceefb947714ae0179900373e0e49db9864759c180bf239a32c2766c716",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "646cfc1b94c2c29d3895ff526882922b119cd3b12d95153bb7b9c89258ff1d03",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/AuthoringHostIntegrationTests.cs": "cebdb80ea78c8be85da0f6650fc9328451909a2b62028c42e3829d49ac56c8e8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/CurrentFormExecutionContextProviderTests.cs": "e5821b4853cff14b3d9afb04c1122363b2a5a6bc733a1fe43412fc1a98314949",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/DecryptOnRenderTests.cs": "b75f89a56683585cc96ce8f83a6e9935b0907d68ea2cb1ecf5971094fb5e39d6",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FileJournalFormSubmissionStoreTests.cs": "7122d1ce130e6f9f9638f73b14aa8e4b90cd9dfb9ea338c276085a6deee08a87",
