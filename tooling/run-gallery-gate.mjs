@@ -13,7 +13,7 @@ import { registeredFlakeRecords, unregisteredFlakes, validateFlakeRegistry } fro
 import { readBaselineCaptures, recordGalleryBaselines, unionShardBaselineCaptures, writeBaselineCaptures } from './gallery-baseline-store.mjs'
 import { prepareGalleries } from './prepare-galleries.mjs'
 import { mergeShardReports } from './gallery-shard-merge.mjs'
-import { killProcessTreeSync, resolveCommand, runnerEnvironment, stepBudgetMs } from './resolve-command.mjs'
+import { resolveCommand, runnerEnvironment, stepBudgetMs } from './resolve-command.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const galleryModules = readdirSync(resolve(root, 'gallery/scenarios'))
@@ -236,9 +236,10 @@ if (galleryCaptureRoot) mkdirSync(galleryCaptureRoot, { recursive: true })
 // set, each shard writes its OWN json report and they are merged before observation -- which is not
 // bookkeeping: reconciliation demands every declared scenario be observed, so a shard that silently
 // failed to run shows up as declared-but-not-run rather than as a smaller, quietly passing suite.
-function runShardedGallery(id, cwd, extraEnv, shardCount) {
+export function runShardedGallery(id, cwd, extraEnv, shardCount, {spawnChild = spawn, stop = stopServers} = {}) {
   if (interrupted) throw new Error('gallery gate interrupted')
   const started = performance.now()
+  process.stderr.write(`gallery step ${id} started (${shardCount} shards, budget ${stepBudgetMs()}ms)\n`)
   // Shards DIVIDE a worker budget, they do not multiply one. Four shards at the config's four
   // workers put sixteen browsers plus two gallery servers on sixteen cores: the suite got faster
   // (9.0 -> 5.2 min) and grew fourteen flaky tests and one failure that did not reproduce alone.
@@ -248,34 +249,37 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
   const shards = Array.from({length: shardCount}, (_, index) => {
     const shard = index + 1
     const reportPath = `test-results/results-shard-${shard}.json`
-    const resolved = resolveCommand('npm', ['test', '--', `--shard=${shard}/${shardCount}`])
     return new Promise(resolveShard => {
-      const child = spawn(resolved.executable, resolved.args, {
-        cwd,
-        detached,
-        env: {
-          ...process.env, ...runnerEnvironment, ...extraEnv,
-          PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
-          PW_WORKERS: String(workersPerShard),
-        },
-      })
-      let output = ''
+      const server = start(`${id}-shard-${shard}`, 'npm', ['test', '--', `--shard=${shard}/${shardCount}`], cwd, {
+        ...extraEnv,
+        PLAYWRIGHT_JSON_OUTPUT_NAME: reportPath,
+        PW_WORKERS: String(workersPerShard),
+      }, spawnChild)
+      const {child, output} = server
       let timedOut = false
-      child.stdout.on('data', chunk => { output += chunk })
-      child.stderr.on('data', chunk => { output += chunk })
-      const budget = setTimeout(() => {
+      let error
+      const finish = (code, cleanupError) => resolveShard({
+        shard, code, output: output.join(''), reportPath, timedOut, error: cleanupError ?? error,
+      })
+      const budget = setTimeout(async () => {
         timedOut = true
-        if (child.pid) killProcessTreeSync(child.pid)
+        // A timeout settles after group cleanup, even if a failed cleanup cannot close
+        // the leader's pipes. A close event during cleanup must not finish the step early.
+        try { await stop([server]); finish(child.exitCode) }
+        catch (cleanupError) { finish(child.exitCode, cleanupError) }
       }, stepBudgetMs())
-      child.on('close', code => {
+      child.once('error', spawnError => { error = spawnError })
+      child.once('close', code => {
         clearTimeout(budget)
-        resolveShard({shard, code, output, reportPath, timedOut})
+        // Retain completed shard groups for final cleanup too: a leader can exit while
+        // descendants still run.
+        if (!timedOut) finish(code)
       })
     })
   })
 
   return Promise.all(shards).then(finished => {
-    const failed = finished.filter(shardResult => shardResult.code !== 0)
+    const failed = finished.filter(shardResult => shardResult.code !== 0 || shardResult.timedOut || shardResult.error)
     // Merge every shard's report into the single file the observation path already reads, so
     // sharding changes how the suite RUNS and nothing about how it is judged.
     const merged = mergeShardReports(finished.map(shardResult => {
@@ -286,12 +290,12 @@ function runShardedGallery(id, cwd, extraEnv, shardCount) {
 
     const entry = {
       id,
-      exitCode: failed.length === 0 ? 0 : (failed[0].code ?? 1),
+      exitCode: failed.length === 0 ? 0 : (failed[0].code || 1),
       durationMs: Math.round(performance.now() - started),
       passed: failed.length === 0,
       shards: finished.map(shardResult => ({shard: shardResult.shard, exitCode: shardResult.code})),
       failureOutput: failed.length === 0 ? undefined
-        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount}${shardResult.timedOut ? ` (exceeded ${stepBudgetMs()}ms budget)` : ''} ---\n${shardResult.output}`)
+        : failed.map(shardResult => `--- shard ${shardResult.shard}/${shardCount}${shardResult.timedOut ? ` (exceeded ${stepBudgetMs()}ms budget)` : ''} ---\n${shardResult.error?.message ?? ''}\n${shardResult.output}`)
             .join('\n').trimEnd().split('\n').slice(-120).join('\n'),
     }
     results.push(entry)
@@ -337,11 +341,11 @@ export async function run(id, executable, args, cwd = root, extraEnv = {}) {
   if (!entry.passed) throw new Error(`${id} failed:\n${entry.failureOutput}`)
 }
 
-function start(id, executable, args, cwd, extraEnv = {}) {
+function start(id, executable, args, cwd, extraEnv = {}, spawnChild = spawn) {
   if (interrupted) throw new Error('gallery gate interrupted')
   const output = []
   const resolved = resolveCommand(executable, args)
-  const child = spawn(resolved.executable, resolved.args, {
+  const child = spawnChild(resolved.executable, resolved.args, {
     cwd,
     detached,
     env: { ...process.env, ...runnerEnvironment, ...extraEnv },
@@ -415,14 +419,16 @@ export function linuxGroupHasRunningMembers(groupId, {list = readdirSync, read =
     try { stat = read(`/proc/${pid}/stat`, 'utf8') }
     catch (error) {
       if (error.code === 'ENOENT' || error.code === 'ESRCH') return false
-      throw error
+      // Foreign records may be inaccessible (hidepid). An unreadable owned leader
+      // cannot prove the group gone; keep waiting and let cleanup escalate.
+      return Number(pid) === groupId
     }
     const end = stat.lastIndexOf(')')
     const fields = stat.slice(end + 2).trim().split(/\s+/)
-    if (end < 0 || fields[0]?.length !== 1 || !/^\d+$/.test(fields[2] ?? '')) {
-      throw new Error(`invalid /proc/${pid}/stat`)
-    }
-    return Number(fields[2]) === groupId && fields[0] !== 'Z'
+    if (end < 0 || !/^\d+$/.test(fields[2] ?? '')) return Number(pid) === groupId
+    if (Number(fields[2]) !== groupId) return false
+    if (!/^[A-Z]$/.test(fields[0] ?? '')) throw new Error(`invalid /proc/${pid}/stat for owned group ${groupId}`)
+    return fields[0] !== 'Z'
   })
 }
 

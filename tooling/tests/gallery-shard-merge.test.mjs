@@ -11,18 +11,18 @@
 // PLAYWRIGHT_JSON_OUTPUT_NAME, and the merged report observed ZERO tests.
 
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import test from 'node:test'
 import {EventEmitter} from 'node:events'
 import {createServer} from 'node:net'
-import {spawnSync} from 'node:child_process'
+import {spawn, spawnSync} from 'node:child_process'
 
 import { mergeShardReports } from '../gallery-shard-merge.mjs'
 import { observeGalleryRun } from '../gallery-observations.mjs'
 import {
-  linuxGroupHasRunningMembers, assertPortAvailable, stopServers, withServerCleanup, aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
+  runShardedGallery, linuxGroupHasRunningMembers, assertPortAvailable, stopServers, withServerCleanup, aggregateShardResults, collectShardReports, observeCompletedGalleryRun, parseShardAssignment, requiredGalleryStepIds,
 } from '../run-gallery-gate.mjs'
 
 const SUFFIX = ' is accessible and visually conformant'
@@ -260,6 +260,111 @@ for (const failure of [false, true]) {
     for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) assert.equal(host.listenerCount(signal), 0)
   })
 }
+test('every shard registers for signal cleanup and timeout cleanup is awaited', async () => {
+  const directory = mkdtempSync(resolve(tmpdir(), 'gallery-shard-lifecycle-'))
+  mkdirSync(resolve(directory, 'test-results'))
+  const children = []
+  const timeoutGroups = []
+  const signals = []
+  let release
+  const stopped = new Promise(resolveStop => { release = resolveStop })
+  let done = false
+  process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS = '50'
+  try {
+    const work = withServerCleanup(async () => {
+      const shards = runShardedGallery('owned-shards', directory, {}, 2, {
+        spawnChild: (_executable, args, options) => {
+          assert.equal(options.detached, process.platform !== 'win32')
+          assert.match(args.join(' '), /--shard=[12]\/2/)
+          const child = new EventEmitter()
+          child.pid = 800001 + children.length
+          child.stdout = new EventEmitter()
+          child.stderr = new EventEmitter()
+          children.push(child)
+          return child
+        },
+        stop: async owned => {
+          timeoutGroups.push(owned[0].child.pid)
+          owned[0].child.emit('close', 0)
+          await stopped
+        },
+      }).finally(() => { done = true })
+      // Wait for both budget callbacks, then prove close alone did not finish the step.
+      while (timeoutGroups.length < 2) await new Promise(r => setTimeout(r, 10))
+      assert.equal(done, false)
+      release()
+      await assert.rejects(shards, /owned-shards failed/)
+    }, {host: new EventEmitter(), stop: () => stopServers(undefined, {
+      platform: 'darwin', kill: (pid, signal) => { signals.push([pid, signal]); gone() },
+    })})
+    await work
+    assert.deepEqual(timeoutGroups, [800001, 800002])
+    assert.deepEqual(signals, [[-800001, 'SIGTERM'], [-800002, 'SIGTERM']])
+  } finally {
+    release()
+    delete process.env.HARBORLINE_GALLERY_STEP_BUDGET_MS
+    rmSync(directory, {recursive: true, force: true})
+  }
+})
+
+test('real owned parent and grandchild group is stopped with escalation', {skip: process.platform === 'win32'}, async () => {
+  const parent = spawn(process.execPath, ['-e', `
+    const {spawn} = require('node:child_process');
+    process.on('SIGTERM', () => {});
+    const child = spawn('sh', ['-c', 'trap "" TERM; sleep 60 & echo $!; wait']);
+    child.stdout.pipe(process.stdout);
+    setTimeout(() => {}, 60000);
+  `], {detached: true, stdio: ['ignore', 'pipe', 'pipe']})
+  const closed = new Promise(r => parent.once('close', r))
+  try {
+    const grandchildPid = await new Promise((r, reject) => {
+      parent.stdout.once('data', chunk => r(Number(String(chunk).trim())))
+      parent.once('error', reject)
+      parent.once('exit', () => reject(new Error('fixture exited before readiness')))
+    })
+    assert.ok(grandchildPid > 0)
+    const calls = []
+    await stopServers([{child: parent}], {
+      timeoutMs: 1000,
+      // Linux test probes only its own group's known members, never scans host processes.
+      groupRunning: () => [parent.pid, grandchildPid].some(pid => {
+        try {
+          const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
+          return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[0] !== 'Z'
+        } catch (error) { if (error.code === 'ENOENT') return false; throw error }
+      }),
+      kill: (pid, signal) => { if (signal !== 0) calls.push(signal); return process.kill(pid, signal) },
+    })
+    await closed
+    assert.deepEqual(calls, ['SIGTERM', 'SIGKILL'])
+    assert.equal(parent.signalCode, 'SIGKILL')
+    if (process.platform !== 'linux') {
+      assert.throws(() => process.kill(grandchildPid, 0), {code: 'ESRCH'})
+    }
+  } finally {
+    try { process.kill(-parent.pid, 'SIGKILL') } catch (error) { if (error.code !== 'ESRCH') throw error }
+    await closed
+  }
+})
+
+test('an interrupt refuses the next step before it can spawn', () => {
+  // Isolate the module-level interrupted flag from other tests.
+  const script = `
+    const {EventEmitter} = await import('node:events')
+    const {withServerCleanup, run} = await import(${JSON.stringify(new URL('../run-gallery-gate.mjs', import.meta.url).href)})
+    const host = new EventEmitter()
+    host.exit = () => {}
+    await withServerCleanup(async () => {
+      host.emit('SIGINT')
+      await run('must-not-start', process.execPath, ['-e', 'process.stdout.write("STARTED")'])
+    }, {host, stop: async () => {}})
+  `
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {encoding: 'utf8'})
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /gallery gate interrupted/)
+  assert.equal(result.stdout, '')
+})
+
 for (const [signal, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
   test(`gallery ${signal} waits for cleanup and removes handlers`, async () => {
     const host = new EventEmitter()
@@ -301,9 +406,9 @@ test('Linux group probe ignores zombies, unrelated groups, and vanished PIDs', (
     assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), true)
   }
   records[1235] = Object.assign(new Error('denied'), {code: 'EACCES'})
-  assert.throws(() => linuxGroupHasRunningMembers(1234, procFixture(records)), /denied/)
+  assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), false)
   records[1235] = 'unparseable stat'
-  assert.throws(() => linuxGroupHasRunningMembers(1234, procFixture(records)), /stat/)
+  assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), false)
 })
 test('Linux cleanup accepts a zombie-only group even while kill(0) succeeds', async () => {
   const calls = []
@@ -350,4 +455,21 @@ test('cleanup failure after completed work still emits the gate failure report',
     assert.equal(report.results.length, 9)
     assert.ok(report.results.every(entry => entry.passed), 'work completed before the injected cleanup failure')
   } finally { rmSync(directory, {recursive: true, force: true}) }
+})
+
+test('unreadable foreign proc records do not fail zombie-group cleanup', async () => {
+  const records = {
+    9000: Object.assign(new Error('foreign denied'), {code: 'EACCES'}),
+    9001: 'malformed foreign stat',
+    9002: '9002 (foreign) bad 1 9002 0',
+    1234: '1234 (owned) Z 1 1234 0',
+  }
+  await stopServers([{child: {pid: 1234}}], {
+    platform: 'linux', kill: () => {}, timeoutMs: 1,
+    groupRunning: pid => linuxGroupHasRunningMembers(pid, procFixture(records)),
+  })
+  records[1234] = Object.assign(new Error('owned denied'), {code: 'EACCES'})
+  assert.equal(linuxGroupHasRunningMembers(1234, procFixture(records)), true)
+  records[1234] = '1234 (owned) invalid 1 1234 0'
+  assert.throws(() => linuxGroupHasRunningMembers(1234, procFixture(records)), /owned group 1234/)
 })
