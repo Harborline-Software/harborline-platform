@@ -939,14 +939,12 @@
     "projections/react/ui/hlp.ui.report-authoring": {
       "baseline": 70,
       "break": 70,
-      "score": 81.25,
-      "tested": 494,
-      "observed": {
-        "NoCoverage": 2,
-        "Killed": 403,
-        "Survived": 91
-      },
-      "measured": "2026-11-20"
+      "score": 81.51,
+      "tested": 501,
+      "observed": [
+        81.51
+      ],
+      "measured": "2026-11-21, DESKTOP-UMT08RN (PC), commit 37ed624282e66c690b02bc668a858e4372d96630, tree 5c169bab6400d9195f99bcc23d7739c624fb04f5; StrykerJS 10.0.0, --concurrency 2, full package through host-lane session pc-536; 503 generated: 410 Killed / 91 Survived / 2 NoCoverage / 0 Timeout / 0 RuntimeError / 0 CompileError; 501 tested, score 81.51%. Final baseline-only head rechecked on the PC; head and result recorded in PR #536."
     }
   }
 }
