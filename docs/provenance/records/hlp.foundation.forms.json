@@ -20,7 +20,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms/Drafts/PreAuthCaptureService.cs": "50215df7419b01d6fb0c9f687a71c3ce7578fd5d2b2c6721cfbf73b61e22057b",
     "projections/dotnet/foundation/hlp.foundation.forms/Compatibility/SchemaId.cs": "9a4643d0ea4db04759e360e013c228a1404b56460ea2555d056b422d7064677f",
     "projections/dotnet/foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj": "059f4d9f6523f863e35b7a8e1b943e3cd54d004bd17ccf6ab08d6b471a1480a8",
-    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionKeystoneTests.cs": "88c1c1dc71d16034f52c9e2f057eaefe8032168c22e8fea04e69bb78b1cb1bfc",
+    "projections/dotnet/foundation/hlp.foundation.forms.tests/FormDefinitionKeystoneTests.cs": "91d5e08e88f587c0d477ffbe617e802ab7df2957b0829219e6ffc41fdc43e416",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/ReuseCascadeResolverTests.cs": "cdb3423ec103971aef68a9e2a1a570d3b588ad3e252a4f9f15fb3b8eb79b96be",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/SubmissionDraftTests.cs": "816db5fc7f508aadc79cdc12eea0f09177b8aaca6a7d848866c3783dd1cad9ed",
     "projections/dotnet/foundation/hlp.foundation.forms.tests/FormsStateGapTests.cs": "d08be82c13a12178bd3e4b6ca652d2e5234fe9d2d88f26ad635dfbf5221d0fd6",
