@@ -105,7 +105,7 @@ public sealed class TaxonomyInterpreterTests
         Assert.Throws<ArgumentException>(() => new TaxonomyInterpreter([definition, definition]));
     }
 
-    [Fact]
+    [Fact(DisplayName = "taxonomy-eng-8: Descendants_admit_64_edges_and_refuse_the_65th")]
     public void Descendants_admit_64_edges_and_refuse_the_65th()
     {
         var admitted = Definition(Enumerable.Range(0, 65).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
@@ -114,7 +114,7 @@ public sealed class TaxonomyInterpreterTests
         Assert.Equal("taxonomy.traversal_depth_exceeded", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(refused).GetDescendants(refused, "n0")).Code);
     }
 
-    [Fact]
+    [Fact(DisplayName = "taxonomy-eng-8: A_descendant_cycle_at_the_depth_boundary_keeps_its_cycle_identity")]
     public void A_descendant_cycle_at_the_depth_boundary_keeps_its_cycle_identity()
     {
         var cycle = Definition(Enumerable.Range(0, 64).Select(index => Node($"n{index}", index == 0 ? "n63" : $"n{index - 1}")).ToArray());
@@ -237,30 +237,41 @@ public sealed class TaxonomyInterpreterTests
         Assert.NotNull(result); Assert.False(result.IsActive);
     }
 
-    [Fact] public void Returns_direct_parent_chain_from_node_to_root()
+    [Fact(DisplayName = "taxonomy-eng-5 taxonomy-run-2: Returns_direct_parent_chain_from_node_to_root")] public void Returns_direct_parent_chain_from_node_to_root()
     {
-        var definition = Definition(); Assert.Equal(["child", "root"], Interpreter(definition).GetAncestors(definition, "leaf").Select(node => node.Code));
+        var definition = Definition(); var interpreter = Interpreter(definition);
+        Assert.Equal(["child", "root"], interpreter.GetAncestors(definition, "leaf").Select(node => node.Code));
+        Assert.Empty(interpreter.GetAncestors(definition, "missing"));
     }
 
-    [Fact] public void Returns_descendants_in_definition_ordered_pre_order()
+    [Fact(DisplayName = "taxonomy-eng-6 taxonomy-run-2: Returns_descendants_in_definition_ordered_pre_order")] public void Returns_descendants_in_definition_ordered_pre_order()
     {
-        var definition = Definition(); Assert.Equal(["child", "leaf", "retired"], Interpreter(definition).GetDescendants(definition, "root").Select(node => node.Code));
+        var definition = Definition(); var interpreter = Interpreter(definition);
+        Assert.Equal(["child", "leaf", "retired"], interpreter.GetDescendants(definition, "root").Select(node => node.Code));
+        Assert.Empty(interpreter.GetDescendants(definition, "missing"));
     }
 
-    [Fact] public void Subsumption_uses_identity_and_direct_parent_edges()
+    [Fact(DisplayName = "taxonomy-eng-7 taxonomy-run-3: Subsumption_uses_identity_and_direct_parent_edges")] public void Subsumption_uses_identity_and_direct_parent_edges()
     {
         var definition = Definition(); var interpreter = Interpreter(definition);
         Assert.True(interpreter.Subsumes(definition, "root", "leaf"));
         Assert.True(interpreter.Subsumes(definition, "child", "child"));
         Assert.False(interpreter.Subsumes(definition, "leaf", "child"));
+        Assert.False(interpreter.Subsumes(definition, "missing", "leaf"));
+        Assert.False(interpreter.Subsumes(definition, "root", "missing"));
+        Assert.False(interpreter.Subsumes(definition, "missing", "missing"));
     }
 
-    [Fact] public void Traversals_refuse_parent_cycles_and_parent_depth_beyond_the_admission_bound()
+    [Fact(DisplayName = "taxonomy-eng-8: Traversals_refuse_parent_cycles_and_parent_depth_beyond_the_admission_bound")] public void Traversals_refuse_parent_cycles_and_parent_depth_beyond_the_admission_bound()
     {
         var cycle = Definition([Node("a", parent: "b"), Node("b", parent: "a")]);
         var cycleException = Assert.Throws<TaxonomyTraversalException>(() => Interpreter(cycle).GetAncestors(cycle, "a"));
         Assert.Equal("taxonomy.parent_cycle", cycleException.Code);
-        var tooDeep = Definition(Enumerable.Range(0, TaxonomyDefinitionAdmission.MaximumParentTraversalDepth + 2).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        var admitted = Definition(Enumerable.Range(0, 65).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal(64, Interpreter(admitted).GetAncestors(admitted, "n64").Count);
+        Assert.True(Interpreter(admitted).Subsumes(admitted, "n0", "n64"));
+        var tooDeep = Definition(Enumerable.Range(0, 66).Select(index => Node($"n{index}", index == 0 ? null : $"n{index - 1}")).ToArray());
+        Assert.Equal("taxonomy.traversal_depth_exceeded", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(tooDeep).GetAncestors(tooDeep, "n65")).Code);
         Assert.Equal("taxonomy.traversal_depth_exceeded", Assert.Throws<TaxonomyTraversalException>(() => Interpreter(tooDeep).Subsumes(tooDeep, "n0", "n65")).Code);
     }
 
