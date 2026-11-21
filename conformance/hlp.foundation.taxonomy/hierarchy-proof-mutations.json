@@ -1,0 +1,81 @@
+{
+  "slice": "T-493/hierarchy-contract-proof",
+  "kind": "reversible hand mutations; not Stryker",
+  "producerSha": "82abe40ac3802798c87c83503cb242d84432d024",
+  "testGitBlob": "c9aa4d078c2bfc17a233ad0d66e02a1b28ad4477",
+  "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+  "testFile": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyInterpreterTests.cs",
+  "sdk": "11.0.100",
+  "lane": {
+    "session": "pc-t493-hierarchy",
+    "holder": "writer"
+  },
+  "environment": {
+    "MSBUILDDISABLENODEREUSE": "1",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0"
+  },
+  "buildCommand": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+  "testCommand": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyInterpreterTests",
+  "oracle": "DES-0024 taxonomy-eng-5/6/7/8, taxonomy-run-2/3; interface revision 4; hand-authored literal ordered codes, boolean answers, 64/65-edge fixtures and refusal codes. No expected value reads the producer depth constant.",
+  "mutations": [
+    {
+      "replacement": "(ancestorCode, descendantCode) = (descendantCode, ancestorCode); current = byCode[descendantCode]; if (ancestorCode == descendantCode) return true;",
+      "killingTests": [
+        "Subsumption_uses_identity_and_direct_parent_edges"
+      ],
+      "failed": 7,
+      "passed": 85,
+      "productionRestoredAfterRun": true,
+      "status": "Killed",
+      "testExit": 1,
+      "original": "if (ancestorCode == descendantCode) return true;",
+      "id": "ancestry-direction",
+      "buildExit": 0,
+      "failure": "Expected True, actual False",
+      "selected": 92
+    },
+    {
+      "replacement": "seen.Add(child.Code);",
+      "killingTests": [
+        "A_descendant_cycle_at_the_depth_boundary_keeps_its_cycle_identity"
+      ],
+      "failed": 1,
+      "passed": 91,
+      "productionRestoredAfterRun": true,
+      "status": "Killed",
+      "testExit": 1,
+      "original": "if (!seen.Add(child.Code)) throw new TaxonomyTraversalException(\"taxonomy.parent_cycle\", \"A parent cycle was encountered during traversal.\");",
+      "id": "descendant-cycle-guard",
+      "buildExit": 0,
+      "failure": "Expected taxonomy.parent_cycle, actual taxonomy.traversal_depth_exceeded",
+      "selected": 92
+    },
+    {
+      "occurrences": 2,
+      "replacement": "if (depth > TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) throw TraversalDepth();",
+      "killingTests": [
+        "Descendants_admit_64_edges_and_refuse_the_65th",
+        "Traversals_refuse_parent_cycles_and_parent_depth_beyond_the_admission_bound"
+      ],
+      "failed": 2,
+      "passed": 90,
+      "productionRestoredAfterRun": true,
+      "status": "Killed",
+      "testExit": 1,
+      "original": "if (depth >= TaxonomyDefinitionAdmission.MaximumParentTraversalDepth) throw TraversalDepth();",
+      "id": "depth-past-64",
+      "buildExit": 0,
+      "failure": "Assert.Throws() Failure: No exception was thrown",
+      "selected": 92
+    }
+  ],
+  "restored": {
+    "testResult": "Passed! - Failed: 0, Passed: 92, Skipped: 0, Total: 92 (net11.0)",
+    "testExit": 0,
+    "productionGitDiffEmpty": true,
+    "buildResult": "Build succeeded. 17 Warning(s) 0 Error(s)",
+    "productionBytesRestored": true,
+    "buildExit": 0
+  },
+  "fullGate": "Still to run on the Mac mini; this focused no-restore pass is not full-gate qualification"
+}
