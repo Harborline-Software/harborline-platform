@@ -2,6 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Harborline.Blocks.Scheduling.Planning;
 using Harborline.Blocks.Scheduling.Definitions;
+using Harborline.Blocks.Scheduling.Durable;
+using Harborline.Foundation.Authorization;
+using Harborline.Foundation.ExecutionRuntime;
+using Harborline.Blocks.BuilderDefinitions;
 
 namespace Harborline.Blocks.Scheduling.DependencyInjection;
 
@@ -17,12 +21,13 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>Registers planning. The host supplies IVersionedDefinitionStore and IAvailabilityRuntime.</summary>
-    public static IServiceCollection AddHarborlineSchedulingPlanner(this IServiceCollection services)
+    internal static IServiceCollection AddHarborlineSchedulingPlanner(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanningSolver, DeterministicExhaustiveProofSolver>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IPlanningSolver, GreedyFirstFitSolver>());
-        services.TryAddSingleton<ScheduleDefinitionCatalogue>();
+        services.TryAddSingleton(provider => new ScheduleDefinitionCatalogue(provider.GetRequiredService<IVersionedDefinitionStore>(),
+            provider.GetServices<IPlanningSolver>()));
         services.TryAddSingleton<SchedulePlanner>();
         return services;
     }
@@ -31,7 +36,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddHarborlineSchedulingPlanRuns(this IServiceCollection services)
     {
         services.AddHarborlineSchedulingPlanner();
-        services.TryAddSingleton<PlanRun>();
+        services.TryAddSingleton(provider => new PlanRun(provider.GetRequiredService<AccessProvider>(),
+            provider.GetRequiredService<RunLifecycle>(), provider.GetRequiredService<SchedulePlanner>(),
+            provider.GetRequiredService<FileJournalSchedulingStore>(), provider.GetRequiredService<TimeProvider>()));
         return services;
     }
 

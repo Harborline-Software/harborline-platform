@@ -2,17 +2,39 @@ using Harborline.Foundation.Assets.Common;
 
 namespace Harborline.Foundation.ExecutionRuntime;
 
+/// <summary>A server-told wait in the delay-seconds or HTTP-date form; engines parse header text.</summary>
+public readonly record struct RetryAfter
+{
+    /// <summary>Creates the duration form, refusing a negative wait.</summary>
+    public RetryAfter(TimeSpan delta)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(delta, TimeSpan.Zero);
+        Delta = delta;
+    }
+
+    /// <summary>Creates the instant form, resolved against the lifecycle clock when the attempt fails.</summary>
+    public RetryAfter(DateTimeOffset date) => Date = date;
+
+    /// <summary>The duration form, or null for an instant. A default value means zero wait.</summary>
+    public TimeSpan? Delta { get; }
+
+    /// <summary>The instant form, or null for a duration.</summary>
+    public DateTimeOffset? Date { get; }
+}
+
 /// <summary>Why an attempt failed, as the engine classifies it.</summary>
 /// <param name="Code">A stable, non-secret failure code the engine owns.</param>
 /// <param name="Retryable">False when another attempt cannot help; the run then dead-letters at once.</param>
-public sealed record RunFailure(string Code, bool Retryable);
+/// <param name="RetryAfter">An optional server-told wait, in either form.</param>
+public sealed record RunFailure(string Code, bool Retryable, RetryAfter? RetryAfter = null);
 
 /// <summary>One attempt in a run's history.</summary>
 /// <param name="Number">1-based attempt number.</param>
 /// <param name="StartedUtc">When the attempt began.</param>
 /// <param name="EndedUtc">When it ended, or null while it runs.</param>
 /// <param name="Failure">Why it failed, or null when it succeeded, was cancelled or still runs.</param>
-public sealed record RunAttempt(int Number, DateTimeOffset StartedUtc, DateTimeOffset? EndedUtc, RunFailure? Failure);
+/// <param name="ServerToldWait">The uncapped server wait when strictly longer than jitter and the run retries; otherwise null.</param>
+public sealed record RunAttempt(int Number, DateTimeOffset StartedUtc, DateTimeOffset? EndedUtc, RunFailure? Failure, TimeSpan? ServerToldWait = null);
 
 /// <summary>Why a run dead-lettered.</summary>
 public enum DeadLetterReason
