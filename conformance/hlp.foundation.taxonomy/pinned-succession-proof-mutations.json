@@ -1,0 +1,122 @@
+{
+  "slice": "T-493/pinned-succession-contract-proof",
+  "kind": "reversible-hand-mutations; not a Stryker report or full phase-4 receipt",
+  "claimSha": "41eef2d7338e8c16c36adb44064b8d9c3620ece4",
+  "verifiedSourceSha": "cba03c476b43d07d261b7441e1ada6bd73678c58",
+  "sourceIdentityNote": "Mutations ran with the new test source uncommitted atop claimSha. Its bytes are identical to verifiedSourceSha; producer restored byte-for-byte after every mutation. Final committed build/test recorded below.",
+  "sourceSha256": {
+    "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+    "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyPinnedSuccessionTests.cs": "03e07bb719d52a99c39e42b474488e035e2f0f33b8b3a83f101585c0a9b903a0"
+  },
+  "controlRecordSha": "6dfae5305b8543a45e852a486812f74b830b4ee6",
+  "lane": {
+    "holder": "writer",
+    "session": "macbook-t493-succession",
+    "entry": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh"
+  },
+  "environment": {
+    "sdk": "11.0.100",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1"
+  },
+  "commands": {
+    "build": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+    "test": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore --filter FullyQualifiedName~TaxonomyPinnedSuccessionTests -m:1 -nr:false"
+  },
+  "mutations": [
+    {
+      "mutation": "ignore-requested-version",
+      "baseSha": "41eef2d7338e8c16c36adb44064b8d9c3620ece4",
+      "redExit": 1,
+      "restoredExit": 0,
+      "producer": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "change": "ResolveDefinition ignores requested version and returns last matching tenant/id definition",
+      "detectingTest": "TaxonomyPinnedSuccessionTests.Pinned_versions_keep_their_successor_and_active_hop_counts",
+      "detectingAssertion": "Assert.Equal(version, pinned.Version): expected 1.0.0, actual 2.0.0",
+      "red": {
+        "total": 5,
+        "failed": 2,
+        "passed": 3
+      },
+      "restored": {
+        "total": 5,
+        "failed": 0,
+        "passed": 5,
+        "buildExit": 0
+      },
+      "logSha256": {
+        "build": "91730c25e7d3e0d0f1e24e8511ce03574d0624321dc1817461510a0d353710ac",
+        "red": "b6e5137db06bc26d56421139ba053b720de8add54df5f6091237be90d86732c0",
+        "restored-build": "e8d9261d94dffdc24797da6950696d58dbb86ec67b67c0fee1d638209a1e14c7",
+        "restored-green": "6805564e892026fdd570e8d1a7e6ecf3d6030a3407441721da2a01403765ba10"
+      }
+    },
+    {
+      "mutation": "omit-successor-edge-update",
+      "baseSha": "41eef2d7338e8c16c36adb44064b8d9c3620ece4",
+      "redExit": 1,
+      "restoredExit": 0,
+      "producer": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "change": "ResolveSuccession omits current = successor",
+      "detectingTest": "TaxonomyPinnedSuccessionTests.Pinned_versions_keep_their_successor_and_active_hop_counts",
+      "detectingAssertion": "Assert.IsType<ResolvedTaxonomySuccession>: actual TaxonomySuccessionRefusal",
+      "red": {
+        "total": 5,
+        "failed": 4,
+        "passed": 1
+      },
+      "restored": {
+        "total": 5,
+        "failed": 0,
+        "passed": 5,
+        "buildExit": 0
+      },
+      "logSha256": {
+        "build": "129ac7bf7be9a10e09731dbd3ee9d1c7e89b8cf10e8a2a0dc0cce0945b5f1b31",
+        "red": "6fb003973b291c1bdc595aa58f2b6f5b9fc75cdb046aa2067d658f9254fe14eb",
+        "restored-build": "527db7f50d5e9ed6007b82f4e846dfe4ac239108e4362cdd1c2f8e316641c788",
+        "restored-green": "40734732266df9ffd9a25c3fb67137866e52023eb125328ba0f8db4da42dfe2f"
+      }
+    },
+    {
+      "mutation": "omit-last-hop-assignment",
+      "baseSha": "41eef2d7338e8c16c36adb44064b8d9c3620ece4",
+      "redExit": 1,
+      "restoredExit": 0,
+      "producer": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "change": "ResolveSuccession cycle refusal replaces LastHopCode = previous.Code with null",
+      "detectingTest": "TaxonomyPinnedSuccessionTests.Nontermination_preserves_request_reason_and_last_hop(scenario: cycle)",
+      "detectingAssertion": "Assert.Equal(lastHop, refusal.LastHopCode): expected mid, actual null",
+      "red": {
+        "total": 5,
+        "failed": 1,
+        "passed": 4
+      },
+      "restored": {
+        "total": 5,
+        "failed": 0,
+        "passed": 5,
+        "buildExit": 0
+      },
+      "logSha256": {
+        "build": "a48650bc59779b0476a8883298b913c695d8aba21046b49c3ab481d629387597",
+        "red": "139785f2c761d5efbba62a7d94b004c327d9f2153953ec159ecf790e508f9a8e",
+        "restored-build": "4033db72fc38e2ea34f82cd25cdd57d89f64bdc8bf684dd0da859feded70ea6d",
+        "restored-green": "b6bab74de6d69d2572167c01c226fee040d5da6f7d95e7a04f2bdfc907fa5d8d"
+      }
+    }
+  ],
+  "oracle": "Fixture literals from DES-0024 taxonomy-ck-3/16, taxonomy-eng-1/8/9/10 and taxonomy-run-4; Taxonomy interface revision 4 exact coordinates, HopCount, LastHopCode and literal 64-edge limit. ADR-0103 decision 2; T-724 ruling 121. No expected result uses a production constant.",
+  "qualification": "Focused producer proof only. Full phase-4 gate still to run on the Mac mini; no primitive or consumer acceptance claimed.",
+  "verification": {
+    "sha": "cba03c476b43d07d261b7441e1ada6bd73678c58",
+    "buildExit": 0,
+    "buildResult": "Build succeeded. 21 Warning(s), 0 Error(s).",
+    "testExit": 0,
+    "testResult": "Passed! - Failed: 0, Passed: 5, Skipped: 0, Total: 5",
+    "logs": {
+      "committed-build.log": "394d8dc69acf614a01af83eda9b5b368ec183706cfdf5a500a5248ca66c78d8c",
+      "committed-test.log": "da0c2698cb2a26d14067b5e8b21bf257d6e473b44a27cc4c3be375025efbffc9"
+    }
+  }
+}
