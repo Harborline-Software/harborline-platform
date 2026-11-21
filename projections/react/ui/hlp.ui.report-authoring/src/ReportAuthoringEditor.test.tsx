@@ -42,7 +42,11 @@ it('resolver identity changes preserve selection until the next open or query', 
 })
 
 it.each([
-  ['boolean', 'true', 'lease', 'Enter a valid default.'],
+  ['boolean', 'true', 'lease', 'Use date_time for as_at.'],
+  ['boolean', 'true', '', 'Use date_time for as_at.'],
+  ['boolean', 'not-bool', '', 'Enter a valid default.'],
+  ['date_time', '2026-01-01T00:00:00Z', '\u0085', 'Enter an effective-dated type.'],
+  ['date_time', '2026-01-01T00:00:00Z', '\ufeff', null],
   ['date_time', '2026-01-01T00:00:00Z', '', 'Enter an effective-dated type.'],
   ['date_time', '2026-01-01T00:00:00Z', ' \t ', 'Enter an effective-dated type.'],
   ['date_time', 'not-a-date', '', 'Enter a valid default.'],
@@ -54,8 +58,14 @@ it.each([
   fireEvent.change(screen.getByLabelText('Parameter default'), { target: { value: input } })
   fireEvent.change(screen.getByLabelText('Effective-dated type'), { target: { value: effective } })
   fireEvent.click(screen.getByRole('button', { name: 'Add parameter' }))
-  expect(change).not.toHaveBeenCalled()
-  expect(screen.getByRole('alert').textContent).toBe(message)
+  if (message === null) {
+    expect(change).toHaveBeenCalledTimes(1)
+    expect(change.mock.lastCall![0].parameters[0].effective_dated_type).toBe('\ufeff')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  } else {
+    expect(change).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toBe(message)
+  }
 })
 
 it('reports-auth-12 creates a report from nothing', () => {

@@ -69,7 +69,8 @@ else {
             "string" => parameterDefault,
             _ => null,
         };
-        if (parsed is null || (parameterName == "as_at" && parameterType != "date_time")) { parameterError = "Enter a valid default."; return Task.CompletedTask; }
+        if (parsed is null) { parameterError = "Enter a valid default."; return Task.CompletedTask; }
+        if (parameterName == "as_at" && parameterType != "date_time") { parameterError = "Use date_time for as_at."; return Task.CompletedTask; }
         if (parameterName == "as_at" && string.IsNullOrWhiteSpace(effectiveType)) { parameterError = "Enter an effective-dated type."; return Task.CompletedTask; }
         parameterError = null;
         var item = new ReportParameter(parameterName, parameterType, new(parameterType == "date_time" ? "datetime" : parameterType, parsed, parameterType, true), parameterName == "as_at" ? effectiveType : null);

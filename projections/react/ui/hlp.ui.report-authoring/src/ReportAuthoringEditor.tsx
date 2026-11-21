@@ -68,8 +68,9 @@ export function ReportAuthoringEditor({ value, onCreate, onChange, resolveMeasur
       : parameterType === 'integer' ? /^-?(?:0|[1-9][0-9]*)$/.test(text) && Number.isSafeInteger(Number(text))
       : parameterType === 'float' ? /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(text) && Number.isFinite(Number(text))
       : parameterType === 'date_time' ? /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$/.test(text) && realDateTime(text) : true
-    if (!valid || (parameterName === 'as_at' && parameterType !== 'date_time')) { setParameterError('Enter a valid default.'); return }
-    if (parameterName === 'as_at' && !effectiveType.trim()) { setParameterError('Enter an effective-dated type.'); return }
+    if (!valid) { setParameterError('Enter a valid default.'); return }
+    if (parameterName === 'as_at' && parameterType !== 'date_time') { setParameterError('Use date_time for as_at.'); return }
+    if (parameterName === 'as_at' && /^[\t-\r\u0085\p{Zs}\p{Zl}\p{Zp}]*$/u.test(effectiveType)) { setParameterError('Enter an effective-dated type.'); return }
     setParameterError('')
     change({ ...active, parameters: [...(active.parameters ?? []), { name: parameterName, type: parameterType, default: { kind: parameterType === 'date_time' ? 'datetime' : parameterType, type: parameterType, is_valid: true, value: parameterType === 'boolean' ? text === 'true' : parameterType === 'integer' || parameterType === 'float' ? Number(text) : parameterType === 'date_time' ? text : parameterDefault }, ...(parameterName === 'as_at' ? { effective_dated_type: effectiveType } : {}) }] })
   }
