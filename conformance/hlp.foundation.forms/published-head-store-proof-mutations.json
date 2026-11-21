@@ -1,0 +1,98 @@
+{
+  "slice": "T-485/published-head-store-proof",
+  "control_source_sha": "3013a322d259e978b6212506ce7425b69f2d2d32",
+  "producer_source_sha": "bcaa331cb11313df0bcdce9c127f4aa5015fb870",
+  "platform_main_sha": "82abe40ac3802798c87c83503cb242d84432d024",
+  "test_source": {
+    "path": "projections/dotnet/foundation/hlp.foundation.forms.tests/FormsStateGapTests.cs",
+    "git_blob": "805bf18e644f375a146c4233437b30437e7d50ff",
+    "note": "Uncommitted test snapshot at each mutation and restored run; this blob identifies the exact delivered test source independently of the receipt commit."
+  },
+  "seam": "IFormDefinitionStore on the real InMemoryFormDefinitionStore via FormGateRegisters; forms-eng-1 (store), forms-ck-8 only; no host authorization or full engine execution claim.",
+  "oracle": "Literal fixture and expected rows from the slice acceptance 1-3; DES-0016 forms-eng-1 producer answer, forms-ck-6 states, forms-ck-8 / section 2 semantic head; IFormDefinitionStore pinned/current/list contracts and tenant boundary; ADR-0006 (tenant,key,version) immutable identity. No expected value is derived from another production query.",
+  "red_first": "The strengthened existing test was first executed with m1 active. It failed the 1.10.0 literal assertion before its first restored-green run.",
+  "baseline": {
+    "source_sha": "82abe40ac3802798c87c83503cb242d84432d024",
+    "command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-baseline --candidate 82abe40ac3802798c87c83503cb242d84432d024 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+    "result": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 273 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)"
+  },
+  "restore": {
+    "performed": true,
+    "command": "dotnet restore projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj",
+    "reason": "Mac execution brief explicitly permits this targeted restore; test assets were absent. This is restoring Mac evidence, not a no-restore PC receipt.",
+    "result": "Succeeded: exactly the five listed projects restored. No tracked lockfile, project, package reference or configuration changed."
+  },
+  "mutations": [
+    {
+      "id": "m1",
+      "source_sha": "bcaa331cb11313df0bcdce9c127f4aa5015fb870",
+      "source_file": "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "method": "GetCurrentPublishedAsync",
+      "exact_replacement": {
+        "before": "            if (revision.Status != FormDefinitionStatus.Published) continue;",
+        "after": "            // Mutation: omit Published filter.",
+        "occurrences": 1
+      },
+      "mutated_source_sha256": "0527009a19bc1ecc85ad1625ac5b31306a4456745e89ff78f8ba6b5efd375326",
+      "command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-m1 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "failing_test": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id",
+      "failure": "Expected: 1.10.0; Actual: 4.0.0",
+      "red": "Failed!  - Failed:     1, Passed:     8, Skipped:     0, Total:     9, Duration: 252 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)",
+      "restore_command": "git show bcaa331cb11313df0bcdce9c127f4aa5015fb870:projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs > projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "restored_command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-restored-m1 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "restored_green": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 261 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)"
+    },
+    {
+      "id": "m2",
+      "source_sha": "bcaa331cb11313df0bcdce9c127f4aa5015fb870",
+      "source_file": "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "method": "ListCurrentPublishedByTenantAsync",
+      "exact_replacement": {
+        "before": ".OrderByDescending(candidate => candidate.Version)",
+        "after": ".OrderBy(candidate => candidate.Version)",
+        "occurrences": 1
+      },
+      "mutated_source_sha256": "b94dc4d723d19be546434d88b0ec67a9953624bc4337f4cd54c3262fa33adf38",
+      "command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-m2 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "failing_test": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id",
+      "failure": "Expected: [(alpha, 1.0.0), (inspection, 1.10.0)]; Actual: [(alpha, 1.0.0), (inspection, 1.9.0)]",
+      "red": "Failed!  - Failed:     1, Passed:     8, Skipped:     0, Total:     9, Duration: 279 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)",
+      "restore_command": "git show bcaa331cb11313df0bcdce9c127f4aa5015fb870:projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs > projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "restored_command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-restored-m2 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "restored_green": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 265 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)"
+    },
+    {
+      "id": "m3",
+      "source_sha": "bcaa331cb11313df0bcdce9c127f4aa5015fb870",
+      "source_file": "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "method": "GetCurrentPublishedAsync",
+      "exact_replacement": {
+        "before": "if (!snapshot.TryGetValue(tenant, out var byId) || !byId.TryGetValue(id, out var byVersion))",
+        "after": "if (!snapshot.TryGetValue(new TenantId(\"tenant-state-gaps-b\"), out var byId) || !byId.TryGetValue(id, out var byVersion))",
+        "occurrences": 1
+      },
+      "mutated_source_sha256": "59d5dcd9d1a801114b4d2f1e18458d6ef6caa756825096ee392e1418061869d2",
+      "command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-m3 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "failing_test": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id",
+      "failure": "Expected: 1.10.0; Actual: 99.0.0",
+      "red": "Failed!  - Failed:     3, Passed:     6, Skipped:     0, Total:     9, Duration: 251 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)",
+      "restore_command": "git show bcaa331cb11313df0bcdce9c127f4aa5015fb870:projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs > projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "restored_command": "HARBORLINE_CONTROL_REPO=/Users/christopherwood/Projects/Harborline/harborline-control DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-t485-headstore --workload t485-headstore-restored-m3 --candidate bcaa331cb11313df0bcdce9c127f4aa5015fb870 -- dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormsStateGapTests -m:1 -nr:false",
+      "restored_green": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 262 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)"
+    }
+  ],
+  "final": {
+    "result": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 262 ms - Harborline.Foundation.Forms.Tests.dll (net11.0)",
+    "producer_restored": true,
+    "test_count": 9,
+    "full_gate": "Not run here; full phase-4 gate remains for the Mac mini."
+  },
+  "closure": "Five-project closure and Directory.Build.props/targets, Directory.Packages.props, Harborline.PackageTargetFramework.props unchanged from 6e851512 to fetched origin/main; git diff --exit-code returned 0. All test runs rebuild with --no-restore, never --no-build.",
+  "acceptance": {
+    "1": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id \u2014 four states, semantic 1.9.0/1.10.0 and exact ordered list literals",
+    "2": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id \u2014 second tenant, absence, unknown tenant, Draft-only, pinned Draft history",
+    "3": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id \u2014 deprecate -> 1.9.0 in both reads; withdraw -> null/alpha-only; pinned history",
+    "4": "Harborline.Foundation.Forms.Tests.FormsStateGapTests.Current_list_returns_one_highest_published_revision_per_id \u2014 all three reversible mutants detected; exact replacements and commands above",
+    "5": "FormsStateGapTests \u2014 9 selected tests pass; five unchanged projects; targeted Mac restore disclosed above"
+  }
+}
