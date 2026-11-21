@@ -2,189 +2,301 @@
   "ticket": "T-730/field-preset-contract",
   "date": "2026-11-21",
   "host": "MacBook",
-  "controlRevision": "a0a08889952dabdd647c2122a545660b167ac70d",
-  "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
-  "method": "Four independent compiling hand mutations of the source-builder branches. No Stryker score or baseline is claimed. All runs used the host lane.",
-  "oracle": "Literal source objects, singleton presets and lowered expressions authored from slice acceptance 1/2, DES-0018 rules-auth-17, ADR-0030 and L262. Production never reads field-presets.json.",
+  "candidateSha": "f9d6f2799e06bca5c8f2843861c5b416bc7faa5c",
+  "scope": "Current sourceHashes and Publish-envelope rerun are bound to f9d6f279. The evidence-only repair commit changes no hashed source/test/fixture. Historical hashes below describe only their explicitly named baseline, never the current head.",
   "sourceHashes": {
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts": "11791cc56808000dd385c0505ecfa8697209f1d629b980638bd1f5408cd6c2db",
-    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/__tests__/field-rule-bindings.test.ts": "402437bd375b73e97a8fd8b25e17231af37a5d25a64f8ecb7606a10794e1e2ad",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/__tests__/field-rule-bindings.test.ts": "3376a3bacfb4673711d43451f8757249bee84caf4c749c66879ddb52135d85ff",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/FieldRuleBindings.cs": "53f7e599c7cf8d6941c31d41f57961974e910d81381509bed47f82e68734e8fe",
-    "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/FieldPresetConformanceTests.cs": "f1bbab4ba8a482459fabd15bbbcf0a7d74530443be31bbee1ee50e33d3ba7f2e",
-    "conformance/hlp.foundation.rule-authoring/field-presets.json": "4769726c2ff71c9f2378842ee88edd4e8ccfe950142084fa0412f19cac14946e"
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/FieldPresetConformanceTests.cs": "49eda7eb333c6090cbe187e3c1f78aa7745c0d5b43348cfaed2f94b415d9dac7",
+    "conformance/hlp.foundation.rule-authoring/field-presets.json": "4769726c2ff71c9f2378842ee88edd4e8ccfe950142084fa0412f19cac14946e",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts": "09639800fb4c6d936fa90f44e8ca6796bd22d212d9f257baf4c60f11769c003c",
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleIntentValidator.cs": "31697b902ca7987bebd9e8a0281d0b28a6d272bcc605bf86f39ec2009632b5eb"
   },
-  "initialRed": {
-    "candidateSha": "5ed02a0d6a9baa0b616bef9f82df02cf8a85e61e",
-    "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS preset source parity red via existing runner\" --candidate 5ed02a0d6a9baa0b616bef9f82df02cf8a85e61e -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
-    "failed": 3,
-    "reason": "fieldPresetsFor is not a function"
+  "historicalBaseline": {
+    "label": "First verification pass at 7ed90505, before the four Publish-result envelope assertions in f9d6f279. Preserved historical evidence; not a claim about current test bytes. Commands retain actual arguments, including the abbreviated ts-number candidate.",
+    "ticket": "T-730/field-preset-contract",
+    "date": "2026-11-21",
+    "host": "MacBook",
+    "controlRevision": "a0a08889952dabdd647c2122a545660b167ac70d",
+    "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
+    "method": "Four independent compiling hand mutations of the source-builder branches. No Stryker score or baseline is claimed. All runs used the host lane.",
+    "oracle": "Literal source objects, singleton presets and lowered expressions authored from slice acceptance 1/2, DES-0018 rules-auth-17, ADR-0030 and L262. Production never reads field-presets.json.",
+    "sourceHashes": {
+      "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts": "11791cc56808000dd385c0505ecfa8697209f1d629b980638bd1f5408cd6c2db",
+      "projections/typescript/foundation/hlp.foundation.rule-authoring/src/__tests__/field-rule-bindings.test.ts": "402437bd375b73e97a8fd8b25e17231af37a5d25a64f8ecb7606a10794e1e2ad",
+      "projections/dotnet/foundation/hlp.foundation.rule-authoring/FieldRuleBindings.cs": "53f7e599c7cf8d6941c31d41f57961974e910d81381509bed47f82e68734e8fe",
+      "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/FieldPresetConformanceTests.cs": "f1bbab4ba8a482459fabd15bbbcf0a7d74530443be31bbee1ee50e33d3ba7f2e",
+      "conformance/hlp.foundation.rule-authoring/field-presets.json": "4769726c2ff71c9f2378842ee88edd4e8ccfe950142084fa0412f19cac14946e"
+    },
+    "initialRed": {
+      "candidateSha": "5ed02a0d6a9baa0b616bef9f82df02cf8a85e61e",
+      "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS preset source parity red via existing runner\" --candidate 5ed02a0d6a9baa0b616bef9f82df02cf8a85e61e -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
+      "failed": 3,
+      "reason": "fieldPresetsFor is not a function"
+    },
+    "mutations": [
+      {
+        "id": "ts-number",
+        "item": "rules-auth-17",
+        "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
+        "before": "op: '>='",
+        "after": "op: '>'",
+        "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Number comparator mutant\" --candidate 7ed90505 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
+        "compiling": true,
+        "typecheckExitCode": 0,
+        "beforeResult": {
+          "passed": 13,
+          "failed": 0
+        },
+        "afterResult": {
+          "passed": 10,
+          "failed": 3,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "rules-auth-17 producer parity > Number source matches the literal authored fixture",
+          "rules-auth-17 producer parity > Number publishes ordinary source with literal lowered expression",
+          "rules-auth-17 producer parity > Number remains an ordinary editable Formula after changing the threshold to 5"
+        ],
+        "killingAssertions": [
+          "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
+          "expect(result.lowered).toEqual(lowered): literal lowered expression",
+          "expect(result.lowered).toEqual(fixture.numberEdit.lowered): literal >= 5 expression"
+        ],
+        "restored": true,
+        "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Number mutant restored green\" --candidate 7ed90505 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
+        "restoredResult": {
+          "passed": 13,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "logSha256": "f16271dcedc1bf26b3fd759b465a700859bce82005d8b39e5d9dd5f0ddc18c15"
+      },
+      {
+        "id": "ts-text",
+        "item": "rules-auth-17",
+        "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
+        "before": "value: '', valueType: 'Text'",
+        "after": "value: 'x', valueType: 'Text'",
+        "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Text empty to x mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
+        "compiling": true,
+        "typecheckExitCode": 0,
+        "beforeResult": {
+          "passed": 13,
+          "failed": 0
+        },
+        "afterResult": {
+          "passed": 11,
+          "failed": 2,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "rules-auth-17 producer parity > Text source matches the literal authored fixture",
+          "rules-auth-17 producer parity > Text publishes ordinary source with literal lowered expression"
+        ],
+        "killingAssertions": [
+          "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
+          "expect(result.lowered).toEqual(lowered): literal lowered expression"
+        ],
+        "restored": true,
+        "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Text mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
+        "restoredResult": {
+          "passed": 13,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "logSha256": "6ddac44ab6030951d9ef3abd4cdff0804ed1a948a962ed7207f6cbfc00b55c3e"
+      },
+      {
+        "id": "ts-boolean",
+        "item": "rules-auth-17",
+        "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
+        "before": "value: 'true', valueType: 'Boolean'",
+        "after": "value: 'false', valueType: 'Boolean'",
+        "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Boolean true to false mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
+        "compiling": true,
+        "typecheckExitCode": 0,
+        "beforeResult": {
+          "passed": 13,
+          "failed": 0
+        },
+        "afterResult": {
+          "passed": 11,
+          "failed": 2,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "rules-auth-17 producer parity > Boolean source matches the literal authored fixture",
+          "rules-auth-17 producer parity > Boolean publishes ordinary source with literal lowered expression"
+        ],
+        "killingAssertions": [
+          "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
+          "expect(result.lowered).toEqual(lowered): literal lowered expression"
+        ],
+        "restored": true,
+        "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Boolean mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
+        "restoredResult": {
+          "passed": 13,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "logSha256": "137c386e6be83d0bf407cd3911d80d3130ee176f6428e4c043ee6c20dbd86a80"
+      },
+      {
+        "id": "native-number",
+        "item": "rules-auth-17",
+        "file": "projections/dotnet/foundation/hlp.foundation.rule-authoring/FieldRuleBindings.cs",
+        "before": "new FormulaExpr.Call(\">=\",",
+        "after": "new FormulaExpr.Call(\">\",",
+        "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Native Number comparator mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~FieldPresetConformanceTests",
+        "compiling": true,
+        "beforeResult": {
+          "passed": 13,
+          "failed": 0
+        },
+        "afterResult": {
+          "passed": 10,
+          "failed": 3,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "FieldPresetConformanceTests.Producer_source_matches_literal_fixture(Number, NonNegative)",
+          "FieldPresetConformanceTests.Producer_publishes_literal_lowered_expression(Number, NonNegative)",
+          "FieldPresetConformanceTests.Producer_number_remains_editable"
+        ],
+        "killingAssertions": [
+          "Assert.Equivalent(expected, document, strict: true): Draft.Expression.Op expected >=, actual >",
+          "JsonNode.DeepEquals(row[\"lowered\"], result.Lowered): literal >= 0",
+          "JsonNode.DeepEquals(edit[\"lowered\"], result.Lowered): literal >= 5"
+        ],
+        "restored": true,
+        "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Native Number mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~FieldPresetConformanceTests",
+        "restoredResult": {
+          "passed": 13,
+          "failed": 0,
+          "exitCode": 0
+        },
+        "logSha256": "fc0a4f23660a523a45aa42f3e51890bc22179872c7f971ef4d7204b7d9194759"
+      }
+    ],
+    "checks": {
+      "tsFocused": 13,
+      "nativeFocused": 13,
+      "tsSuite": 216,
+      "nativeSuite": 181,
+      "skipped": 0,
+      "tsTypecheck": "pass",
+      "tsBuild": "pass",
+      "tsLint": "pass",
+      "contractRed": "3 !== 4",
+      "contractGreen": "revision 4, signatures, fixture path and README pass",
+      "fullGate": "Not run on MacBook; reserved for Mac mini"
+    },
+    "environmentNotes": [
+      "Reused canonical-checkout node_modules through temporary untracked symlinks; no dependency installation or manifest/lockfile/config changes.",
+      "Existing runner reports Vitest 4.1.10; manifest declares 4.1.12. Tool-version parity remains for the controller gate.",
+      "pnpm automatic dependency check attempted install and aborted ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY before tests; used npm run with existing dependencies.",
+      "Built existing contracts package then rule-runtime before authoring typecheck/build. Native project restore succeeded."
+    ]
   },
-  "mutations": [
-    {
-      "id": "ts-number",
-      "item": "rules-auth-17",
-      "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
-      "before": "op: '>='",
-      "after": "op: '>'",
-      "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
-      "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Number comparator mutant\" --candidate 7ed90505 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
-      "compiling": true,
-      "typecheckExitCode": 0,
-      "beforeResult": {
-        "passed": 13,
-        "failed": 0
-      },
-      "afterResult": {
-        "passed": 10,
-        "failed": 3,
-        "exitCode": 1
-      },
-      "killingTests": [
-        "rules-auth-17 producer parity > Number source matches the literal authored fixture",
-        "rules-auth-17 producer parity > Number publishes ordinary source with literal lowered expression",
-        "rules-auth-17 producer parity > Number remains an ordinary editable Formula after changing the threshold to 5"
-      ],
-      "killingAssertions": [
-        "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
-        "expect(result.lowered).toEqual(lowered): literal lowered expression",
-        "expect(result.lowered).toEqual(fixture.numberEdit.lowered): literal >= 5 expression"
-      ],
-      "restored": true,
-      "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Number mutant restored green\" --candidate 7ed90505 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
-      "restoredResult": {
-        "passed": 13,
-        "failed": 0,
-        "exitCode": 0
-      },
-      "logSha256": "f16271dcedc1bf26b3fd759b465a700859bce82005d8b39e5d9dd5f0ddc18c15"
+  "publishEnvelopeVerification": {
+    "label": "Rerun for receipt repair after inspecting f9d6f279 assertion additions",
+    "candidateSha": "f9d6f2799e06bca5c8f2843861c5b416bc7faa5c",
+    "reason": "The previous follow-up PR text described these mutations, but retained red/green logs were unavailable here. Reran both mutations rather than reconstructing unobserved original commands or environment.",
+    "oracle": "Fixed authored source.envelope in field-presets.json; tenant-a is independent of both validators and returned documents.",
+    "baselineCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Receipt repair baseline tests no restore\" --candidate f9d6f2799e06bca5c8f2843861c5b416bc7faa5c -- bash \"${TMPDIR%/}/harborline/t730-preset/receipt-green.sh\"",
+    "baselineScript": [
+      "npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring test -- src/__tests__/field-rule-bindings.test.ts",
+      "env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --verbosity quiet"
+    ],
+    "baselineResult": {
+      "tsFocusedPassed": 13,
+      "nativeProjectPassed": 181,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
     },
-    {
-      "id": "ts-text",
-      "item": "rules-auth-17",
-      "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
-      "before": "value: '', valueType: 'Text'",
-      "after": "value: 'x', valueType: 'Text'",
-      "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
-      "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Text empty to x mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
-      "compiling": true,
-      "typecheckExitCode": 0,
-      "beforeResult": {
-        "passed": 13,
-        "failed": 0
+    "mutations": [
+      {
+        "id": "ts-publish-envelope",
+        "item": "rules-auth-17",
+        "candidateSha": "f9d6f2799e06bca5c8f2843861c5b416bc7faa5c",
+        "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts",
+        "before": "Successful Publish result preserves tenant-a",
+        "after": "Only successful Publish result changes envelope tenant to mutated-tenant",
+        "mutation": "if (phase === 'Publish') document.envelope.tenant = 'mutated-tenant'",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Receipt TS Publish envelope mutant no restore\" --candidate f9d6f2799e06bca5c8f2843861c5b416bc7faa5c -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring test -- src/__tests__/field-rule-bindings.test.ts'",
+        "compiling": true,
+        "typecheckExitCode": 0,
+        "beforeResult": {
+          "focusedPassed": 13,
+          "focusedFailed": 0
+        },
+        "afterResult": {
+          "passed": 9,
+          "failed": 4,
+          "skipped": 0,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "Number, Text and Boolean: ordinary source publishes with literal lowered expression",
+          "Number remains an ordinary editable Formula at threshold 5"
+        ],
+        "killingAssertion": "expect(result.document!.envelope).toEqual(source.envelope), lines 42 and 57",
+        "observed": "All four failures are the result-envelope assertions; original input-envelope and lowered-expression assertions pass.",
+        "restored": true,
+        "restoredByteHash": "09639800fb4c6d936fa90f44e8ca6796bd22d212d9f257baf4c60f11769c003c",
+        "logSha256": "4209d08739b022b8c6404e838a715c9750b9669ff3808a1b679cd2523cc3d124"
       },
-      "afterResult": {
-        "passed": 11,
-        "failed": 2,
-        "exitCode": 1
-      },
-      "killingTests": [
-        "rules-auth-17 producer parity > Text source matches the literal authored fixture",
-        "rules-auth-17 producer parity > Text publishes ordinary source with literal lowered expression"
-      ],
-      "killingAssertions": [
-        "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
-        "expect(result.lowered).toEqual(lowered): literal lowered expression"
-      ],
-      "restored": true,
-      "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Text mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
-      "restoredResult": {
-        "passed": 13,
-        "failed": 0,
-        "exitCode": 0
-      },
-      "logSha256": "6ddac44ab6030951d9ef3abd4cdff0804ed1a948a962ed7207f6cbfc00b55c3e"
+      {
+        "id": "native-publish-envelope",
+        "item": "rules-auth-17",
+        "candidateSha": "f9d6f2799e06bca5c8f2843861c5b416bc7faa5c",
+        "file": "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleIntentValidator.cs",
+        "before": "Successful Publish result preserves tenant-a",
+        "after": "Only successful Publish result changes envelope tenant to mutated-tenant",
+        "mutation": "if (phase == RuleIntentPhase.Publish) document = document with { Envelope = document.Envelope with { Tenant = \"mutated-tenant\" } };",
+        "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Receipt native Publish envelope mutant no restore\" --candidate f9d6f2799e06bca5c8f2843861c5b416bc7faa5c -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~FieldPresetConformanceTests",
+        "compiling": true,
+        "beforeResult": {
+          "focusedPassed": 13,
+          "focusedFailed": 0
+        },
+        "afterResult": {
+          "passed": 9,
+          "failed": 4,
+          "skipped": 0,
+          "exitCode": 1
+        },
+        "killingTests": [
+          "Number, Text and Boolean: ordinary source publishes with literal lowered expression",
+          "Number remains an ordinary editable Formula at threshold 5"
+        ],
+        "killingAssertion": "Assert.Equal(fixed fixture envelope, canonical result.Document envelope), lines 55 and 81",
+        "observed": "All four failures are the result-envelope assertions; original input-envelope and lowered-expression assertions pass.",
+        "restored": true,
+        "restoredByteHash": "31697b902ca7987bebd9e8a0281d0b28a6d272bcc605bf86f39ec2009632b5eb",
+        "logSha256": "4164319c52edb986ee69de026df403b02b1cb5f25ea7fd283a70c1be6c3ce007"
+      }
+    ],
+    "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Receipt repair restored tests no restore\" --candidate f9d6f2799e06bca5c8f2843861c5b416bc7faa5c -- bash \"${TMPDIR%/}/harborline/t730-preset/receipt-green.sh\"",
+    "restoredResult": {
+      "tsFocusedPassed": 13,
+      "nativeProjectPassed": 181,
+      "failed": 0,
+      "skipped": 0,
+      "exitCode": 0
     },
-    {
-      "id": "ts-boolean",
-      "item": "rules-auth-17",
-      "file": "projections/typescript/foundation/hlp.foundation.rule-authoring/src/field-rule-bindings.ts",
-      "before": "value: 'true', valueType: 'Boolean'",
-      "after": "value: 'false', valueType: 'Boolean'",
-      "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
-      "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS compiling Boolean true to false mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- bash -c 'npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run typecheck && npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts'",
-      "compiling": true,
-      "typecheckExitCode": 0,
-      "beforeResult": {
-        "passed": 13,
-        "failed": 0
-      },
-      "afterResult": {
-        "passed": 11,
-        "failed": 2,
-        "exitCode": 1
-      },
-      "killingTests": [
-        "rules-auth-17 producer parity > Boolean source matches the literal authored fixture",
-        "rules-auth-17 producer parity > Boolean publishes ordinary source with literal lowered expression"
-      ],
-      "killingAssertions": [
-        "expect(document).toEqual(source): full literal authored source, including comparator and typed scalar",
-        "expect(result.lowered).toEqual(lowered): literal lowered expression"
-      ],
-      "restored": true,
-      "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"TS Boolean mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- npm --prefix projections/typescript/foundation/hlp.foundation.rule-authoring run test -- src/__tests__/field-rule-bindings.test.ts",
-      "restoredResult": {
-        "passed": 13,
-        "failed": 0,
-        "exitCode": 0
-      },
-      "logSha256": "137c386e6be83d0bf407cd3911d80d3130ee176f6428e4c043ee6c20dbd86a80"
-    },
-    {
-      "id": "native-number",
-      "item": "rules-auth-17",
-      "file": "projections/dotnet/foundation/hlp.foundation.rule-authoring/FieldRuleBindings.cs",
-      "before": "new FormulaExpr.Call(\">=\",",
-      "after": "new FormulaExpr.Call(\">\",",
-      "candidateSha": "7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3",
-      "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Native Number comparator mutant\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~FieldPresetConformanceTests",
-      "compiling": true,
-      "beforeResult": {
-        "passed": 13,
-        "failed": 0
-      },
-      "afterResult": {
-        "passed": 10,
-        "failed": 3,
-        "exitCode": 1
-      },
-      "killingTests": [
-        "FieldPresetConformanceTests.Producer_source_matches_literal_fixture(Number, NonNegative)",
-        "FieldPresetConformanceTests.Producer_publishes_literal_lowered_expression(Number, NonNegative)",
-        "FieldPresetConformanceTests.Producer_number_remains_editable"
-      ],
-      "killingAssertions": [
-        "Assert.Equivalent(expected, document, strict: true): Draft.Expression.Op expected >=, actual >",
-        "JsonNode.DeepEquals(row[\"lowered\"], result.Lowered): literal >= 0",
-        "JsonNode.DeepEquals(edit[\"lowered\"], result.Lowered): literal >= 5"
-      ],
-      "restored": true,
-      "restoredCommand": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-730-preset --workload \"Native Number mutant restored green\" --candidate 7ed90505f9d79b94fa3f05f2d7bfb031b45d3db3 -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/Harborline.Foundation.RuleAuthoring.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~FieldPresetConformanceTests",
-      "restoredResult": {
-        "passed": 13,
-        "failed": 0,
-        "exitCode": 0
-      },
-      "logSha256": "fc0a4f23660a523a45aa42f3e51890bc22179872c7f971ef4d7204b7d9194759"
-    }
-  ],
-  "checks": {
-    "tsFocused": 13,
-    "nativeFocused": 13,
-    "tsSuite": 216,
-    "nativeSuite": 181,
-    "skipped": 0,
-    "tsTypecheck": "pass",
-    "tsBuild": "pass",
-    "tsLint": "pass",
-    "contractRed": "3 !== 4",
-    "contractGreen": "revision 4, signatures, fixture path and README pass",
-    "fullGate": "Not run on MacBook; reserved for Mac mini"
-  },
-  "environmentNotes": [
-    "Reused canonical-checkout node_modules through temporary untracked symlinks; no dependency installation or manifest/lockfile/config changes.",
-    "Existing runner reports Vitest 4.1.10; manifest declares 4.1.12. Tool-version parity remains for the controller gate.",
-    "pnpm automatic dependency check attempted install and aborted ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY before tests; used npm run with existing dependencies.",
-    "Built existing contracts package then rule-runtime before authoring typecheck/build. Native project restore succeeded."
-  ]
+    "environmentNotes": [
+      "This rerun used the existing canonical-checkout authoring node_modules via one temporary untracked symlink. No install, restore, configuration, manifest or lockfile change; the link is removed after testing.",
+      "Observed Vitest version: 4.1.10. The manifest declares 4.1.12. These notes describe this rerun, not the separate earlier follow-up environment reporting 4.1.12.",
+      "Native builds used DOTNET_CLI_USE_MSBUILD_SERVER=0, MSBUILDDISABLENODEREUSE=1, --no-restore, -m:1 and -nr:false. Existing analyzer warnings remained."
+    ],
+    "fullGate": "Not run in this repair; Mac mini full check remains required at the new head. No Stryker score is claimed."
+  }
 }
