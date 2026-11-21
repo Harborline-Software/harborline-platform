@@ -111,8 +111,9 @@ public sealed class AuthoringHostIntegrationTests
         Assert.Null(retry.Assessment.Compatibility);
         Assert.Null(retry.Assessment.Proposal);
         Assert.Empty(retry.Assessment.Surfaces);
-        await Assert.ThrowsAsync<FormDefinitionConflictException>(() => publisherA.RegisterAndPublishWithImpactAsync(
+        var conflict = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisherA.RegisterAndPublishWithImpactAsync(
             fixture.Candidate with { CreatedAt = DateTimeOffset.UnixEpoch.AddSeconds(1) }, contextA).AsTask());
+        Assert.Equal("form_definition.revision_conflict", Assert.Single(conflict.Refusals).Code);
         var winner = await fixture.Store.GetAsync(new("tenant-a"), new("form.customer"), new(2, 2, 0));
         Assert.Equal(DateTimeOffset.UnixEpoch, winner.CreatedAt);
         Assert.Equal(FormDefinitionStatus.Published, winner.Status);
@@ -208,8 +209,9 @@ public sealed class AuthoringHostIntegrationTests
         await using var provider = services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
-        await Assert.ThrowsAsync<FormDefinitionConflictException>(() => publisher.RegisterAndPublishWithImpactAsync(
+        var conflict = await Assert.ThrowsAsync<DefinitionRefusalException>(() => publisher.RegisterAndPublishWithImpactAsync(
             fixture.Candidate, fixture.Context).AsTask());
+        Assert.Equal("form_definition.revision_conflict", Assert.Single(conflict.Refusals).Code);
         var stored = await fixture.Store.GetAsync(fixture.Candidate.Tenant, fixture.Candidate.Id, fixture.Candidate.Version);
         Assert.Equal(FormDefinitionStatus.Published, stored.Status);
         Assert.Equal(conflicting.CreatedAt, stored.CreatedAt);
@@ -966,10 +968,11 @@ public sealed class AuthoringHostIntegrationTests
         }
         public ValueTask<FormDefinition> CreateAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
         public ValueTask<FormDefinition> SaveNextAsync(FormDefinition definition, CancellationToken ct = default) => RegisterAndPublishAsync(definition, ct);
+        public ValueTask<FormDefinition> RestoreAsDraftAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => RegisterAndPublishAsync(Definition(id.Value, "true"), ct);
         public ValueTask<FormDefinition> GetAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => reads!.GetAsync(tenant, id, version, ct);
         public ValueTask<FormDefinition?> GetCurrentPublishedAsync(TenantId tenant, FormDefinitionId id, CancellationToken ct = default) => reads!.GetCurrentPublishedAsync(tenant, id, ct);
         public ValueTask<FormDefinition> RegisterAsync(FormDefinition definition, CancellationToken ct = default) => throw new NotSupportedException();
-        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<FormDefinition> PublishAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => RegisterAndPublishAsync(Definition(id.Value, "true"), ct);
         public ValueTask<FormDefinition> DeprecateAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> WithdrawAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
         public ValueTask<FormDefinition> RestorePackProjectionAsync(TenantId tenant, FormDefinitionId id, SemanticVersion version, CancellationToken ct = default) => throw new NotSupportedException();
@@ -1010,6 +1013,145 @@ public sealed class AuthoringHostIntegrationTests
         public string UserId => "author";
         public IReadOnlyList<string> Roles => ["author"];
         public TenantMetadata? Tenant => tenant;
+    }
+
+    // Oracle: T-1237's literal codes for occupied ids/revisions and absent requested revisions.
+    [Theory]
+    [InlineData("create", "1.0.0", "author", "form_definition.revision_conflict")]
+    [InlineData("create", "9.0.0", "author", "form_definition.revision_conflict")]
+    [InlineData("restore", "9.0.0", "author", "form_definition.revision_not_found")]
+    [InlineData("publish", "9.0.0", "publish", "form_definition.revision_not_found")]
+    public async Task Real_store_outcomes_name_only_the_requested_definition_and_revision(
+        string entry, string version, string phase, string code)
+    {
+        await using var provider = BuildHost();
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        await publisher.CreateAsync(Definition("occupied-id", "true"));
+        var definition = Definition("occupied-id", "true") with { Version = SemanticVersion.Parse(version) };
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            _ => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+        }).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal(code, refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(refusal.Target);
+        Assert.Equal(2, error.Data.Count);
+        Assert.Equal("occupied-id", error.Data["definitionId"]);
+        Assert.Equal(version, error.Data["revision"]);
+        Assert.Equal("definition.refused", error.Message);
+    }
+
+    // Oracle: T-1237 requires an identical publication retry to return the same committed success.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Identical_publish_retry_returns_the_same_committed_success(bool withImpact)
+    {
+        var fixture = await ImpactFixture.CreateAsync();
+        await using var provider = BuildImpactHost(fixture);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var first = await Publish();
+        var retry = await Publish();
+        Assert.Equal(FormDefinitionStatus.Published, retry.Status);
+        Assert.Equal("form.customer", retry.Id.Value);
+        Assert.Equal("2.2.0", retry.Version.ToString());
+        Assert.Same(first, retry);
+
+        async ValueTask<FormDefinition> Publish() => withImpact
+            ? (await publisher.RegisterAndPublishWithImpactAsync(fixture.Candidate, fixture.Context)).Definition
+            : await publisher.RegisterAndPublishAsync(fixture.Candidate);
+    }
+
+    // Oracle: T-1237 ruling cmsg_018kkGtfHDLEybkGzqGRWjrxXG5MEZcBqv9VYGGzaQv8bu,
+    // recorded by control #1619: occupied revision/id uses the Forms code in either lane.
+    [Theory]
+    [InlineData("create", "author")]
+    [InlineData("save-next", "author")]
+    [InlineData("restore", "author")]
+    [InlineData("publish", "publish")]
+    [InlineData("register-publish", "publish")]
+    [InlineData("impact", "publish")]
+    public async Task Store_conflict_is_a_literal_coded_refusal(string entry, string phase)
+    {
+        var definition = Definition("store-outcome", "true");
+        var reads = new InMemoryFormDefinitionStore();
+        await reads.CreateAsync(definition);
+        var store = new RecordingStore(new FormDefinitionConflictException(
+            new("store-outcome"), new(1, 0, 0), new("private-store-tenant")), reads);
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            "publish" => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+            "impact" => PublishWithImpact(),
+            _ => publisher.RegisterAndPublishAsync(definition),
+        }).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        Assert.Equal("definition.refused", error.Message);
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.revision_conflict", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(refusal.Target);
+        Assert.Equal(2, error.Data.Count);
+        Assert.Equal("store-outcome", error.Data["definitionId"]);
+        Assert.Equal("1.0.0", error.Data["revision"]);
+        Assert.Equal(1, store.Calls);
+
+        async ValueTask<FormDefinition> PublishWithImpact() =>
+            (await publisher.RegisterAndPublishWithImpactAsync(definition, (await ImpactFixture.CreateAsync()).Context)).Definition;
+    }
+
+    // Oracle: T-1237 ruling cmsg_018kkGtfHDLEybkGzqGRWjrxXG5MEZcBqv9VYGGzaQv8bu,
+    // recorded by control #1619: an absent requested revision uses the Forms code in either lane.
+    [Theory]
+    [InlineData("create", "author")]
+    [InlineData("save-next", "author")]
+    [InlineData("restore", "author")]
+    [InlineData("publish", "publish")]
+    [InlineData("register-publish", "publish")]
+    [InlineData("impact", "publish")]
+    public async Task Store_missing_revision_is_a_literal_coded_refusal(string entry, string phase)
+    {
+        var definition = Definition("store-outcome", "true");
+        var reads = new InMemoryFormDefinitionStore();
+        await reads.CreateAsync(definition);
+        var store = new RecordingStore(new FormDefinitionNotFoundException(
+            new("store-outcome"), new(1, 0, 0), new("private-store-tenant")), reads);
+        await using var provider = BuildHost(store);
+        await using var scope = provider.CreateAsyncScope();
+        var publisher = scope.ServiceProvider.GetRequiredService<IFormDefinitionAuthoringPublisher>();
+        var error = await Assert.ThrowsAsync<DefinitionRefusalException>(() => (entry switch
+        {
+            "create" => publisher.CreateAsync(definition),
+            "save-next" => publisher.SaveNextAsync(definition),
+            "restore" => publisher.RestoreAsDraftAsync(definition.Tenant, definition.Id, definition.Version),
+            "publish" => publisher.PublishAsync(definition.Tenant, definition.Id, definition.Version),
+            "impact" => PublishWithImpact(),
+            _ => publisher.RegisterAndPublishAsync(definition),
+        }).AsTask());
+        Assert.Equal(phase, error.Stage.ToString().ToLowerInvariant());
+        Assert.Equal("definition.refused", error.Message);
+        var refusal = Assert.Single(error.Refusals);
+        Assert.Equal("form_definition.revision_not_found", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(refusal.Target);
+        Assert.Equal(2, error.Data.Count);
+        Assert.Equal("store-outcome", error.Data["definitionId"]);
+        Assert.Equal("1.0.0", error.Data["revision"]);
+        Assert.Equal(1, store.Calls);
+
+        async ValueTask<FormDefinition> PublishWithImpact() =>
+            (await publisher.RegisterAndPublishWithImpactAsync(definition, (await ImpactFixture.CreateAsync()).Context)).Definition;
     }
 
     // Oracle: the authoring envelope preserves typed lifecycle codes and phase, at the definition root.

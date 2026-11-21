@@ -58,6 +58,14 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
             await ValidateAsync(definition, cancellationToken).ConfigureAwait(false);
             return await write(definition, cancellationToken).ConfigureAwait(false);
         }
+        catch (FormDefinitionNotFoundException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Author, "form_definition.revision_not_found", exception.SchemaId, exception.Version);
+        }
+        catch (FormDefinitionConflictException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Author, "form_definition.revision_conflict", exception.SchemaId, exception.Version);
+        }
         catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
         catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Author, exception); }
@@ -72,6 +80,14 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
             var source = await store.GetAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
             await ValidateAsync(source with { Status = FormDefinitionStatus.Draft }, cancellationToken).ConfigureAwait(false);
             return await store.RestoreAsDraftAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FormDefinitionNotFoundException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Author, "form_definition.revision_not_found", exception.SchemaId, exception.Version);
+        }
+        catch (FormDefinitionConflictException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Author, "form_definition.revision_conflict", exception.SchemaId, exception.Version);
         }
         catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Author, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Author, exception); }
@@ -88,10 +104,26 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
             await ValidateAsync(draft, cancellationToken).ConfigureAwait(false);
             return await store.PublishAsync(tenant, id, version, cancellationToken).ConfigureAwait(false);
         }
+        catch (FormDefinitionNotFoundException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Publish, "form_definition.revision_not_found", exception.SchemaId, exception.Version);
+        }
+        catch (FormDefinitionConflictException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Publish, "form_definition.revision_conflict", exception.SchemaId, exception.Version);
+        }
         catch (FormDefinitionLifecycleException exception) { throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]); }
         catch (FieldAdmissionException exception) { throw FieldRefusal(DefinitionAdmissionPhase.Publish, exception); }
         catch (FormDefinitionValidationException exception) { throw ValidationRefusal(DefinitionAdmissionPhase.Publish, exception); }
     }
+
+    private static DefinitionRefusalException StoreRefusal(
+        DefinitionAdmissionPhase phase, string code, FormDefinitionId id, SemanticVersion? version)
+        // Identity attribution is diagnostic metadata, not a fetchable C3 target: the revision may be absent.
+        => new(phase, [new(code, "")])
+        {
+            Data = { ["definitionId"] = id.Value, ["revision"] = version.ToString() },
+        };
 
     private static DefinitionRefusalException ValidationRefusal(DefinitionAdmissionPhase phase, FormDefinitionValidationException exception)
     {
@@ -130,6 +162,14 @@ public sealed class FormDefinitionAuthoringPublisher : IFormDefinitionAuthoringP
         FormPublicationAssessmentContext? context, CancellationToken cancellationToken)
     {
         try { return await PublishCoreAsync(definition, context, cancellationToken).ConfigureAwait(false); }
+        catch (FormDefinitionNotFoundException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Publish, "form_definition.revision_not_found", exception.SchemaId, exception.Version);
+        }
+        catch (FormDefinitionConflictException exception)
+        {
+            throw StoreRefusal(DefinitionAdmissionPhase.Publish, "form_definition.revision_conflict", exception.SchemaId, exception.Version);
+        }
         catch (FormDefinitionLifecycleException exception)
         {
             throw new DefinitionRefusalException(DefinitionAdmissionPhase.Publish, [new(exception.Code, "")]);
