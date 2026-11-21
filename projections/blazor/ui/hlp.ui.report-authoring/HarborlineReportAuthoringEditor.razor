@@ -8,7 +8,7 @@ else {
   @for (var i = 0; i < draft.Parameters.Count; i++) { var index = i; var item = draft.Parameters[index]; <div>@item.Name<button type="button" aria-label="@($"Remove parameter {item.Name}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveParameter(index)">Remove parameter @item.Name</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/parameters/{index}" || r.Pointer.StartsWith($"/parameters/{index}/", StringComparison.Ordinal))) { <span aria-label="@($"Parameter {index + 1} refusal")">@refusal.Code</span> }</div> }
   <label>Parameter name<input aria-label="Parameter name" disabled="@(ReadOnly || incoming)" value="@parameterName" @onchange="e => Edit(() => parameterName = Text(e))" /></label><label>Parameter type<select aria-label="Parameter type" disabled="@(ReadOnly || incoming)" value="@parameterType" @onchange="e => Edit(() => parameterType = Text(e))">@foreach (var type in Types) { <option value="@type">@type</option> }</select></label><label>Parameter default<input aria-label="Parameter default" disabled="@(ReadOnly || incoming)" value="@parameterDefault" @onchange="e => Edit(() => parameterDefault = Text(e))" /></label>
   @if (parameterName == "as_at") { <label>Effective-dated type<input aria-label="Effective-dated type" disabled="@(ReadOnly || incoming)" value="@effectiveType" @onchange="e => Edit(() => effectiveType = Text(e))" /></label> }
-  @if (invalidDefault) { <p role="alert">Enter a valid default.</p> }
+  @if (parameterError is not null) { <p role="alert">@parameterError</p> }
   <button type="button" aria-label="Add parameter" disabled="@(ReadOnly || incoming)" @onclick="AddParameter">Add parameter</button>
   @for (var i = 0; i < draft.Measures.Count; i++) { var index = i; var item = draft.Measures[index]; <div>@item.Measure<button type="button" aria-label="@($"Remove measure {item.Measure}")" disabled="@(ReadOnly || incoming)" @onclick="() => RemoveMeasure(index)">Remove measure @item.Measure</button>@foreach (var refusal in Located.Where(r => r.Pointer == $"/measures/{index}/measure")) { <span aria-label="@($"Measure {index + 1} refusal")">@string.Join(" ", new[] { refusal.Code, refusal.Measure, refusal.Catalogue }.Where(x => !string.IsNullOrEmpty(x)))</span> }</div> }
   <button type="button" aria-label="@(open ? "Close measure picker" : "Choose measure")" @onclick="Toggle">@(open ? "Close measure picker" : "Choose measure")</button>
@@ -33,14 +33,15 @@ else {
     private string? currentRevision, heldRevision;
     private bool incoming, dirty;
     private ReportDraft? Draft => current;
-    private bool open, invalidDefault, resolverError;
+    private bool open, resolverError;
+    private string? parameterError;
     private string query = "", selected = "", parameterName = "", parameterType = "boolean", parameterDefault = "", effectiveType = "";
     private IReadOnlyList<MeasureOption> options = [];
     private int generation, draftGeneration;
     private static string Text(ChangeEventArgs e) => e.Value?.ToString() ?? "";
     private static bool Same(ReportDraft a, ReportDraft b) => a.Tenant == b.Tenant && a.Key == b.Key && a.Version == b.Version;
     private void ResetPicker() { generation++; open = false; query = selected = ""; options = []; resolverError = false; }
-    private void Adopt(ReportDraft? value) { current = value; staleRefusals = null; currentRevision = Revision; dirty = false; held = null; heldRevision = null; incoming = false; draftGeneration++; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; invalidDefault = false; ResetPicker(); }
+    private void Adopt(ReportDraft? value) { current = value; staleRefusals = null; currentRevision = Revision; dirty = false; held = null; heldRevision = null; incoming = false; draftGeneration++; parameterName = parameterDefault = effectiveType = ""; parameterType = "boolean"; parameterError = null; ResetPicker(); }
     protected override void OnParametersSet() {
         if (Value is null) { Adopt(null); return; }
         if (current is null) { Adopt(Value); return; }
@@ -68,8 +69,10 @@ else {
             "string" => parameterDefault,
             _ => null,
         };
-        if (parsed is null || (parameterName == "as_at" && (parameterType != "date_time" || string.IsNullOrWhiteSpace(effectiveType)))) { invalidDefault = true; return Task.CompletedTask; }
-        invalidDefault = false;
+        if (parsed is null) { parameterError = "Enter a valid default."; return Task.CompletedTask; }
+        if (parameterName == "as_at" && parameterType != "date_time") { parameterError = "Use date_time for as_at."; return Task.CompletedTask; }
+        if (parameterName == "as_at" && string.IsNullOrWhiteSpace(effectiveType)) { parameterError = "Enter an effective-dated type."; return Task.CompletedTask; }
+        parameterError = null;
         var item = new ReportParameter(parameterName, parameterType, new(parameterType == "date_time" ? "datetime" : parameterType, parsed, parameterType, true), parameterName == "as_at" ? effectiveType : null);
         return Change(draft with { Parameters = [.. draft.Parameters, item] });
     }
