@@ -48,7 +48,8 @@ internal static class FormCandidateEvaluator
         ISchemaRegistry schemas,
         int maximumCandidateBytes,
         DateTimeOffset instant,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, FormBoundField>? bindings = null)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(candidate.RootElement);
         if (bytes.Length > maximumCandidateBytes)
@@ -102,6 +103,10 @@ internal static class FormCandidateEvaluator
 
         errors.AddRange(schemaResult.Errors
             .Where(row => !TargetsPrunedField(row.JsonPointer, hidden, readOnly))
+            // Only accepted Records commands supply bindings here to admit staged attachments through submission validation.
+            .Where(row => bindings is null || !bindings.Any(pair =>
+                pair.Value.Kind is Harborline.Contracts.Fields.ICompiledAttachmentFieldKind
+                && row.JsonPointer.StartsWith(FormFieldBinding.Pointer(pair.Key) + "/", StringComparison.Ordinal)))
             .Select(row => Error(row.JsonPointer, row.Message, Contract.ValidationErrorKind.Schema, row.Code, row.Params)));
         return new(JsonDocument.Parse(acceptedBytes), errors, hidden, readOnly, rules);
     }

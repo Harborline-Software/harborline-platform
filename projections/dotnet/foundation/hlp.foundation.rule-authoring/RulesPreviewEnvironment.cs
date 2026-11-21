@@ -1,5 +1,4 @@
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 
 namespace Harborline.Foundation.RuleAuthoring;
 
@@ -14,7 +13,7 @@ public static class RulesPreviewEnvironment
         Borrower: "rules-auth-11",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string> { ["field"] = "sample record field", ["row"] = "sample record child row" },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key)],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "pinned-preview-clock",

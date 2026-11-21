@@ -48,7 +48,7 @@ internal static class ScopeGrammar
         return Rewrite(parsed, ctx, ruleId);
     }
 
-    private static JsonNode? Rewrite(JsonNode? node, LowerContext ctx, string ruleId)
+    private static JsonNode? Rewrite(JsonNode? node, LowerContext ctx, string ruleId, bool element = false)
     {
         switch (node)
         {
@@ -62,21 +62,21 @@ internal static class ScopeGrammar
                 // numeric (array-index), computed, null or empty operand has no canonical cell;
                 // it used to throw an untyped InvalidOperationException (the TS tier read field '').
                 if ((arr is null ? pathNode : arr.Count > 0 ? arr[0] : null) is not JsonValue pathValue
-                    || !pathValue.TryGetValue<string>(out var path) || path.Length == 0)
+                    || !pathValue.TryGetValue<string>(out var path) || (!element && path.Length == 0))
                 {
                     throw Bad(ruleId, "a var path must be a non-empty string from the scope-addressing grammar");
                 }
 
                 // A table.fn(col) var lowers to the agg operator.
-                if (path.StartsWith("table.", StringComparison.Ordinal) && path.Contains('('))
+                if (!element && path.StartsWith("table.", StringComparison.Ordinal) && path.Contains('('))
                 {
                     return LowerAgg(path, ctx, ruleId);
                 }
 
-                string canonical = LowerVarPath(path, ctx, ruleId);
+                string canonical = element ? path : LowerVarPath(path, ctx, ruleId);
                 if (def is not null)
                 {
-                    return new JsonObject { ["var"] = new JsonArray(JsonValue.Create(canonical), Rewrite(def, ctx, ruleId)) };
+                    return new JsonObject { ["var"] = new JsonArray(JsonValue.Create(canonical), Rewrite(def, ctx, ruleId, element)) };
                 }
                 return new JsonObject { ["var"] = JsonValue.Create(canonical) };
             }
@@ -88,8 +88,8 @@ internal static class ScopeGrammar
                 var result = new JsonObject();
                 foreach (var (k, v) in obj)
                     result[k] = v is JsonArray arguments
-                        ? new JsonArray(arguments.Select(item => Rewrite(item, ctx, ruleId)).ToArray())
-                        : Rewrite(v, ctx, ruleId);
+                        ? new JsonArray(arguments.Select((item, index) => Rewrite(item, ctx, ruleId, element || (index == 1 && k is "some" or "all" or "none"))).ToArray())
+                        : Rewrite(v, ctx, ruleId, element);
                 return result;
             }
             case JsonArray: return node.DeepClone();
@@ -218,11 +218,11 @@ internal static class ScopeGrammar
         return refs;
     }
 
-    private static void Walk(JsonNode? node, List<RuleRef> refs, string ruleId)
+    private static void Walk(JsonNode? node, List<RuleRef> refs, string ruleId, bool element = false)
     {
         switch (node)
         {
-            case JsonObject obj when obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
+            case JsonObject obj when !element && obj.Count == 1 && (obj.ContainsKey("missing") || obj.ContainsKey("missing_some")):
             {
                 var raw = obj.First().Value;
                 var args = raw is JsonArray array ? array.ToList() : new List<JsonNode?> { raw };
@@ -237,12 +237,12 @@ internal static class ScopeGrammar
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("var"):
             {
                 string path = VarPathOf(obj["var"]);
-                if (path.StartsWith("field.", StringComparison.Ordinal))
+                if (!element && path.StartsWith("field.", StringComparison.Ordinal))
                     refs.Add(new FieldRef(path["field.".Length..]));
-                else if (path.StartsWith("row.", StringComparison.Ordinal))
+                else if (!element && path.StartsWith("row.", StringComparison.Ordinal))
                     refs.Add(new RowFieldRef(path["row.".Length..]));
                 // var with a default array: also walk the default for nested vars
-                if (obj["var"] is JsonArray a && a.Count > 1) Walk(a[1], refs, ruleId);
+                if (obj["var"] is JsonArray a && a.Count > 1) Walk(a[1], refs, ruleId, element);
                 break;
             }
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("agg"):
@@ -262,7 +262,7 @@ internal static class ScopeGrammar
                 {
                     throw Bad(ruleId, $"'{a[0]!.GetValue<string>()}' is not a registered bounded fold");
                 }
-                refs.Add(new AggRef(
+                if (!element) refs.Add(new AggRef(
                     a[1]!.GetValue<string>(),
                     a[0]!.GetValue<string>(),
                     a[2]!.GetValue<string>()));
@@ -271,8 +271,10 @@ internal static class ScopeGrammar
             case JsonObject obj when obj.Count == 1:
             {
                 var argument = obj.First().Value;
-                if (argument is JsonArray arguments) foreach (var item in arguments) Walk(item, refs, ruleId);
-                else Walk(argument, refs, ruleId);
+                if (argument is JsonArray arguments)
+                    for (int i = 0; i < arguments.Count; i++)
+                        Walk(arguments[i], refs, ruleId, element || (i == 1 && obj.First().Key is "some" or "all" or "none"));
+                else Walk(argument, refs, ruleId, element);
                 break;
             }
         }

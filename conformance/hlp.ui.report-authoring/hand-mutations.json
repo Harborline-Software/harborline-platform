@@ -1,0 +1,1213 @@
+{
+  "schemaVersion": 1,
+  "scope": "T-489/parameter-and-measure-editor",
+  "method": "2026-11-20: one literal source edit at a time; named targeted tests rerun against each edit; actual outcomes recorded below; every source restored byte-identically. Restored full-suite counts are recorded in the PR review round. No full mutation score is claimed for this snapshot.",
+  "oracle": "DES-0020 sections 2, 4 and 6 and DES-0002 section 15; literal conformance fixtures and stated pending-edit, read-only and resolver properties. Shared parameter-defaults.json follows Reports producer wire rules, RFC 8259, and exact integer interoperability limits.",
+  "sourceSha256": {
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx": "4097b7db84f01ef80b00443d6b679f30ef3d87b75a7f48eef392a22ab789440c",
+    "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx": "297f2cd40d8512c84622b8381c30bffef24729d2d6f7f131f42189f4bc0e8ffe",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor": "fcb988b836480d512e3977d8d1eb2b0509d6048063288cfafc9de280055cc867",
+    "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs": "5c8070a1e19ddbc1de6a02f9adf2ab2bb04dd13df28039a894520a00cb7222e8",
+    "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor": "152e5da0b867f2eb4bacbfcc77803acca178025e5a3c6091c09323a1629e2eb6",
+    "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs": "2efc4254bc143faca02e41e1f97ba9f56196a63450d489d09fecd240faf38c2c"
+  },
+  "react": [
+    {
+      "name": "create",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "key: '', version: ''",
+      "new": "key: 'bad', version: ''",
+      "test": "reports-auth-12 creates a report",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "first-option",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "setOptions(result)",
+      "new": "setOptions(result.filter(x => x !== 'finance.balance'))",
+      "test": "refreshes the record-query",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "second-option",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "setOptions(result)",
+      "new": "setOptions(result.filter(x => x !== 'finance.rent'))",
+      "test": "refreshes the record-query",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "empty",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "{options.map(option =>",
+      "new": "<option value='bad'>bad</option>{options.map(option =>",
+      "test": "resolves each typeahead change",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "bind",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "{ measure: selected }",
+      "new": "{ measure: 'bad' }",
+      "test": "binds a measure selected",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "measure-refusal",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "[r.code, r.measure, r.catalogue]",
+      "new": "[r.code, r.measure]",
+      "test": "unknown measure refusal",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "types",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "['boolean', 'date_time', 'integer', 'float', 'string'] as const",
+      "new": "['boolean', 'date_time', 'integer', 'string'] as const",
+      "test": "authors the closed typed parameter defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "as-at",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "{ effective_dated_type: effectiveType }",
+      "new": "{ effective_dated_type: 'wrong' }",
+      "test": "binds as_at",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-refusal",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": ">{r.code}</span>",
+      "new": ">wrong</span>",
+      "test": "parameter refusal at the parameter field",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "read-display",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "<div key={i}>{item.measure}<button",
+      "new": "<div key={i}>missing<button",
+      "test": "readOnly prevents changes",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "read-button",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "disabled={readOnly || incoming} onClick={addParameter}",
+      "new": "disabled={incoming} onClick={addParameter}",
+      "test": "readOnly prevents changes",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "read-input",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "<input disabled={readOnly || incoming} value={parameterName}",
+      "new": "<input disabled={incoming} value={parameterName}",
+      "test": "readOnly prevents changes",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "old-measure",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "{active.measures.map",
+      "new": "{value.measures.map",
+      "test": "identity and revision change clears",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "old-key",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "value={active.key}",
+      "new": "value={value.key}",
+      "test": "identity and revision change clears",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "pending-disable",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "disabled={readOnly || incoming} onClick={addParameter}",
+      "new": "disabled={readOnly} onClick={addParameter}",
+      "test": "identity and revision change clears",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "discard-name",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "setParameterName(''); setParameterDefault('');",
+      "new": "setParameterName('pending'); setParameterDefault('');",
+      "test": "identity and revision change clears",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "invalid-message",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "Enter a valid default.",
+      "new": "Invalid value.",
+      "test": "refuses an untyped default before submitting",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "fallback-empty",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "{options.map(option =>",
+      "new": "<option value='bad'>bad</option>{options.map(option =>",
+      "test": "missing resolver presents",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "fallback-no-error",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "useState(false)\n  const [options",
+      "new": "useState(true)\n  const [options",
+      "test": "missing resolver presents",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "fixture",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "authors the shared conformance definition",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "identity",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "key: e.currentTarget.value",
+      "new": "key: 'wrong'",
+      "test": "edits identity coordinates",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "remove-param",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "index !== i) })}>Remove parameter",
+      "new": "index === i) })}>Remove parameter",
+      "test": "removes a parameter declaration",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "shell",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx",
+      "old": "shell.render(body)",
+      "new": "body",
+      "test": "host shell wraps",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "error",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "Measures could not be loaded.",
+      "new": "Unavailable.",
+      "test": "reports a resolver failure",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "label-path",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "option : option.id) === selected",
+      "new": "option : option.label) === selected",
+      "test": "presents a host labelled option",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "screen-fallback",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringScreen.tsx",
+      "old": "shell ? shell.render(body) : body",
+      "new": "shell ? shell.render(body) : null",
+      "test": "screen renders without a host shell",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "default-boolean",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "writes boolean defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "default-date_time",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "writes date_time defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "default-integer",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "writes integer defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "default-float",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "writes float defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "default-string",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "is_valid: true, value:",
+      "new": "is_valid: false, value:",
+      "test": "writes string defaults",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "revision-discard",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "setParameterName(''); setParameterDefault('');",
+      "new": "setParameterName('pending'); setParameterDefault('');",
+      "test": "a new host revision",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-boolean-case",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "text === 'true' || text === 'false'",
+      "new": "/^(true|false)$/i.test(text)",
+      "test": "shared parameter default",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-integer-plus",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "/^-?(?:0|[1-9][0-9]*)$/.test(text) && Number.isSafeInteger",
+      "new": "Number.isSafeInteger",
+      "test": "shared parameter default",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-float-hex",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "/^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(text) && Number.isFinite",
+      "new": "Number.isFinite",
+      "test": "shared parameter default",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-utc-boundary",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "utcYear >= 1 && utcYear <= 9999 && ",
+      "new": "",
+      "test": "shared parameter default",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-resolver-identity",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "}, [open, query])",
+      "new": "}, [open, query, resolveMeasures])",
+      "test": "resolver identity changes preserve selection",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at",
+      "file": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.tsx",
+      "old": "if (!valid || (parameterName === 'as_at' && (parameterType !== 'date_time' || !effectiveType.trim())))",
+      "new": "if (!valid)",
+      "test": "refuses invalid as_at",
+      "testFile": "projections/react/ui/hlp.ui.report-authoring/src/ReportAuthoringEditor.test.tsx",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    }
+  ],
+  "blazor": [
+    {
+      "name": "create-not-null",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Created.InvokeAsync(ReportDraft.Empty)",
+      "new": "Created.InvokeAsync(null!)",
+      "test": "CreateReport",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "create-key",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs",
+      "old": "new(\"\", \"\", \"\", [], [])",
+      "new": "new(\"\", \"bad\", \"\", [], [])",
+      "test": "CreateReport",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "create-measures",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs",
+      "old": "new(\"\", \"\", \"\", [], [])",
+      "new": "new(\"\", \"\", \"\", [new(\"finance.bad\")], [])",
+      "test": "CreateReport",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "create-parameters",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs",
+      "old": "new(\"\", \"\", \"\", [], [])",
+      "new": "new(\"\", \"\", \"\", [], [new(\"p\", \"string\", new(\"string\", \"\", \"string\", true))])",
+      "test": "CreateReport",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "first-option",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "options = result;",
+      "new": "options = result.Where(o => o.Id != \"finance.balance\").ToArray();",
+      "test": "ResolvesOnOpen",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "second-option",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "options = result;",
+      "new": "options = result.Where(o => o.Id != \"finance.rent\").ToArray();",
+      "test": "ResolvesOnOpen",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-single",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "[.. draft.Parameters, item]",
+      "new": "[.. draft.Parameters, item, item]",
+      "test": "AuthorsParameter",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-name",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "new ReportParameter(parameterName, parameterType",
+      "new": "new ReportParameter(\"wrong\", parameterType",
+      "test": "AuthorsParameter",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-type",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "new ReportParameter(parameterName, parameterType",
+      "new": "new ReportParameter(parameterName, \"string\"",
+      "test": "AuthorsParameter",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-kind",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parameterType == \"date_time\" ? \"datetime\" : parameterType",
+      "new": "parameterType == \"date_time\" ? \"wrong\" : parameterType",
+      "test": "AuthorsParameter",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-effective",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parameterName == \"as_at\" ? effectiveType : null",
+      "new": "parameterName == \"as_at\" ? \"wrong\" : null",
+      "test": "AuthorsParameter",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "bind-measure",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "new(selected)]",
+      "new": "new(\"finance.wrong\")]",
+      "test": "BindsMeasure",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "measure-refusal",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "refusal.Code, refusal.Measure, refusal.Catalogue",
+      "new": "refusal.Code, refusal.Measure",
+      "test": "LocatedRefusals",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "parameter-refusal",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": ">@refusal.Code</span>",
+      "new": ">wrong</span>",
+      "test": "LocatedRefusals",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "fixture",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parsed, parameterType, true)",
+      "new": "parsed, parameterType, false)",
+      "test": "AuthorsFixture",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "invalid-message",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Enter a valid default.",
+      "new": "Invalid value.",
+      "test": "RefusesUntypedDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "empty-picker",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "options = result;",
+      "new": "options = result.Count == 0 ? [new(\"finance.bad\", \"bad\")] : result;",
+      "test": "EmptyPicker",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "empty-no-alert",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "if (ticket == generation && open) options = result;",
+      "new": "if (ticket == generation && open) { options = result; resolverError = true; }",
+      "test": "EmptyPicker",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "readonly-input",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "aria-label=\"Parameter name\" disabled=\"@(ReadOnly || incoming)\"",
+      "new": "aria-label=\"Parameter name\" disabled=\"@incoming\"",
+      "test": "ReadOnly",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "readonly-button",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "aria-label=\"Add parameter\" disabled=\"@(ReadOnly || incoming)\"",
+      "new": "aria-label=\"Add parameter\" disabled=\"@incoming\"",
+      "test": "ReadOnly",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "pending-disabled",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "aria-label=\"Add parameter\" disabled=\"@(ReadOnly || incoming)\"",
+      "new": "aria-label=\"Add parameter\" disabled=\"@ReadOnly\"",
+      "test": "PendingRevision",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "discard-name",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parameterName = parameterDefault = effectiveType = \"\";",
+      "new": "parameterName = \"pending\"; parameterDefault = effectiveType = \"\";",
+      "test": "PendingRevision",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "resolver-error",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Measures could not be loaded.",
+      "new": "Unavailable.",
+      "test": "ResolverFailure",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "remove-param",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Parameters = draft.Parameters.Where((_, i) => i != index)",
+      "new": "Parameters = draft.Parameters.Where((_, i) => i == index)",
+      "test": "RemovesDeclarations",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "remove-measure",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Measures = draft.Measures.Where((_, i) => i != index)",
+      "new": "Measures = draft.Measures.Where((_, i) => i == index)",
+      "test": "RemovesDeclarations",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "query",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "query = Text(e); await Resolve();",
+      "new": "query = \"\"; await Resolve();",
+      "test": "QueryRefresh",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "screen-fallback",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringScreen.razor",
+      "old": "else { @Editor }",
+      "new": "else { <span>empty</span> }",
+      "test": "ScreenFallback",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "string-option",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraft.cs",
+      "old": "new(value, value)",
+      "new": "new(value, \"wrong\")",
+      "test": "StringOption",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "discard-picker",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "open = false; query = selected",
+      "new": "open = true; query = selected",
+      "test": "DiscardClosesPicker",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "readonly-keep",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "aria-label=\"Keep editing\" disabled=\"@ReadOnly\"",
+      "new": "aria-label=\"Keep editing\"",
+      "test": "ReadOnlyPending",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "measure-cardinality",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "Measures = [.. draft.Measures, new(selected)]",
+      "new": "Measures = [.. draft.Measures, new(selected), new(selected)]",
+      "test": "BindsMeasure",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "revision-discard",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "parameterName = parameterDefault = effectiveType = \"\";",
+      "new": "parameterName = \"pending\"; parameterDefault = effectiveType = \"\";",
+      "test": "SameDefinitionNewRevision",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "codec-unknown",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs",
+      "old": "JsonSerializer.Serialize(draft, Options)",
+      "new": "JsonSerializer.Serialize(draft with { Measures = [new(\"finance.missing\")] }, Options)",
+      "test": "AuthorsFixture",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "codec-fewer",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs",
+      "old": "JsonSerializer.Serialize(draft, Options)",
+      "new": "JsonSerializer.Serialize(draft with { Parameters = [.. draft.Parameters.Skip(1)] }, Options)",
+      "test": "AuthorsFixture",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "codec-changed",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/ReportDraftCodec.cs",
+      "old": "JsonSerializer.Serialize(draft, Options)",
+      "new": "JsonSerializer.Serialize(draft with { Key = \"other\" }, Options)",
+      "test": "AuthorsFixture",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-boolean-case",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "when text is \"true\" or \"false\"",
+      "new": "when bool.TryParse(text, out _)",
+      "test": "SharedParameterDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-integer-plus",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "System.Text.RegularExpressions.Regex.IsMatch(text, @\"\\A-?(?:0|[1-9][0-9]*)\\z\") && ",
+      "new": "",
+      "test": "SharedParameterDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-float-plus",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "System.Text.RegularExpressions.Regex.IsMatch(text, @\"\\A-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\z\") && ",
+      "new": "",
+      "test": "SharedParameterDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-trim",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "var text = parameterDefault.Trim(' ', '\\t', '\\r', '\\n');",
+      "new": "var text = parameterDefault;",
+      "test": "SharedParameterDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-string-verbatim",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "\"string\" => parameterDefault,",
+      "new": "\"string\" => text,",
+      "test": "SharedParameterDefault",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    },
+    {
+      "name": "review-as-at",
+      "file": "projections/blazor/ui/hlp.ui.report-authoring/HarborlineReportAuthoringEditor.razor",
+      "old": "if (parsed is null || (parameterName == \"as_at\" && (parameterType != \"date_time\" || string.IsNullOrWhiteSpace(effectiveType))))",
+      "new": "if (parsed is null)",
+      "test": "RefusesInvalidAsAt",
+      "testFile": "projections/blazor/ui/hlp.ui.report-authoring.tests/ReportAuthoringTests.cs",
+      "exit": 1,
+      "hit": true,
+      "outcome": "killed",
+      "restored": true
+    }
+  ],
+  "retired": [
+    {
+      "lane": "react",
+      "name": "open-count",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "query",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "integer",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "pending-name",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "invalid-submit",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "keep-version",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "keep-accumulate",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "readonly-discard",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "readonly-keep",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "discard-picker",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "stale-refusal",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "revision-fence",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "created-revision",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "review-retained-echo",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "react",
+      "name": "review-selection-fence",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "invalid-no-change",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "old-measure",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "pending-name",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "discard-new",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "stale-refusal",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "keep-version",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "keep-accumulate",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "readonly-discard",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "revision-fence",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "created-revision",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "blazor",
+      "name": "review-selection-fence",
+      "reason": "The targeted expression no longer occurs exactly once in the current source."
+    },
+    {
+      "lane": "historical",
+      "name": "react-keep",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-null",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-date",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-keep",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-null",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-date",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-echo",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-picker",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-echo",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-picker",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-pending",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-kept",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-echo",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-query",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-kept",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-echo",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-tenant",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-kept",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-echo",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-tenant",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-kept",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "react-held-refusals",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    },
+    {
+      "lane": "historical",
+      "name": "blazor-held-refusals",
+      "reason": "Narrative-only historical record; not current-source mutation evidence."
+    }
+  ]
+}

@@ -3,13 +3,13 @@
  * evaluates sample records while authoring. Mirrors the .NET `RulesPreviewEnvironment`; Rules admits
  * it and the preview presents the admission (rules-eng-26).
  */
-import { admitEnvironment, builtInFunctions, fieldReadEffect, lentGrammar, type BorrowerEnvironmentDeclaration } from '@harborline-software/rule-engine'
+import { admitEnvironment, fieldReadEffect, lentGrammar, type BorrowerEnvironmentDeclaration } from '@harborline-software/rule-engine'
 
 export const rulesPreviewDeclaration: BorrowerEnvironmentDeclaration = {
   borrower: 'rules-auth-11',
   grammar: lentGrammar,
   variables: { field: 'sample record field', row: 'sample record child row' },
-  operations: builtInFunctions.map((f) => f.key),
+  operations: ['var', 'missing', 'missing_some', '==', '!=', '===', '!==', '!', '!!', 'and', 'or', 'if', '>', '>=', '<', '<=', '+', '-', '*', '/', '%', 'min', 'max', 'in', 'cat', 'agg', 'money.add', 'money.sub', 'money.mul', 'date.add', 'date.diff', 'date.today', 'coding.is'],
   effects: [fieldReadEffect],
   missingValues: 'missing-field-reads-null',
   timeSource: 'pinned-preview-clock',

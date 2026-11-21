@@ -47,7 +47,19 @@ Both tiers implement EXACTLY this set, identically. The conformance corpus has �
 - **Logic:** `==`, `!=`, `===`, `!==`, `!`, `!!`, `and`, `or`, `if`
 - **Compare:** `>`, `>=`, `<`, `<=`
 - **Arithmetic:** `+`, `-`, `*`, `/`, `%`, `min`, `max`
-- **Membership / string:** `in`, `cat`
+- **Membership / string:** `in`, `cat`, `startsWith`, `endsWith`
+- **Collection predicates:** `some`, `all`, `none` — `[array, predicate]`, with each element as the
+  predicate's data (`{"var":""}` reads the element; dotted paths read its members). Predicates
+  cannot read the outer scope. They short-circuit like .NET `Enumerable.Any` / `All` / `!Any`;
+  empty arrays yield `false` / `true` / `true`. Non-arrays, including null, are evaluation errors.
+  `startsWith` / `endsWith` require two strings and use .NET `StringComparison.Ordinal`: case-sensitive,
+  without Unicode normalization; an empty prefix/suffix matches. Non-strings are evaluation errors.
+  These five operations were added in interface revision 7 (T-1194, ADR-0153); a borrower must admit
+  them explicitly. Work proofs multiply predicate work by a bound on array cardinality, including
+  nested quantifiers and generated arrays. Beyond normal AST steps, each iteration charges one step,
+  local reads charge path length + 1, and string tests charge source length + pattern length + 1
+  (UTF-16 code units); all use the shared budget. A `var` resolves its reference (including local-read
+  charges) before eagerly evaluating its fallback, even when the reference has a value.
 - **Platform extensions:** `agg` (`sum`/`count`/`avg`/`min`/`max`/`any`/`all`), `money.add`/`money.sub`/`money.mul`
   (exact decimal — BigInteger, NO IEEE-754 drift), `date.add`/`date.diff`/`date.today` (deterministic,
   injected clock), `coding.is` (taxonomy membership over `{system,code}`).

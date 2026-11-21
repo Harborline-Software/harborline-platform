@@ -88,6 +88,11 @@ public static class BuiltInFunctionRegister
 
         Def("in", "membership", 2, 2, L.EvalIn),
         Def("cat", "text", 0, -1, L.EvalCat),
+        Def("startsWith", "text", 2, 2, (a, c) => L.EvalStringTest(a, c, prefix: true)),
+        Def("endsWith", "text", 2, 2, (a, c) => L.EvalStringTest(a, c, prefix: false)),
+        Def("some", "collection", 2, 2, (a, c) => L.EvalQuantifier(a, c, "some")),
+        Def("all", "collection", 2, 2, (a, c) => L.EvalQuantifier(a, c, "all")),
+        Def("none", "collection", 2, 2, (a, c) => L.EvalQuantifier(a, c, "none")),
 
         Def("agg", "fold", 3, 3, L.EvalAgg),
         Def("money.add", "money", 1, -1, (a, c) => L.Money(a, c, '+')),

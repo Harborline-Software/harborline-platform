@@ -3,12 +3,32 @@ using System.Reflection;
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.EntityViews;
 using Harborline.Foundation.RuleEngine.Environments;
+using Harborline.Foundation.RuleEngine;
+using Harborline.Foundation.RuleEngine.Context;
+using Harborline.Contracts.Rules;
 using Xunit;
 
 namespace Harborline.Blocks.EntityViews.Tests;
 
 public sealed class ViewsExpressionEnvironmentTests
 {
+    [Fact]
+    public void Views_ck_14_admits_the_five_array_and_ordinal_string_primitives()
+    {
+        var guard = new GuardEvaluator(TimeProvider.System);
+        var rule = new RuleDefinition
+        {
+            Id = "view-filter", Tier = RuleTier.JsonLogic, Scope = RuleScope.Schema, ScopeTarget = "",
+            Expression = """{"and":[{"some":[{"var":"tags"},{"startsWith":[{"var":""},"pump"]}]},{"all":[{"var":"tags"},{"endsWith":[{"var":""},"A"]}]},{"none":[{"var":"tags"},{"startsWith":[{"var":""},"Pump"]}]}]}""",
+            Action = RuleActionKind.Validate,
+        };
+        var context = RuleContextSnapshot.FromJsonText("""{"root":{"tags":["pumpA"]}}""");
+        var admission = ViewsExpressionEnvironment.Admitted.For(EvaluationPhase.Run);
+        Assert.True(guard.EvaluateGuard(rule, context, RuleEvalScope.Root, admission).Ok);
+        var missing = RuleContextSnapshot.FromJsonText("""{"root":{}}""");
+        Assert.False(guard.EvaluateGuard(rule, missing, RuleEvalScope.Root, admission).Ok);
+    }
+
     [Fact]
     public void Views_ck_14_declaration_matches_the_released_borrower_contract()
     {
