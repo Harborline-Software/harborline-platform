@@ -8,7 +8,7 @@
     "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowStateDeclarationsTests.cs": "6def52e7e08e9e239df65fa6beb9dc57aa3feb995e466573001ac0359fbdfdb0",
     "conformance/hlp.blocks.workflow/admission-mirror-cases.json": "48b33271390ad47ba3872a47fa4292a5e2fc4f0374d034e609d4bfca6b94c4d8",
     "conformance/hlp.blocks.workflow/fixtures.yaml": "1e611d01f5472c2b6bf303b69875b6e295b7bbf3f46e721734ba8669cdaa0dc7",
-    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowMigrationTests.cs": "5254f6e3941644cfb497c4d26ee14ae910a60ed13d98de941ee9f036e135e2fb",
+    "projections/dotnet/blocks/hlp.blocks.workflow.tests/WorkflowMigrationTests.cs": "d7041547dfa90941205cde402bc9bc6952be61898fc0219726183c76e77d8655",
     "projections/dotnet/blocks/hlp.blocks.workflow/Durable/WorkflowMigration.cs": "74a9c6ff396ed4444f215a2321db3e300957cb84161d2ef8c9a107e9bcdee0ae",
     "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Program.cs": "d46024078ca10f5c5bfafc2433b7604ec550a3d4090a3a9804c5b38fb66e250a",
     "projections/dotnet/blocks/hlp.blocks.workflow.restart-probe/Harborline.Blocks.Workflow.RestartProbe.csproj": "52d44796dac092b902bb26a2e7c212fd1113eb0abec88eb7e094ad00109a5fff",
