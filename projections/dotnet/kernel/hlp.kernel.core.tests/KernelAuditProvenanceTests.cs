@@ -17,7 +17,7 @@ public sealed class KernelAuditProvenanceTests
     public async Task The_originator_is_staged_with_the_actor_and_snapshot_in_the_one_audit_call()
     {
         var port = new RecordingPort();
-        var audit = Audit() with { AuthoritySnapshot = "worker-decision"u8.ToArray(), OriginatorId = "alice" };
+        var audit = Audit() with { AuthoritySnapshot = "worker-decision"u8.ToArray(), OriginatorId = "alice", DelegatedActor = new("wf.follow-up", "1.0.0") };
 
         var result = await KernelTransactionBoundary.ExecuteAsync([new KernelCommand<string>(Operation(), "record", audit)], port);
 
@@ -26,6 +26,7 @@ public sealed class KernelAuditProvenanceTests
         var staged = Assert.Single(port.StagedAudits);
         Assert.Equal("sys.records-worker", staged.ActorId);
         Assert.Equal("alice", staged.OriginatorId);
+        Assert.Equal(("wf.follow-up", "1.0.0"), (staged.DelegatedActor!.DefinitionKey, staged.DelegatedActor.DefinitionVersion));
         Assert.Equal("worker-decision"u8.ToArray(), staged.AuthoritySnapshot.ToArray());
     }
 
@@ -35,7 +36,16 @@ public sealed class KernelAuditProvenanceTests
         var audit = new KernelAuditEvidence("audit-1", "alice", At, "{}"u8.ToArray());
 
         Assert.Null(audit.OriginatorId);
+        Assert.Null(audit.DelegatedActor);
         Assert.Same(audit, audit.Validate());
+    }
+
+    [Theory]
+    [InlineData("", "1.0.0")]
+    [InlineData("wf.follow-up", " ")]
+    public void T616_invalid_delegated_actor_is_refused(string key, string version)
+    {
+        Assert.Throws<ArgumentException>(() => (Audit() with { DelegatedActor = new(key, version) }).Validate());
     }
 
     [Theory]

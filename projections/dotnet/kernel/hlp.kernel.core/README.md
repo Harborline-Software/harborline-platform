@@ -56,3 +56,8 @@ each refusal names the state. A prepared generation left by a crash is abandoned
 bound to a committed evidence intent is confirmed and never moved, and unpublished evidence intents are
 published. The record, its reason and the authority snapshot commit as one set through
 `KernelTransactionBoundary`; the host's `IKernelTransactionPort` makes the terminal states durable.
+
+## Delegated audit actor
+
+`KernelAuditEvidence.DelegatedActor` optionally records a workflow definition key and version alongside the executor and
+originator. It is provenance only and grants no authority. Hosts persist it with the audit evidence.

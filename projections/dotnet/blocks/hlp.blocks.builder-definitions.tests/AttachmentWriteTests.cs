@@ -80,6 +80,29 @@ public sealed class AttachmentWriteTests
         Assert.True((await fixture.Write("retry", List(good))).Committed);
     }
 
+    [Fact]
+    public async Task T616_reaction_attachment_audit_keeps_principal_executor_and_workflow()
+    {
+        var fixture = await Fixture.Create();
+        var stage = await fixture.UploadAs("alice evidence", "alice");
+        var audits = new List<KernelAuditEvidence>();
+        fixture.Port.DecorateSession = inner =>
+        {
+            var proxy = DispatchProxy.Create<IContentBookkeepingSession, AuditSession>();
+            ((AuditSession)proxy).Inner = inner;
+            ((AuditSession)proxy).Audits = audits;
+            return proxy;
+        };
+        var source = new RecordCommittedEvent(1, "event-1", "records.record.created", "tenant-a", "eam.source", "record-1", "1.0.0", 1, "op-1", "alice", "sys.records-worker");
+        var reaction = new RecordReactionCreate(source, new("wf.follow-up", "1.0.0", "on-created"), new("run-1", 0, "step-1", "create"), "eam.evidence", List(stage), Executor: "sys.records-worker");
+        var result = await fixture.Operation.CreateReactionAsync(new("tenant-a", "alice"), reaction);
+        Assert.True(result.Committed, result.Refusal?.Code);
+        var audit = Assert.Single(audits);
+        Assert.Equal(("sys.records-worker", "alice", "wf.follow-up", "1.0.0"),
+            (audit.ActorId, audit.OriginatorId, audit.DelegatedActor!.DefinitionKey, audit.DelegatedActor.DefinitionVersion));
+        Assert.Equal("alice", AuthoritySnapshotEncoding.TryDecode(audit.AuthoritySnapshot.Span)!.Principal);
+    }
+
     [Theory]
     [InlineData("open", false, true)]
     [InlineData("closed", false, false)]
