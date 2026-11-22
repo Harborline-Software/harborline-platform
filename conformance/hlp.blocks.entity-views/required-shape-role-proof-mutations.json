@@ -1,0 +1,422 @@
+{
+  "slice": "T-486/required-shape-role-proof",
+  "record": "tickets/T-486-views-authored-and-bound-in-the-domain-builder/slices/required-shape-role-proof.md",
+  "controlCommit": "89fc5b2d25717ac99f1ccbffecf0cab5d7b997c4",
+  "verifiedAtUtc": "2026-11-22T02:21:30.8950756Z",
+  "host": "PC",
+  "sdk": "11.0.100",
+  "node": "v24.14.1",
+  "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+  "candidateTree": "e91d0b5ff943cfea8fc9462c4dbddb4f82e82032",
+  "baseHead": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+  "oracle": "Control 89fc5b2d2 T-486/required-shape-role-proof acceptance 1–2 supplies literal layout.table, [Title], binding matrix, refusal codes/message, call arrays, empty rows/zero total and (work.open-count, 731); DES-0017 sections 3–4 views-eng-5/views-auth-15, views-eng-9; T-1177/view-compatibility-at-commit read-time backstop; T-724 rulings 35/121.",
+  "restore": {
+    "exit": 0,
+    "nuCodes": [],
+    "command": [
+      "dotnet",
+      "restore",
+      "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+      "-m:1",
+      "-nr:false"
+    ],
+    "count": 1,
+    "environment": {
+      "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+      "MSBUILDDISABLENODEREUSE": "1"
+    }
+  },
+  "shellEnvironment": {
+    "note": "Pass -m:1 and -nr:false as quoted strings in PowerShell or array elements to preserve each argument.",
+    "MSYS2_ARG_CONV_EXCL": "*"
+  },
+  "nonEvidenceAttempts": {
+    "exit": 1,
+    "count": 2,
+    "error": "MSB1031: PowerShell split unquoted -m:1 into -m: and 1 before compilation. No test result and no mutation kill claimed."
+  },
+  "focusedBaseline": {
+    "exit": 0,
+    "command": [
+      "C:/Program Files/Git/bin/bash.exe",
+      "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "pc-486-shape-role",
+      "--workload",
+      "required Title focused baseline",
+      "--candidate",
+      "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+      "--",
+      "env",
+      "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+      "MSBUILDDISABLENODEREUSE=1",
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+      "--no-restore",
+      "--filter",
+      "FullyQualifiedName~RequiredTableTitle",
+      "-m:1",
+      "-nr:false"
+    ],
+    "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+    "summary": "Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 80 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)"
+  },
+  "mutations": [
+    {
+      "original": "foreach (var role in kind.RequiredRoles)",
+      "source": "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs",
+      "span": {
+        "startLine": 439,
+        "endLine": 439
+      },
+      "killingTest": "Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts",
+      "restoredSourceSha256": "90e80e7a6758935b773938462a00b33697508f714af608cb019da2698b3cc3fd",
+      "id": "a",
+      "killingAssertion": "Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request)): Assert.Throws() Failure: No exception was thrown",
+      "restoredGreen": {
+        "log": "a-restored.log",
+        "summary": "Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 77 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant a restored",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 0
+      },
+      "replacement": "foreach (var role in Array.Empty<ViewShapeRole>())",
+      "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+      "red": {
+        "log": "a-red.log",
+        "summary": "Failed!  - Failed:     1, Passed:     5, Skipped:     0, Total:     6, Duration: 84 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant a red",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 1,
+        "observedFailure": [
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: null, expectedCode: \"view_definition.shape_role_field_missing\") [1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235"
+        ]
+      },
+      "killingCase": "titleField: null, expectedCode: \"view_definition.shape_role_field_missing\"",
+      "proofAssertionLine": 235,
+      "mutatedSourceSha256": "1ba69d6bbed3f2b5a988fc8acba5badb375d80681db4b5b984ed2c6f5f0a1df6"
+    },
+    {
+      "span": {
+        "endLine": 470,
+        "startLine": 470
+      },
+      "killingAssertion": "Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request)): Assert.Throws() Failure: No exception was thrown",
+      "killingTest": "Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts",
+      "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+      "source": "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs",
+      "original": "ViewShapeRole.Title => fieldKind == ViewRecordFieldKind.Text,",
+      "restoredGreen": {
+        "log": "b-restored.log",
+        "summary": "Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 79 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant b restored",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 0
+      },
+      "id": "b",
+      "restoredSourceSha256": "90e80e7a6758935b773938462a00b33697508f714af608cb019da2698b3cc3fd",
+      "red": {
+        "log": "b-red.log",
+        "summary": "Failed!  - Failed:     1, Passed:     5, Skipped:     0, Total:     6, Duration: 87 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant b red",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 1,
+        "observedFailure": [
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: \"priority\", expectedCode: \"view_definition.shape_role_field_incompatible\") [< 1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235"
+        ]
+      },
+      "replacement": "ViewShapeRole.Title => fieldKind is ViewRecordFieldKind.Text or ViewRecordFieldKind.Ordered,",
+      "killingCase": "titleField: \"priority\", expectedCode: \"view_definition.shape_role_field_incompatible\"",
+      "proofAssertionLine": 235,
+      "mutatedSourceSha256": "489fe744814aee21cb1f41a6c5c1ae56913ca7327eae2154fa8f642ad2dcd994"
+    },
+    {
+      "red": {
+        "summary": "Failed!  - Failed:     5, Passed:     1, Skipped:     0, Total:     6, Duration: 87 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant c red",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 1,
+        "log": "c-red.log",
+        "observedFailure": [
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: \"missing_title\", expectedCode: \"view_definition.shape_role_field_missing\") [2 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235",
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: \" \", expectedCode: \"view_definition.shape_role_field_missing\") [< 1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235",
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: null, expectedCode: \"view_definition.shape_role_field_missing\") [< 1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235",
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: \"priority\", expectedCode: \"view_definition.shape_role_field_incompatible\") [< 1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235",
+          "  Failed views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures(titleField: \"\", expectedCode: \"view_definition.shape_role_field_missing\") [< 1 ms]",
+          "   Assert.Throws() Failure: No exception was thrown",
+          "     at Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts(String titleField, String expectedCode) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-486-required-sh-57c346ec901c25c0\\projections\\dotnet\\blocks\\hlp.blocks.entity-views.tests\\ViewQueryRuntimeTests.cs:line 235"
+        ]
+      },
+      "replacement": "if (ViewBindingCompatibility.GetRefusalCode(kind, request.Binding, recordType) is { } bindingRefusal && request.Binding.Kind != \"layout.table\")",
+      "killingTest": "Harborline.Blocks.EntityViews.Tests.ViewQueryRuntimeTests.RequiredTableTitleRefusesBeforeDownstreamPorts",
+      "killingAssertion": "Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request)): Assert.Throws() Failure: No exception was thrown",
+      "span": {
+        "startLine": 585,
+        "endLine": 585
+      },
+      "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+      "restoredSourceSha256": "90e80e7a6758935b773938462a00b33697508f714af608cb019da2698b3cc3fd",
+      "id": "c",
+      "source": "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs",
+      "restoredGreen": {
+        "summary": "Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 76 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)",
+        "command": [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-486-shape-role",
+          "--workload",
+          "required Title mutant c restored",
+          "--candidate",
+          "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+          "--",
+          "env",
+          "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+          "MSBUILDDISABLENODEREUSE=1",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~RequiredTableTitle",
+          "-m:1",
+          "-nr:false"
+        ],
+        "exit": 0,
+        "log": "c-restored.log"
+      },
+      "original": "if (ViewBindingCompatibility.GetRefusalCode(kind, request.Binding, recordType) is { } bindingRefusal)",
+      "killingCase": "all five refusal cases (null, empty, space, missing_title, priority)",
+      "proofAssertionLine": 235,
+      "mutatedSourceSha256": "76fd9ba3456e673fdb7b3408a9928bda47fd8cfd6456c581adbd313d48cc8158"
+    }
+  ],
+  "fullProject": {
+    "exit": 0,
+    "command": [
+      "C:/Program Files/Git/bin/bash.exe",
+      "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "pc-486-shape-role",
+      "--workload",
+      "required Title whole project",
+      "--candidate",
+      "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+      "--",
+      "env",
+      "DOTNET_CLI_USE_MSBUILD_SERVER=0",
+      "MSBUILDDISABLENODEREUSE=1",
+      "dotnet",
+      "test",
+      "projections/dotnet/blocks/hlp.blocks.entity-views.tests/Harborline.Blocks.EntityViews.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false"
+    ],
+    "candidate": "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+    "summary": "Passed!  - Failed:     0, Passed:   195, Skipped:     0, Total:   195, Duration: 164 ms - Harborline.Blocks.EntityViews.Tests.dll (net11.0)"
+  },
+  "testSource": {
+    "path": "projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs",
+    "sha256": "e5e61092bca3f3502dc335c4061e678513758410df3f7fc41988dda3bd74586c"
+  },
+  "productRestoration": {
+    "gitDiffEmpty": true,
+    "path": "projections/dotnet/blocks/hlp.blocks.entity-views/ViewQueryRuntime.cs",
+    "sha256": "90e80e7a6758935b773938462a00b33697508f714af608cb019da2698b3cc3fd"
+  },
+  "provenance": {
+    "check": {
+      "exit": 0,
+      "output": "1 record(s) read, 0 stale hash(es)",
+      "command": [
+        "C:/Program Files/Git/bin/bash.exe",
+        "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "pc-486-shape-role",
+        "--workload",
+        "required Title scoped provenance check",
+        "--candidate",
+        "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+        "--",
+        "node",
+        "tooling/refresh-provenance-hashes.mjs",
+        "--module",
+        "hlp.blocks.entity-views",
+        "--check"
+      ]
+    },
+    "mutationJsonOwnersBeforeEdit": [],
+    "membership": "preserved",
+    "ownersBeforeEdit": [
+      "docs/provenance/records/hlp.blocks.entity-views.json"
+    ],
+    "refresh": {
+      "exit": 0,
+      "output": "hlp.blocks.entity-views: projections/dotnet/blocks/hlp.blocks.entity-views.tests/ViewQueryRuntimeTests.cs refreshed\r\n1 record(s) read, 1 stale hash(es) refreshed",
+      "command": [
+        "C:/Program Files/Git/bin/bash.exe",
+        "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "pc-486-shape-role",
+        "--workload",
+        "required Title scoped provenance refresh",
+        "--candidate",
+        "61ec231ebc67ef5f1c5c859a2434bc5f00cea21e",
+        "--",
+        "node",
+        "tooling/refresh-provenance-hashes.mjs",
+        "--module",
+        "hlp.blocks.entity-views"
+      ]
+    }
+  },
+  "platformGate": {
+    "state": "pending",
+    "reason": "Full platform check pending the Mac mini through the existing receipt runner and host lane; not run on PC."
+  },
+  "candidateScope": "Tests executed on candidate above. Delivery adds only this evidence record and the scoped provenance hash to that candidate; tested C# and restored product bytes are unchanged. Final delivery head/tree are named in the PR."
+}
