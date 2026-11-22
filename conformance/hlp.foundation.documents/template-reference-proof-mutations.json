@@ -1,0 +1,691 @@
+{
+  "schemaVersion": 1,
+  "slice": "T-594/template-reference-proof",
+  "producer": {
+    "head": "7f12b0f3fbd5ddfd910aed28bc3a9fc2f755e58d",
+    "tree": "5313d0481bc57f210385d22b4862e342aa73569b",
+    "runtimeBase": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+    "runtimeSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+    "testSha256": "8bd3c22fd00d0ddccbd34f976dbe1136637be9f471ceb9167de111d8f8c5399d"
+  },
+  "environment": {
+    "DOTNET_ROOT": "/usr/local/share/dotnet",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1",
+    "HARBORLINE_TESTED_TREE": "unset",
+    "HARBORLINE_BASE_HEAD": "unset"
+  },
+  "oracleSources": {
+    "semanticFields": "Control d807e9370 T-594/template-reference-proof acceptance 1-4: literal invoice/en-US/USD, PINNED-ONE/PINNED-TWO, null logo and both full ordered blocks; DES-0021 documents-eng-1/documents-eng-10/documents-run-2 and ADR-0006",
+    "refusals": "Literal messages specified by acceptance 2-4 and platform frozen interface revision 3 at d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+    "forwarding": "Literal key/version inputs in acceptance 1-4 and the exact independently created CancellationTokenSource.Token; no expected value comes from runtime output"
+  },
+  "runs": [
+    {
+      "label": "baseline",
+      "startedUtc": "2026-11-22T12:19:12.569493+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=baseline.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/baseline.log",
+      "logSha256": "1818102d6ba82463deccf7f07f59893561a2b7fe46bb36d835905cff9ad41f22",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/baseline.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M1",
+      "startedUtc": "2026-11-22T12:19:16.906449+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M1.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M1.log",
+      "logSha256": "dd0d651c33c03fa905355d9fe667f279cbafb51d415132202365078c99bdf2b4",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M1.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 11,
+        "failed": 5,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "OtherCoordinatesRefuseBeforeReturningOutput": 4,
+        "PreviewForwardsNullVersionAndStillRefusesOtherIdentity": 1
+      }
+    },
+    {
+      "label": "M1-restored",
+      "startedUtc": "2026-11-22T12:19:18.861823+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M1-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M1-restored.log",
+      "logSha256": "a487f2752394eb938c3b7fcdb67ecafe37af54e4d11fdf6bf0c38abfd31db75b",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M1-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M2",
+      "startedUtc": "2026-11-22T12:19:20.487460+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M2.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M2.log",
+      "logSha256": "a9c54d774f8017efd32a918fb0cf5bc53e28731b251ffc626a953d83222ceb04",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M2.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 14,
+        "failed": 2,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "OtherCoordinatesRefuseBeforeReturningOutput": 2
+      }
+    },
+    {
+      "label": "M2-restored",
+      "startedUtc": "2026-11-22T12:19:22.448036+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M2-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M2-restored.log",
+      "logSha256": "36626c515d8c24c430999135f2aad3c47979d81a70f7f07032a0462e5d3055c8",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M2-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M3",
+      "startedUtc": "2026-11-22T12:19:24.106833+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M3.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M3.log",
+      "logSha256": "868b606db55e607a1320969ba38b8999892159933a414a0af996c1174f06a6ad",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M3.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 3,
+        "failed": 13,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "OtherCoordinatesRefuseBeforeReturningOutput": 6,
+        "IssuanceRequiresAnExplicitNonWhitespaceVersion": 3,
+        "MissingBodyRefusesWithPublishedNotFound": 2,
+        "ExactPinsAndCallerTokenSurviveNewerBody": 2
+      }
+    },
+    {
+      "label": "M3-restored",
+      "startedUtc": "2026-11-22T12:19:25.935383+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M3-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M3-restored.log",
+      "logSha256": "b8fef0fa1578d8438b60364c7029e0c257172bbf948260e12dd30f9c15c67c19",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M3-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M4",
+      "startedUtc": "2026-11-22T12:19:27.461411+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M4.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M4.log",
+      "logSha256": "7b27507b5ebd0603298744cdd37c70ba7df240e8761ec15eef160d753e1101fc",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M4.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 15,
+        "failed": 1,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "IssuanceRequiresAnExplicitNonWhitespaceVersion": 1
+      }
+    },
+    {
+      "label": "M4-restored",
+      "startedUtc": "2026-11-22T12:19:29.378851+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M4-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M4-restored.log",
+      "logSha256": "f8f25dc85541380694fb23bdcbc42c4098b63c357d45e25f4cac8dfdd21205a6",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M4-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M5",
+      "startedUtc": "2026-11-22T12:19:30.922514+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M5.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M5.log",
+      "logSha256": "bb9a6a4477e411f41bf07e1c19af73e6f265d22dbdc45855234ad895356d0f21",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M5.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 14,
+        "failed": 2,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "MissingBodyRefusesWithPublishedNotFound": 2
+      }
+    },
+    {
+      "label": "M5-restored",
+      "startedUtc": "2026-11-22T12:19:32.758461+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M5-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M5-restored.log",
+      "logSha256": "05737d063298c618ad2a4c9d2bf95f38d985201fabe8d5317b1d2eb7a85869cd",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M5-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "M6",
+      "startedUtc": "2026-11-22T12:19:34.278938+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M6.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 1,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M6.log",
+      "logSha256": "467fd10edfd2b41212a10347f935b25b08f115371a9d888a8454d6450847bd0f",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M6.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 2,
+        "failed": 14,
+        "notExecuted": 0
+      },
+      "failedMethods": {
+        "ExactPinsAndCallerTokenSurviveNewerBody": 2,
+        "IssuanceRequiresAnExplicitNonWhitespaceVersion": 3,
+        "OtherCoordinatesRefuseBeforeReturningOutput": 6,
+        "MissingBodyRefusesWithPublishedNotFound": 2,
+        "PreviewForwardsNullVersionAndStillRefusesOtherIdentity": 1
+      }
+    },
+    {
+      "label": "M6-restored",
+      "startedUtc": "2026-11-22T12:19:36.110610+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DocumentTemplateReferenceProofTests",
+        "--logger",
+        "trx;LogFileName=M6-restored.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M6-restored.log",
+      "logSha256": "76e9b41caf02d82eb63a8c856d591468952658ab61d51b69f3f71c8bc21357c7",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/M6-restored.trx",
+      "counts": {
+        "total": 16,
+        "executed": 16,
+        "passed": 16,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    },
+    {
+      "label": "project",
+      "startedUtc": "2026-11-22T12:19:37.752898+00:00",
+      "cwd": "/Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c",
+      "command": [
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--logger",
+        "trx;LogFileName=project.trx",
+        "--results-directory",
+        "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref"
+      ],
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/project.log",
+      "logSha256": "42de086e179e0fd4360099beba3c7311184ed2fa65d76908cb1e0b654b9597a6",
+      "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/project.trx",
+      "counts": {
+        "total": 216,
+        "executed": 216,
+        "passed": 216,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "failedMethods": {}
+    }
+  ],
+  "mutants": [
+    {
+      "id": "M1",
+      "name": "remove key comparison",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 171,
+      "before": "template.Envelope.Identity != reference.Key || (reference.Version is { } version && template.Envelope.Version != version)",
+      "after": "reference.Version is { } version && template.Envelope.Version != version",
+      "baseline": "baseline",
+      "mutantSha256": "5f96338b7bb969280342cd0f834399ba42f8e8014553474186464d71a0166949",
+      "run": "M1",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M1-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: wrong key, version and ordinal case refuse, then corrected coordinates render(issuance: True, requestedKey: \"template.invoice\", returnedKey: \"template.other\", returnedVersion: \"1.0.0\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.OtherCoordinatesRefuseBeforeReturningOutput(Boolean issuance, String requestedKey, String returnedKey, String returnedVersion) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 55\n--- End of stack trace from previous location ---"
+        },
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: wrong key, version and ordinal case refuse, then corrected coordinates render(issuance: False, requestedKey: \"template.invoice\", returnedKey: \"template.other\", returnedVersion: \"1.0.0\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.OtherCoordinatesRefuseBeforeReturningOutput(Boolean issuance, String requestedKey, String returnedKey, String returnedVersion) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 55\n--- End of stack trace from previous location ---"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "remove version comparison",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 171,
+      "before": "template.Envelope.Identity != reference.Key || (reference.Version is { } version && template.Envelope.Version != version)",
+      "after": "template.Envelope.Identity != reference.Key",
+      "baseline": "baseline",
+      "mutantSha256": "19d945ac70d9b36d8df69278ba929afc6422a32035a25a8c8a906c60614ffe69",
+      "run": "M2",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M2-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: wrong key, version and ordinal case refuse, then corrected coordinates render(issuance: False, requestedKey: \"template.invoice\", returnedKey: \"template.invoice\", returnedVersion: \"2.0.0\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.OtherCoordinatesRefuseBeforeReturningOutput(Boolean issuance, String requestedKey, String returnedKey, String returnedVersion) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 55\n--- End of stack trace from previous location ---"
+        },
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: wrong key, version and ordinal case refuse, then corrected coordinates render(issuance: True, requestedKey: \"template.invoice\", returnedKey: \"template.invoice\", returnedVersion: \"2.0.0\")",
+          "message": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.OtherCoordinatesRefuseBeforeReturningOutput(Boolean issuance, String requestedKey, String returnedKey, String returnedVersion) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 55\n--- End of stack trace from previous location ---"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "discard requested version",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 191,
+      "before": "_templates.ResolvePublishedAsync(reference.Key, reference.Version, cancellationToken)",
+      "after": "_templates.ResolvePublishedAsync(reference.Key, null, cancellationToken)",
+      "baseline": "baseline",
+      "mutantSha256": "32e40c5cc3377edb58e70ee4c98d87634760ed711d16577119b1fca106fc6bc0",
+      "run": "M3",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M3-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: both entry points preserve old/new/old pins and the caller token(issuance: False)",
+          "message": "Assert.Equal() Failure: Strings differ\nExpected: \"1.0.0\"\nActual:   null",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.AssertCall(CapturingSource source, String key, String version, CancellationToken token) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 202\n   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.ExactPinsAndCallerTokenSurviveNewerBody(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 30\n--- End of stack trace from previous location ---"
+        },
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: both entry points preserve old/new/old pins and the caller token(issuance: True)",
+          "message": "Assert.Equal() Failure: Strings differ\nExpected: \"1.0.0\"\nActual:   null",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.AssertCall(CapturingSource source, String key, String version, CancellationToken token) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 202\n   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.ExactPinsAndCallerTokenSurviveNewerBody(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 30\n--- End of stack trace from previous location ---"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "admit whitespace version",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 135,
+      "before": "string.IsNullOrWhiteSpace(template.Version)",
+      "after": "string.IsNullOrEmpty(template.Version)",
+      "baseline": "baseline",
+      "mutantSha256": "699b6fd557fedaead83ed8833a7faef6662a1416ff5055a293a8e607b4f178da",
+      "run": "M4",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M4-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-10, documents-run-2 template-reference: null, empty and whitespace issuance versions refuse before resolution and an explicit version recovers(version: \" \\t \")",
+          "message": "Assert.Equal() Failure: Strings differ\n                              ↓ (pos 19)\nExpected: \"documents.template.version_required\"\nActual:   \"documents.template.reference_mismatch\"\n                              ↑ (pos 19)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.IssuanceRequiresAnExplicitNonWhitespaceVersion(String version) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 141\n--- End of stack trace from previous location ---"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "wrong missing-body refusal",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 192,
+      "before": "return body ?? throw new InvalidOperationException(\"documents.template.published_not_found\");",
+      "after": "return body ?? throw new InvalidOperationException(\"documents.template.reference_mismatch\");",
+      "baseline": "baseline",
+      "mutantSha256": "15443f84f386dfef6fdc48a727681eeb98fb72dbdcc78296d600ff5c36c8d8bc",
+      "run": "M5",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M5-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: missing published bytes refuse distinctly and a matching 9.9.9 body recovers(issuance: False)",
+          "message": "Assert.Equal() Failure: Strings differ\n                              ↓ (pos 19)\nExpected: \"documents.template.published_not_found\"\nActual:   \"documents.template.reference_mismatch\"\n                              ↑ (pos 19)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.MissingBodyRefusesWithPublishedNotFound(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 85\n--- End of stack trace from previous location ---"
+        },
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: missing published bytes refuse distinctly and a matching 9.9.9 body recovers(issuance: True)",
+          "message": "Assert.Equal() Failure: Strings differ\n                              ↓ (pos 19)\nExpected: \"documents.template.published_not_found\"\nActual:   \"documents.template.reference_mismatch\"\n                              ↑ (pos 19)",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.MissingBodyRefusesWithPublishedNotFound(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 85\n--- End of stack trace from previous location ---"
+        }
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "discarded-caller-token",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs",
+      "line": 191,
+      "before": "_templates.ResolvePublishedAsync(reference.Key, reference.Version, cancellationToken)",
+      "after": "_templates.ResolvePublishedAsync(reference.Key, reference.Version, CancellationToken.None)",
+      "baseline": "baseline",
+      "mutantSha256": "2131ebd3a098801c70ad1c5c82b2796eea00ac9504b1fd789db14aa6299001f3",
+      "run": "M6",
+      "killed": true,
+      "restoredSha256": "b84015ffe2d28e074ca16850775ad1d9370944860cd038eeb4eb35d7831867d7",
+      "restoredRun": "M6-restored",
+      "killingAssertions": [
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: both entry points preserve old/new/old pins and the caller token(issuance: True)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: System.Threading.CancellationToken\nActual:   System.Threading.CancellationToken",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.AssertCall(CapturingSource source, String key, String version, CancellationToken token) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 203\n   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.ExactPinsAndCallerTokenSurviveNewerBody(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 30\n--- End of stack trace from previous location ---"
+        },
+        {
+          "test": "documents-eng-1, documents-eng-10, documents-run-2 template-reference: both entry points preserve old/new/old pins and the caller token(issuance: False)",
+          "message": "Assert.Equal() Failure: Values differ\nExpected: System.Threading.CancellationToken\nActual:   System.Threading.CancellationToken",
+          "stack": "   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.AssertCall(CapturingSource source, String key, String version, CancellationToken token) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 203\n   at Harborline.Foundation.Documents.Tests.DocumentTemplateReferenceProofTests.ExactPinsAndCallerTokenSurviveNewerBody(Boolean issuance) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-594-template-re-2f2b02525be1dd8c/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentTemplateReferenceProofTests.cs:line 30\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "bothEntryPointTokenEquality": true
+    }
+  ],
+  "initialDevelopmentRun": {
+    "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/initial.log",
+    "logSha256": "15995cdcff28c628c17a571dcb61083fa83b6b96470c31c61c7ace6892aba19b",
+    "exitCode": 0,
+    "counts": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    "note": "Precedes the token-parameter ordering cleanup and the committed mutation baseline; not the baseline evidence."
+  },
+  "lane": {
+    "wrapper": "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+    "holder": "writer",
+    "session": "mini-594-template-ref",
+    "workload": "platform 566 six template reference mutants",
+    "candidate": "7f12b0f3fbd5ddfd910aed28bc3a9fc2f755e58d",
+    "execution": "Every baseline/mutant/restored/project command ran serially under one host-lane run invocation. Each dotnet test rebuilt; no --no-build."
+  },
+  "gateLaunchPlan": {
+    "path": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/gate-launch-plan.json",
+    "sha256": "f5d9672ebbed7d5c6c969a7cfa9534b10913828f24d6dc29790f5ae62bf01cae",
+    "bootstrap": {
+      "PATH": "/usr/local/share/dotnet:/Users/chris/.local/harborline-tools/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "HOME": "/Users/chris",
+      "TMPDIR": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t594-template-ref/full-gate-tmp",
+      "DOTNET_ROOT": "/usr/local/share/dotnet",
+      "NUGET_PACKAGES": "/Users/chris/.nuget/packages",
+      "HARBORLINE_CONTROL_REPO": "/Users/chris/Projects/Harborline/harborline-control"
+    },
+    "status": "Finalized before candidate commit; actual gate outcome belongs to external/PR evidence so it cannot change candidate inputs."
+  }
+}
