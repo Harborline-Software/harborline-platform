@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -258,14 +259,16 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         var root = RepositoryRoot();
         foreach (var lane in Roots) Assert.NotEmpty(Files(root, lane));
         Assert.All(AllowList.Values.Concat(Admitted.Values), reason => Assert.False(string.IsNullOrWhiteSpace(reason)));
-        var errors = Violations(Scan(root), AllowList, Admitted);
+        var findings = Scan(root);
+        Assert.NotEmpty(findings);
+        var errors = Violations(findings, AllowList, Admitted);
         Assert.True(errors.Count == 0, "The component library emits no telemetry (telemetry-cc-16); a member's own emit path belongs in the member's engine.\n" + string.Join("\n", errors));
     }
 
     [Fact]
     public void Component_library_fence_reports_every_planted_emit_call()
     {
-        var root = Path.Combine(Path.GetTempPath(), "t502-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(Path.GetTempPath(), "harborline", "1243", Guid.NewGuid().ToString("N"));
         try
         {
             var dir = Path.Combine(root, "projections", "react");
@@ -421,6 +424,57 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public void React_compiled_excluded_imports_are_scanned_but_unimported_tests_are_not()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "harborline", "1243", Guid.NewGuid().ToString("N"));
+        var package = Path.Combine(root, "projections", "react", "ui", "fixture");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(package, "src", "__tests__"));
+            File.WriteAllText(Path.Combine(package, "tsconfig.build.json"), """
+                { "compilerOptions": { "target": "ES2022", "module": "ESNext", "types": [], "skipLibCheck": true },
+                  "include": ["src/index.ts"], "exclude": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.stories.ts", "src/__tests__"] }
+                """);
+            File.WriteAllText(Path.Combine(package, "src", "index.ts"), "import './ValueLeak.test';\nimport './ValueLeak.spec';\nimport './ValueLeak.stories';\nimport './__tests__/ValueLeak';\nexport function Component() { return null; }\n");
+            foreach (var name in new[] { "ValueLeak.test.ts", "ValueLeak.spec.ts", "ValueLeak.stories.ts", "__tests__/ValueLeak.ts", "Unimported.test.ts" })
+                File.WriteAllText(Path.Combine(package, "src", name), "export const leak = (value: string) => console.log(value);\n");
+            RunTypeScript(Path.Combine(package, "tsconfig.build.json"), "--declaration --emitDeclarationOnly --outDir dist");
+            Assert.True(File.Exists(Path.Combine(package, "dist", "ValueLeak.test.d.ts")));
+            Assert.False(File.Exists(Path.Combine(package, "dist", "Unimported.test.d.ts")));
+            var findings = Scan(root).Select(row => $"{row.Path}:{row.Line}").ToArray();
+            Assert.True(findings.Contains("projections/react/ui/fixture/src/ValueLeak.test.ts:1", StringComparer.Ordinal), "Missing projections/react/ui/fixture/src/ValueLeak.test.ts:1");
+            Assert.Equal(new[] {
+                "projections/react/ui/fixture/src/ValueLeak.spec.ts:1",
+                "projections/react/ui/fixture/src/ValueLeak.stories.ts:1",
+                "projections/react/ui/fixture/src/ValueLeak.test.ts:1",
+                "projections/react/ui/fixture/src/__tests__/ValueLeak.ts:1",
+            }, findings);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    private static string RunTypeScript(string config, string arguments)
+    {
+        var compiler = Path.Combine(RepositoryRoot(), "projections", "react", "ui", "hlp.ui.button", "node_modules", ".bin", OperatingSystem.IsWindows() ? "tsc.cmd" : "tsc");
+        var start = new ProcessStartInfo
+        {
+            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : compiler,
+            Arguments = OperatingSystem.IsWindows() ? $"/d /s /c \"\"{compiler}\" -p \"{config}\" {arguments}\"" : $"-p \"{config}\" {arguments}",
+            WorkingDirectory = Path.GetDirectoryName(config)!,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, $"{config}: TypeScript failed\n{output.Result}\n{error.Result}");
+        return output.Result;
+    }
+
     private sealed record Finding(string Path, int Line, string Text);
 
     private static List<string> Violations(Finding[] findings, Dictionary<(string Path, string Line), string> allowList, Dictionary<(string Path, string Line), string> admitted)
@@ -433,14 +487,30 @@ public sealed class ComponentLibraryTelemetryArchitectureTests
         return errors;
     }
 
-    // The walk skips test-like names, so every file a packable project compiles is added back from its own items and
-    // its Directory.Build chain, and every file a React package's bundle pulls in, from inside the lanes or out of them,
-    // is added from its build. An MSBuild import or an import specifier the scan cannot read is itself a finding.
+    // Ask the build compiler: exclude filters entry discovery, not files reached through imports.
+    private static IEnumerable<string> ReactCompilerInputs(string root)
+    {
+        var react = Path.Combine(root, "projections", "react");
+        if (!Directory.Exists(react)) yield break;
+        foreach (var config in Directory.EnumerateFiles(react, "tsconfig.build.json", new EnumerationOptions { RecurseSubdirectories = true })
+            .Where(path => !path.Replace('\\', '/').Split('/').Any(part => part is "node_modules" or "dist")))
+        {
+            var files = RunTypeScript(config, "--listFilesOnly --pretty false").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            Assert.NotEmpty(files);
+            foreach (var file in files)
+            {
+                Assert.True(Path.IsPathRooted(file) && File.Exists(file), $"{config}: unreadable compiler input: {file}");
+                if (!file.Replace('\\', '/').Split('/').Contains("node_modules") && !file.EndsWith(".d.ts", StringComparison.OrdinalIgnoreCase)
+                    && Extensions.Contains(Path.GetExtension(file))) yield return file;
+            }
+        }
+    }
+
     private static Finding[] Scan(string root)
     {
         var findings = new List<Finding>();
         var files = Roots.SelectMany(lane => Files(root, lane).Concat(PackageInputs(root, Path.Combine(root, "projections", lane), findings))).ToList();
-        findings.AddRange(files.Concat(BundleInputs(root)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).SelectMany(file => ScanFile(root, file)));
+        findings.AddRange(files.Concat(ReactCompilerInputs(root)).Concat(BundleInputs(root)).Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).SelectMany(file => ScanFile(root, file)));
         return findings.Distinct().OrderBy(row => row.Path, StringComparer.Ordinal).ThenBy(row => row.Line).ToArray();
     }
 

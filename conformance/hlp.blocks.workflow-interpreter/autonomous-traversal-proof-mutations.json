@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 1,
+  "slice": "T-488/autonomous-traversal-proof",
+  "kind": "hand-mutation-evidence-not-executable-conformance",
+  "date": "2026-11-21",
+  "host": "MacBook",
+  "controlRevision": "221d9269",
+  "base": "82abe40ac3802798c87c83503cb242d84432d024",
+  "candidate": "71ceb364d5936e85156829c738cb5c519248d9f6",
+  "candidateNote": "Claim commit plus the new partial test file; production restored between every independent mutation. Final delivery head is in the PR.",
+  "sdk": "11.0.100",
+  "node": "v24.22.2",
+  "oracle": "control 221d9269 T-488/autonomous-traversal-proof acceptance 1-3; DES-0019 workflows-eng-4/workflows-ck-4; ADR-0141 D1; IDeclarativeWorkflowInterpreter pure-decision contract",
+  "source": "projections/dotnet/blocks/hlp.blocks.workflow-interpreter/DeclarativeWorkflowInterpreter.cs",
+  "testFileSha256": "6bcaf02af73a53a6dfc843fb4db42281919eb0c6389c64505db7b49118d08454",
+  "command": "bash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-488-traversal --workload \"<id>-<red|green>\" --candidate 71ceb364d5936e85156829c738cb5c519248d9f6 -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj --no-restore -m:1 -nr:false --filter FullyQualifiedName~DeclarativeWorkflowInterpreterTests --logger \"console;verbosity=normal\"",
+  "mutations": [
+    {
+      "id": "terminal-running",
+      "line": 173,
+      "before": "return WorkflowStepOutcome.Complete(state);",
+      "after": "return WorkflowStepOutcome.Advance(state);",
+      "redExit": 1,
+      "restoredGreenExit": 0,
+      "killingTest": "DeclarativeWorkflowInterpreterTests.Workflows_eng_4_workflows_ck_4_autonomous_traversal_completes_without_mutating_input",
+      "assertion": "Assert.Equal(WorkflowStatus.Completed, outcome.NextStatus)",
+      "expected": "Completed",
+      "actual": "Running",
+      "redCounts": {
+        "passed": 45,
+        "failed": 1,
+        "total": 46
+      },
+      "restoredGreenCounts": {
+        "passed": 46,
+        "failed": 0,
+        "total": 46
+      },
+      "compiled": true,
+      "redWorkload": "terminal-running-red",
+      "restoredGreenWorkload": "terminal-running-green",
+      "logSha256": {
+        "red": "6491b18267dc6e57a92e29c30dfaf36eb100ec6990aca55bf6d9161c63fa133a",
+        "green": "672667abfc310aae8f61fa10f1df7b9bbe0f270070259234f56724b513690cd9"
+      }
+    },
+    {
+      "id": "zero-edge",
+      "line": 181,
+      "before": "if (autonomous.Count == 0)",
+      "after": "if (autonomous.Count < 0)",
+      "redExit": 1,
+      "restoredGreenExit": 0,
+      "killingTest": "DeclarativeWorkflowInterpreterTests.Workflows_eng_4_autonomous_traversal_dead_end_names_B_without_mutating_input",
+      "assertion": "Assert.ThrowsAsync<WorkflowInterpreterDecisionException>",
+      "expected": "WorkflowInterpreterDecisionException",
+      "actual": "ArgumentOutOfRangeException",
+      "redCounts": {
+        "passed": 44,
+        "failed": 2,
+        "total": 46
+      },
+      "restoredGreenCounts": {
+        "passed": 46,
+        "failed": 0,
+        "total": 46
+      },
+      "compiled": true,
+      "redWorkload": "zero-edge-red",
+      "restoredGreenWorkload": "zero-edge-green",
+      "logSha256": {
+        "red": "059e10e3ee76a80810e5292be0ecc037d5298a219b2ee3490a2129a312657809",
+        "green": "b41aadcd7f2d177d08aef78872e1fa080ee61f1b4e45ac654f4c3dff0125f4c3"
+      }
+    },
+    {
+      "id": "ambiguous-edge",
+      "line": 187,
+      "before": "if (autonomous.Count > 1)",
+      "after": "if (autonomous.Count > int.MaxValue)",
+      "redExit": 1,
+      "restoredGreenExit": 0,
+      "killingTest": "DeclarativeWorkflowInterpreterTests.Workflows_eng_4_autonomous_traversal_ambiguity_names_B_without_mutating_input",
+      "assertion": "Assert.ThrowsAsync<WorkflowInterpreterDecisionException>",
+      "expected": "WorkflowInterpreterDecisionException",
+      "actual": "No exception was thrown",
+      "redCounts": {
+        "passed": 44,
+        "failed": 2,
+        "total": 46
+      },
+      "restoredGreenCounts": {
+        "passed": 46,
+        "failed": 0,
+        "total": 46
+      },
+      "compiled": true,
+      "redWorkload": "ambiguous-edge-red",
+      "restoredGreenWorkload": "ambiguous-edge-green",
+      "logSha256": {
+        "red": "697f5be91f6331bdd77269544544254979897013174aea2c21874b26d718c864",
+        "green": "a9d72040efee9f28180cd204fa1584bb966c237ca438b3dac310b5b841f1e867"
+      }
+    },
+    {
+      "id": "wrong-step",
+      "line": 189,
+      "before": "throw new WorkflowInterpreterDecisionException(state,\n                    $\"Interpreter: state '{state}' (instance '{instance.Id}') has {autonomous.Count} autonomous \"",
+      "after": "throw new WorkflowInterpreterDecisionException(trigger.Step,\n                    $\"Interpreter: state '{state}' (instance '{instance.Id}') has {autonomous.Count} autonomous \"",
+      "redExit": 1,
+      "restoredGreenExit": 0,
+      "killingTest": "DeclarativeWorkflowInterpreterTests.Workflows_eng_4_autonomous_traversal_ambiguity_names_B_without_mutating_input",
+      "assertion": "Assert.Equal(\"B\", error.Step)",
+      "expected": "B",
+      "actual": "A",
+      "redCounts": {
+        "passed": 44,
+        "failed": 2,
+        "total": 46
+      },
+      "restoredGreenCounts": {
+        "passed": 46,
+        "failed": 0,
+        "total": 46
+      },
+      "compiled": true,
+      "redWorkload": "wrong-step-red",
+      "restoredGreenWorkload": "wrong-step-green",
+      "logSha256": {
+        "red": "0dc935a2fe7844b274026e795f6ef9049f341649298a2b15a47b2cf322e69356",
+        "green": "51875ceab67ae3dff3a12d7553744b34afa34178cdcb5562c8824b6f762d1969"
+      }
+    },
+    {
+      "id": "mutate-input",
+      "line": 173,
+      "before": "return WorkflowStepOutcome.Complete(state);",
+      "after": "instance.CurrentStep = state;\n                return WorkflowStepOutcome.Complete(state);",
+      "redExit": 1,
+      "restoredGreenExit": 0,
+      "killingTest": "DeclarativeWorkflowInterpreterTests.Workflows_eng_4_workflows_ck_4_autonomous_traversal_completes_without_mutating_input",
+      "assertion": "Assert.Equal(\"A\", instance.CurrentStep)",
+      "expected": "A",
+      "actual": "C",
+      "redCounts": {
+        "passed": 45,
+        "failed": 1,
+        "total": 46
+      },
+      "restoredGreenCounts": {
+        "passed": 46,
+        "failed": 0,
+        "total": 46
+      },
+      "compiled": true,
+      "redWorkload": "mutate-input-red",
+      "restoredGreenWorkload": "mutate-input-green",
+      "logSha256": {
+        "red": "1169cfe826b1ec8b45fff5506beb817dd8232fffb4ab669ca42ccfe201d87c63",
+        "green": "db046c2e4d73737a29b2affb0b97a7650ca152a6a648fce29a88f1b7082999ab"
+      }
+    }
+  ],
+  "provenance": {
+    "ownersForBothNewPaths": [],
+    "refreshWrite": "not applicable; no hashed files changed",
+    "checkCommand": "node tooling/refresh-provenance-hashes.mjs --module hlp.blocks.workflow-interpreter --check",
+    "checkExit": 0,
+    "checkOutput": "1 record(s) read, 0 stale hash(es)"
+  },
+  "limitations": "Decision-only raw-store backstop fixture; no durable commit, broker, action, retry, journal or lifecycle proof. Initial sandbox lane launch exited before compiling and is excluded from mutation evidence.",
+  "fullSuite": {
+    "workload": "T-488 full interpreter producer native suite",
+    "command": "env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/blocks/hlp.blocks.workflow-interpreter.tests/Harborline.Blocks.Workflow.Interpreter.Tests.csproj --no-restore -m:1 -nr:false",
+    "exit": 0,
+    "passed": 56,
+    "failed": 0,
+    "skipped": 0,
+    "total": 56,
+    "gateMapping": "tooling/run-native.mjs blocks-workflow-interpreter-native; same test project run in isolation through host lane"
+  },
+  "preliminaryGate": {
+    "command": "node tooling/run-pr-preflight.mjs --reuse-note <PR-body.md>",
+    "laneWorkload": "T-488 producer PR preflight",
+    "exit": 0,
+    "output": [
+      "Preliminary consumer-neutral boundary: passed",
+      "Preliminary prop vocabulary: passed",
+      "Preliminary recorded evidence provenance: passed",
+      "Preliminary catalog preflight: passed",
+      "Preliminary CI contract tests: passed",
+      "Preliminary PR preflight passed; no full gate proof produced."
+    ],
+    "fullGate": "Deferred to Mac mini; not run on MacBook."
+  }
+}

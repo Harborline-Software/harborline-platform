@@ -1,6 +1,6 @@
 # Harborline.Foundation.ExecutionRuntime
 
-Revision 4 of `hlp.foundation.execution-runtime`, the execution runtime substrate (DES-0056, T-528
+Revision 5 of `hlp.foundation.execution-runtime`, the execution runtime substrate (DES-0056, T-528
 slice 1): run-kind registration, one kind-qualified run identity, a closed run status vocabulary with
 legal transitions, the substrate's named retry profiles, the dead-letter path, and a tenant-scoped
 `IRunStore` port with an in-memory reference implementation. Slice 2 adds one tenant-scoped effect
@@ -82,3 +82,25 @@ refused. The reads return the receipt (or null) and the steps in order (or empty
 `InMemoryExecutionReceiptStore` is the reference implementation. The durable adapter and restart proof
 (`T-528/durable-run-store`), the authorized observe read (`T-528/observe-read`) and engine emitting are later
 slices. Acceptance tests: `ExecutionReceiptTests.cs`.
+
+## Retry timing (revision 5)
+
+The two backoff profiles use full jitter: after a retryable failure with attempts left,
+`RunLifecycle` draws once from the injected `System.Random`, multiplies `DelayAfter` in ticks
+by `NextDouble()` and rounds down. The existing three-argument constructor uses `Random.Shared`;
+the four-argument constructor accepts a deterministic source. `DelayAfter` and the profile table
+are unchanged. Zero jitter permits beginning the next attempt immediately. Dead letters draw nothing.
+
+An engine parses Retry-After and supplies `RunFailure.RetryAfter` as `new RetryAfter(TimeSpan)`
+(delay-seconds) or `new RetryAfter(DateTimeOffset)` (HTTP-date), following .NET's
+`RetryConditionHeaderValue` shape. Negative durations refuse at construction. Instant forms resolve
+against the lifecycle clock when the attempt fails, with past or equal instants meaning zero wait;
+a default value also means zero. The next delay is the longer of jitter and the server wait,
+never beyond the profile's `MaxDelay`. The failed `RunAttempt.ServerToldWait` records the uncapped
+server wait only when it is strictly longer than jitter and the run retries. It is null otherwise,
+including dead letters. Both new record members are optional and last, preserving existing constructors.
+
+Contract source: control `542d063d8eaabb148e0e58c5fea0c717e2553c6d`,
+`T-528/retry-jitter-and-server-told-delay`, DES-0056 `execution-runtime-ck-9`/`ck-10`,
+ADR-0118 decision 8 and RFC 9110 section 10.2.3. Acceptance tests: `RetryTimingTests.cs`;
+its oracles and named mutation targets are recorded beside each test. Test names carry the full ids.

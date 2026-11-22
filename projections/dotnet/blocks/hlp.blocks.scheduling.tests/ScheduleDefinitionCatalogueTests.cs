@@ -29,11 +29,14 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
-    [Fact(DisplayName = "scheduling-ck-26: catalogue construction requires an explicit solver registry")]
+    [Fact(DisplayName = "scheduling-ck-26: internal catalogue construction requires an explicit solver registry")]
     public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
     {
-        Assert.Null(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore)]));
-        Assert.NotNull(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)]));
+        Assert.Empty(typeof(ScheduleDefinitionCatalogue).GetConstructors());
+        var constructor = Assert.Single(typeof(ScheduleDefinitionCatalogue).GetConstructors(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic));
+        Assert.Equal([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)],
+            constructor.GetParameters().Select(parameter => parameter.ParameterType));
     }
 
     [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]

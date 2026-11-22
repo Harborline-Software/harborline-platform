@@ -1,0 +1,209 @@
+{
+  "slice": "T-493/classification-resolution-proof",
+  "date": "2026-11-21",
+  "host": "PC (Windows)",
+  "controlRecordRevision": "1496e45e1b29b7a40fb2585070f460a9f4e2c710",
+  "baseSha": "82abe40ac3802798c87c83503cb242d84432d024",
+  "mutationCandidateSha": "e43a02c37b3113985c97270e0c3feeabc281d9fc",
+  "finalSha": "f50fa72e044bc69f1554cdd739f85dfe63d9d0e1",
+  "finalShaMeaning": "Final test-source commit; the following receipt-only commit is identified as delivery head in PR #547. Test source was present uncommitted during all mutants.",
+  "sourcePath": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+  "testPath": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyClassificationResolutionProofTests.cs",
+  "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'WORKLOAD' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'",
+  "environment": {
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1"
+  },
+  "oracle": "Literal fixture coordinates, labels, order, statuses, nulls and booleans from control 1496e45e DES-0024 ck-11/16, eng-2/3/4, run-1 and L583; platform interface revision 4 pinned-coordinate, null-entry and tombstone contracts. No expected value comes from a resolver or production constant.",
+  "baseline": {
+    "order": "After first deliberate red, restored M1-green",
+    "selected": 11,
+    "passed": 11,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "before": "if (CoordinatesOf(definition) != reference.DefinitionCoordinates) throw new ArgumentException(\"The classification reference does not pin the supplied definition.\", nameof(reference));",
+      "after": "// temporary mutant: bypass coordinate guard",
+      "workload": "T-493 M1 bypass coordinate guard red",
+      "commandSubstitutions": {
+        "WORKLOAD": "T-493 M1 bypass coordinate guard red"
+      },
+      "selected": 11,
+      "failed": 3,
+      "passed": 8,
+      "exitCode": 1,
+      "killingTests": "Mismatched_coordinates_name_reference",
+      "killingAssertion": "Assert.Throws<ArgumentException>: no exception thrown; all three mismatched coordinates fail.",
+      "restored": {
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "exitCode": 0,
+        "workload": "T-493 M1 restored baseline rebuilt green",
+        "method": "Copy original bytes, set LastWriteTime to current time so MSBuild rebuilds; production diff is empty.",
+        "summary": "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 29 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M1 restored baseline rebuilt green' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+      },
+      "redSummary": "Failed!  - Failed:     3, Passed:     8, Skipped:     0, Total:    11, Duration: 34 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "failingDisplayNames": [
+        "Failed taxonomy-eng-2 / taxonomy-run-1: each mismatched reference coordinate refuses(tenant: \"tenant-b\", vendor: \"acme\", version: \"1.0.0\") [1 ms]",
+        "Failed taxonomy-eng-2 / taxonomy-run-1: each mismatched reference coordinate refuses(tenant: \"tenant-a\", vendor: \"acme\", version: \"2.0.0\") [< 1 ms]",
+        "Failed taxonomy-eng-2 / taxonomy-run-1: each mismatched reference coordinate refuses(tenant: \"tenant-a\", vendor: \"another\", version: \"1.0.0\") [< 1 ms]"
+      ],
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M1 bypass coordinate guard red' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+    },
+    {
+      "id": "M2",
+      "before": "new ResolvedTaxonomyClassification(reference, node) : null;",
+      "after": "new ResolvedTaxonomyClassification(reference, node) : new ResolvedTaxonomyClassification(reference, definition.Nodes[0]);",
+      "workload": "T-493 M2 unknown fallback red",
+      "commandSubstitutions": {
+        "WORKLOAD": "T-493 M2 unknown fallback red"
+      },
+      "selected": 11,
+      "failed": 3,
+      "passed": 8,
+      "exitCode": 1,
+      "killingTests": "Unknown_codes_return_null (missing); Batch_preserves_every_position; Activity_does_not_follow_succession",
+      "killingAssertion": "Assert.Null: expected null, actual z fallback (including batch position 1).",
+      "restored": {
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "exitCode": 0,
+        "workload": "T-493 M2 restored green",
+        "method": "Copy original bytes, set LastWriteTime to current time so MSBuild rebuilds; production diff is empty.",
+        "summary": "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 28 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M2 restored green' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+      },
+      "redSummary": "Failed!  - Failed:     3, Passed:     8, Skipped:     0, Total:    11, Duration: 33 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "failingDisplayNames": [
+        "Failed taxonomy-eng-4: active, tombstoned and missing controls retain identity [1 ms]",
+        "Failed taxonomy-eng-2 / taxonomy-run-1: missing, null and empty codes return null(code: \"missing\") [< 1 ms]",
+        "Failed taxonomy-eng-3 / taxonomy-run-1: ordered batch retains misses, duplicates and tombstones [5 ms]"
+      ],
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M2 unknown fallback red' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+    },
+    {
+      "id": "M3",
+      "before": "return references.Select(reference =>",
+      "after": "return references.Reverse().Select(reference =>",
+      "workload": "T-493 M3 reverse batch red",
+      "commandSubstitutions": {
+        "WORKLOAD": "T-493 M3 reverse batch red"
+      },
+      "selected": 11,
+      "failed": 1,
+      "passed": 10,
+      "exitCode": 1,
+      "killingTests": "Batch_preserves_every_position",
+      "killingAssertion": "AssertClassification at slot 0: Reference.Code expected z, actual retired.",
+      "restored": {
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "exitCode": 0,
+        "workload": "T-493 M3 restored green",
+        "method": "Copy original bytes, set LastWriteTime to current time so MSBuild rebuilds; production diff is empty.",
+        "summary": "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 28 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M3 restored green' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+      },
+      "redSummary": "Failed!  - Failed:     1, Passed:    10, Skipped:     0, Total:    11, Duration: 29 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "failingDisplayNames": [
+        "Failed taxonomy-eng-3 / taxonomy-run-1: ordered batch retains misses, duplicates and tombstones [11 ms]"
+      ],
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M3 reverse batch red' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+    },
+    {
+      "id": "M4",
+      "before": "reference is null ? null : ResolveClassification(definition, reference)).ToArray();",
+      "after": "reference is null ? null : ResolveClassification(definition, reference)).Where(result => result is not null).ToArray();",
+      "workload": "T-493 M4 filter null batch red",
+      "commandSubstitutions": {
+        "WORKLOAD": "T-493 M4 filter null batch red"
+      },
+      "selected": 11,
+      "failed": 1,
+      "passed": 10,
+      "exitCode": 1,
+      "killingTests": "Batch_preserves_every_position",
+      "killingAssertion": "Assert.Equal(6, results.Count): actual 4.",
+      "restored": {
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "exitCode": 0,
+        "workload": "T-493 M4 restored green",
+        "method": "Copy original bytes, set LastWriteTime to current time so MSBuild rebuilds; production diff is empty.",
+        "summary": "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 29 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M4 restored green' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+      },
+      "redSummary": "Failed!  - Failed:     1, Passed:    10, Skipped:     0, Total:    11, Duration: 29 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "failingDisplayNames": [
+        "Failed taxonomy-eng-3 / taxonomy-run-1: ordered batch retains misses, duplicates and tombstones [2 ms]"
+      ],
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M4 filter null batch red' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+    },
+    {
+      "id": "M5",
+      "before": "public bool IsActive => Node.Status == TaxonomyNodeStatus.Active;",
+      "after": "public bool IsActive => true;",
+      "workload": "T-493 M5 always active red",
+      "commandSubstitutions": {
+        "WORKLOAD": "T-493 M5 always active red"
+      },
+      "selected": 11,
+      "failed": 5,
+      "passed": 6,
+      "exitCode": 1,
+      "killingTests": "Exact_pins_preserve_identity_and_labels (all three pins); Activity_does_not_follow_succession; Batch_preserves_every_position",
+      "killingAssertion": "Assert.Equal(false, result.IsActive) for retired: actual true.",
+      "restored": {
+        "selected": 11,
+        "passed": 11,
+        "failed": 0,
+        "exitCode": 0,
+        "workload": "T-493 M5 restored green",
+        "method": "Copy original bytes, set LastWriteTime to current time so MSBuild rebuilds; production diff is empty.",
+        "summary": "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 27 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M5 restored green' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+      },
+      "redSummary": "Failed!  - Failed:     5, Passed:     6, Skipped:     0, Total:    11, Duration: 37 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "failingDisplayNames": [
+        "Failed taxonomy-eng-2 / taxonomy-run-1: exact pins retain classification identity and labels(tenant: \"tenant-b\", version: \"1.0.0\", z: \"Z-tenant-b\", a: \"A-tenant-b\", retired: \"Retired-tenant-b\") [8 ms]",
+        "Failed taxonomy-eng-2 / taxonomy-run-1: exact pins retain classification identity and labels(tenant: \"tenant-a\", version: \"1.0.0\", z: \"Z-v1\", a: \"A-v1\", retired: \"Retired-v1\") [< 1 ms]",
+        "Failed taxonomy-eng-2 / taxonomy-run-1: exact pins retain classification identity and labels(tenant: \"tenant-a\", version: \"2.0.0\", z: \"Z-v2\", a: \"A-v2\", retired: \"Retired-v2\") [< 1 ms]",
+        "Failed taxonomy-eng-4: active, tombstoned and missing controls retain identity [< 1 ms]",
+        "Failed taxonomy-eng-3 / taxonomy-run-1: ordered batch retains misses, duplicates and tombstones [5 ms]"
+      ],
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-classification --workload 'T-493 M5 always active red' --candidate e43a02c37b3113985c97270e0c3feeabc281d9fc -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyClassificationResolutionProofTests '-m:1' '-nr:false'"
+    }
+  ],
+  "finalVerification": {
+    "candidateSha": "f50fa72e044bc69f1554cdd739f85dfe63d9d0e1",
+    "workload": "T-493 committed final source green",
+    "selected": 11,
+    "passed": 11,
+    "failed": 0,
+    "exitCode": 0
+  },
+  "provenance": {
+    "pathsChecked": [
+      "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyClassificationResolutionProofTests.cs",
+      "conformance/hlp.foundation.taxonomy/classification-resolution-proof-mutations.json"
+    ],
+    "search": "rg -n -F -e <each full path> -e <each basename> docs/provenance/records",
+    "output": "No matches (rg exit 1); no owning contentHashes record; no refresh/check applicable. No Taxonomy record invented.",
+    "recheckedBeforeEachCommit": true
+  },
+  "nonEvidenceRuns": [
+    "First lane invocation split unquoted -m:1 / -nr:false into invalid MSBuild arguments (MSB1031), selected zero; rerun with quoted flags.",
+    "First M1 restoration reused the mutant binary because Copy-Item preserved an old timestamp (3 failed, 8 passed); touching restored source forced rebuild, then 11/11. This failed restoration is not green evidence."
+  ],
+  "limitations": [
+    "Focused proof only; no restore/install, full gate, Stryker run, host authorization or consumer-adoption claim."
+  ]
+}

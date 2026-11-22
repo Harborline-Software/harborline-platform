@@ -25,13 +25,21 @@ public sealed class RunLifecycle
     private readonly RunKindRegistry _registry;
     private readonly IRunStore _store;
     private readonly TimeProvider _clock;
+    private readonly Random _random;
 
     /// <summary>Creates the lifecycle over a registry, a store and a clock.</summary>
     public RunLifecycle(RunKindRegistry registry, IRunStore store, TimeProvider clock)
+        : this(registry, store, clock, Random.Shared)
+    {
+    }
+
+    /// <summary>Creates a lifecycle with an injected source for full-jitter retry delays.</summary>
+    public RunLifecycle(RunKindRegistry registry, IRunStore store, TimeProvider clock, Random random)
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _random = random ?? throw new ArgumentNullException(nameof(random));
     }
 
     /// <summary>
@@ -120,11 +128,20 @@ public sealed class RunLifecycle
             var attempts = EndLastAttempt(run, now, failure);
             if (failure.Retryable && profile.AllowsAnotherAttempt(attempts.Count))
             {
+                var delay = TimeSpan.FromTicks((long)(_random.NextDouble() * profile.DelayAfter(attempts.Count).Ticks));
+                var serverWait = failure.RetryAfter?.Delta
+                    ?? (failure.RetryAfter?.Date is { } date && date > now ? date - now : TimeSpan.Zero);
+                if (serverWait > delay)
+                {
+                    attempts[^1] = attempts[^1] with { ServerToldWait = serverWait };
+                    delay = serverWait;
+                }
+                delay = TimeSpan.FromTicks(Math.Min(delay.Ticks, profile.MaxDelay.Ticks));
                 return run with
                 {
                     Status = RunStatus.AwaitingRetry,
                     Attempts = attempts,
-                    NextAttemptDueUtc = now + profile.DelayAfter(attempts.Count),
+                    NextAttemptDueUtc = now + delay,
                 };
             }
 

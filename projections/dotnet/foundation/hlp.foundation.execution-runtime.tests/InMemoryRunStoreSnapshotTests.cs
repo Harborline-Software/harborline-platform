@@ -118,7 +118,7 @@ public sealed class InMemoryRunStoreSnapshotTests
         registry.Register(Workflow, "workflows");
         var store = new InMemoryRunStore();
         var clock = new ManualClock();
-        var lifecycle = new RunLifecycle(registry, store, clock);
+        var lifecycle = new RunLifecycle(registry, store, clock, new FixedRandom(0.5));
         var capability = new CapabilityRetryPolicy(
             RetryProfileName.ExternalApiStandard, [RetryProfileName.ExternalApiStandard]);
         var run = await lifecycle.StartAsync(new StartRun(Workflow, Tenant, capability));
@@ -129,26 +129,26 @@ public sealed class InMemoryRunStoreSnapshotTests
         var first = await lifecycle.FailAttemptAsync(Tenant, run.Id, failure);
         Assert.Equal(3, first.Version);
         Assert.Equal(RunStatus.AwaitingRetry, first.Status);
-        Assert.Equal(Now.AddSeconds(2), first.NextAttemptDueUtc);
+        Assert.Equal(Now.AddSeconds(1), first.NextAttemptDueUtc);
         ClearLifecycleReturn(first);
         var retainedFirst = Assert.IsType<RunRecord>(await store.GetAsync(Tenant, run.Id));
         Assert.Equal(3, retainedFirst.Version);
         Assert.Equal(1, Assert.Single(retainedFirst.Attempts).Number);
 
-        clock.Advance(TimeSpan.FromSeconds(2));
+        clock.Advance(TimeSpan.FromSeconds(1));
         var secondStart = await lifecycle.BeginAttemptAsync(Tenant, run.Id);
         Assert.Equal(4, secondStart.Version);
         Assert.Equal([1, 2], secondStart.Attempts.Select(attempt => attempt.Number));
         var second = await lifecycle.FailAttemptAsync(Tenant, run.Id, failure);
         Assert.Equal(5, second.Version);
         Assert.Equal(RunStatus.AwaitingRetry, second.Status);
-        Assert.Equal(Now.AddSeconds(6), second.NextAttemptDueUtc);
+        Assert.Equal(Now.AddSeconds(3), second.NextAttemptDueUtc);
         ClearLifecycleReturn(second);
         var retainedSecond = Assert.IsType<RunRecord>(await store.GetAsync(Tenant, run.Id));
         Assert.Equal(5, retainedSecond.Version);
         Assert.Equal([1, 2], retainedSecond.Attempts.Select(attempt => attempt.Number));
 
-        clock.Advance(TimeSpan.FromSeconds(4));
+        clock.Advance(TimeSpan.FromSeconds(2));
         var thirdStart = await lifecycle.BeginAttemptAsync(Tenant, run.Id);
         Assert.Equal(6, thirdStart.Version);
         Assert.Equal([1, 2, 3], thirdStart.Attempts.Select(attempt => attempt.Number));
