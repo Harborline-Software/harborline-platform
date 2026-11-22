@@ -1,10 +1,10 @@
 {
-  "producerHead": "3cfb9ec73d9019cc46ae28ce93edec64078a0eac",
-  "producerTree": "d5d5e2048cadfc0cf7d73a554d39262f9cf92b19",
+  "producerHead": "c4fb85c874bf56da692813b0bf03b230f694ae4e",
+  "producerTree": "cb93c2d5903ba5a43eb8966809450b23767d53d7",
   "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
   "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
   "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDueQueryClockProofTests.cs",
-  "testSha256": "64afeb889a501e3c27fc88e9240c187fe0cb6fc0ec037031088f96e9673e932f",
+  "testSha256": "5b169d6ba63b9ebf70c96f6967d9e24d65bd28206358727d6abea58057018c86",
   "fixtureInputs": "inline in test file",
   "toolchain": "dotnet 11.0.100; DOTNET_CLI_USE_MSBUILD_SERVER=0; MSBUILDDISABLENODEREUSE=1; host-lane writer pc-491-clock",
   "command": "dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleDueQueryClockProofTests -m:1 -nr:false",
@@ -13,7 +13,7 @@
     "passed": 4,
     "failed": 0,
     "skipped": 0,
-    "logSha256": "900d93fae841042a64b5a083ae5c579e01ef4a2494c6708c0fb60ece6847406a"
+    "logSha256": "c2f17b1701546f8e752f5cabd27ca006a92aa7985f776ba96e1a854cd2b24de2"
   },
   "mutations": [
     {
@@ -22,18 +22,18 @@
       "before": "var now = kernelClock.GetUtcNow();",
       "after": "var now = kernelClock.GetUtcNow(); _ = kernelClock.GetUtcNow();",
       "exit": 1,
-      "failed": 3,
-      "passed": 1,
+      "failed": 4,
+      "passed": 0,
       "skipped": 0,
       "detectingAssertion": "QueryReadsOnceAndRefreshes line 32: Assert.Equal(1, clock.Reads), expected 1 actual 2",
-      "logSha256": "38e6dbfee1c89ec4b788f2361220aa5f5f41e6bff4503c49d169ffc3059a2640",
+      "logSha256": "20cd7c8bbeaa83df68489c5ca0cfb11d2a99bb837697f86ad1e5524155baad84",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "477d4c5aa3367c9d181f7da489e2624d89043f02aed9ad10506dce67a96eca78"
+        "logSha256": "8c9b9c45a2e7d634fb39ebb980227129543bfa70bffd81e1c202ef633450cf1b"
       }
     },
     {
@@ -46,14 +46,14 @@
       "passed": 2,
       "skipped": 0,
       "detectingAssertion": "SecondQueryUsesFreshInstant line 49: Assert.Equal(OccurrenceClassification.Late, second.Classification), expected Late actual Pending",
-      "logSha256": "a2651c8370037c1701567a5c14b135af29f81c4bf0abcde2b212dfba75f42cd7",
+      "logSha256": "b601e5801a3c8e0f94e8bd3cf44336046d1b9b70ddc426bb38acaf157056806b",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "f323727ff4c77fe58632e333c9332b63451e53d03e3fb18e302025d33b13b552"
+        "logSha256": "a15ea5a551b3a8d29080e2f92ded49e7b50ef2631a14521345208bb6b28130ed"
       }
     },
     {
@@ -62,18 +62,18 @@
       "before": "CompletionOffsetBasis => new CompletionOffsetDueOccurrenceSource()",
       "after": "CompletionOffsetBasis => new LoneDueOccurrenceSource()",
       "exit": 1,
-      "failed": 1,
-      "passed": 3,
+      "failed": 2,
+      "passed": 2,
       "skipped": 0,
       "detectingAssertion": "CompletionDispatchSucceeds line 64: Assert.Null(exception), actual scheduling.definition.due_date_invalid",
-      "logSha256": "9bca07b25924c730c919d527cd43926614c661d3040f2b9f2d5ac3d0f810b9ba",
+      "logSha256": "53450d3244cfa95651bda80c68c356c5fe4df47e053b3488859c199660130d9b",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "e4eb0e0e134bab28b97885918bd60fe37d310b4f882045d373fa9dbbf20252a7"
+        "logSha256": "868e0e01a608284f69ac6708fd639c4dddef30b62da45d4e875b9288e6e3c001"
       }
     }
   ]
