@@ -343,7 +343,8 @@
     }
   ],
   "fullProject": {
-    "command": "bash C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-491-wire --workload \"T-491 full-project\" --candidate 46a41f8fe8d8be9718074b9461df2ec833b472b5 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+    "command": "bash C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-491-wire --workload \"T-491 full-project\" --candidate 53950325a8e73ad7c9b9106afed544983efb1960 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+    "candidate": "53950325a8e73ad7c9b9106afed544983efb1960",
     "exit": 0,
     "counts": {
       "failed": 0,
@@ -352,7 +353,7 @@
       "total": 514
     },
     "log": "C:/Users/Chris/AppData/Local/Temp/harborline/t491-wire/final-full-project.log",
-    "logSha256": "08e8a28ef5649e82e6860af7266a99dfd8fc9b6ada619f492e0783f579bdc58b",
+    "logSha256": "f82588733441a72ca929ae304c307250c8600031dd93d70c605b4d222327de52",
     "failures": []
   },
   "phase4": {
