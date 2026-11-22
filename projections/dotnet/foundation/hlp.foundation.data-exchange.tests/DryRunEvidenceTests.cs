@@ -129,7 +129,10 @@ public sealed class DryRunEvidenceTests
         Assert.NotNull(independent);
         Assert.Equal(new DryRunId("snapshot-proof-independent"), independent.Id);
         AssertLiteralEvidence(independent);
-        AssertLiteralEvidence((await store.GetDryRunAsync(new DryRunId("snapshot-proof-original")))!);
+        var original = await store.GetDryRunAsync(new DryRunId("snapshot-proof-original"));
+        Assert.NotNull(original);
+        Assert.Equal(new DryRunId("snapshot-proof-original"), original.Id);
+        AssertLiteralEvidence(original);
 
         // Oracle: T-601/dry-run-snapshot-proof acceptance 1–2, not a production snapshot.
         static void AssertLiteralEvidence(DryRunArtifact evidence)

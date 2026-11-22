@@ -14,14 +14,62 @@
       "failed": 0,
       "skipped": 0,
       "total": 1
-    }
+    },
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-601-dry-run",
+      "--workload",
+      "T-601 focused baseline green",
+      "--candidate",
+      "91a643ff28267c2f5df424cb886539a71d89d996",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false",
+      "--filter",
+      "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+    ],
+    "logSha256": "bf09e4ba856dee47590708d39034ab831074d79f8f4f20bd9c214cbb1998a0b6",
+    "logRecoveredWithoutRerun": true
   },
   "initialRed": {
     "log": "initial-red.log",
     "exit": 1,
     "failed": 1,
     "passed": 0,
-    "assertion": "NormalizedEffects identities exactly [customer-42, customer-43]"
+    "assertion": "NormalizedEffects identities exactly [customer-42, customer-43]",
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-601-dry-run",
+      "--workload",
+      "T-601 initial red ingress proof",
+      "--candidate",
+      "91a643ff28267c2f5df424cb886539a71d89d996",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false",
+      "--filter",
+      "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+    ],
+    "logSha256": "21ca96ce2c288b5b526043b0ef6255cdd1a02f87091d32f0893438b65968a78f",
+    "logRecoveredWithoutRerun": true
   },
   "mutants": [
     {
@@ -289,5 +337,124 @@
     "matches": 0,
     "moduleRecordExists": false
   },
-  "limits": "In-memory store ingress only; no durable restart, commit-ledger or authorization proof. Final pushed-head full check recorded in PR; exact-tree receipt waits on platform #559."
+  "limits": "In-memory store ingress only; no durable restart, commit-ledger or authorization proof. Final pushed-head full check recorded in PR; exact-tree receipt waits on platform #559.",
+  "followUpVerification": {
+    "verifiedAtUtc": "2026-11-22T03:17:21.349924+00:00",
+    "baseCandidate": "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+    "changes": [
+      "Assert last original re-read ID equals literal snapshot-proof-original after distinct-id save.",
+      "Recover exact baseline/initialRed commands and SHA-256 hashes from retained original logs; no rerun of historical steps."
+    ],
+    "oracle": "Test-authored literal snapshot-proof-original; Control slice acceptance 2 independent-id positive control.",
+    "focused": {
+      "command": [
+        "bash",
+        "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "macbook-601-dry-run",
+        "--workload",
+        "T-601 follow-up focused tests",
+        "--candidate",
+        "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DryRunEvidenceTests"
+      ],
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 14,
+        "skipped": 0,
+        "total": 14
+      },
+      "logSha256": "4815204444b59eb60cfcb5eeee2c1b7f6c97b11098756f971da597bce067b86a"
+    },
+    "wholeProject": {
+      "command": [
+        "bash",
+        "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "macbook-601-dry-run",
+        "--workload",
+        "T-601 follow-up whole DataExchange project",
+        "--candidate",
+        "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false"
+      ],
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 135,
+        "skipped": 0,
+        "total": 135
+      },
+      "logSha256": "5032fa1ea315fa032dc799377266349fe6997360e2cb5795cc0578df8dd4c220"
+    },
+    "provenance": {
+      "refresh": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "T-601 follow-up provenance refresh",
+          "--candidate",
+          "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+          "--",
+          "node",
+          "tooling/refresh-provenance-hashes.mjs",
+          "--changed-from",
+          "HEAD"
+        ],
+        "exit": 0
+      },
+      "check": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "T-601 follow-up provenance check",
+          "--candidate",
+          "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+          "--",
+          "node",
+          "tooling/refresh-provenance-hashes.mjs",
+          "--changed-from",
+          "HEAD",
+          "--check"
+        ],
+        "exit": 0
+      },
+      "recordsRead": 0,
+      "staleHashes": 0,
+      "note": "Re-scan still finds no owner for either changed path. No provenance record invented or changed."
+    }
+  }
 }
