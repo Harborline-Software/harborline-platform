@@ -87,7 +87,7 @@ public sealed class ScheduleDefinitionCatalogue
     private readonly IReadOnlyDictionary<string, IPlanningSolver> _backends;
 
     /// <summary>Binds the catalogue to the host's registered planning solvers.</summary>
-    public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
+    internal ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _backends = (backends ?? throw new ArgumentNullException(nameof(backends)))
