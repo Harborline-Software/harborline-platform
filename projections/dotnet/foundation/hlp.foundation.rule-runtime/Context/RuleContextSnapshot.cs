@@ -96,6 +96,7 @@ internal sealed class SnapshotResolver(
             return Read(row, path["row.".Length..], path);
         }
         var name = path.StartsWith("field.", StringComparison.Ordinal) ? path["field.".Length..] : path;
+        if (path.StartsWith("field.", StringComparison.Ordinal) && name.Contains('.')) return RefValue.Resolved(null);
         if (!path.StartsWith("field.", StringComparison.Ordinal) && row is not null && row.TryGetValue(name, out var local))
             return PendingSentinel.Is(local) ? RefValue.Pending : RefValue.Resolved(local);
         return root.TryGetValue(name, out var value)

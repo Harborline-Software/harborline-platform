@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
@@ -6,6 +6,14 @@ import {
   admitEnvironment, BorrowerEnvironmentCodes, builtInFunctions, compile, fieldReadEffect, FormRuleGraph, GuardEvaluator, lentGrammar,
   RuleContextSnapshot, RuleInstance, RuleRowSnapshot, RuleValueSnapshot, type BorrowerEnvironmentDeclaration, type EvaluationPhase, type RuleDefinition,
 } from '../index.js'
+
+import { admissionRefusal, fenceResolver } from '../environment.js'
+import type { Json } from '../model.js'
+import { EvalBudget, refResolved, unavailableAggregate, type RefValue } from '../eval-support.js'
+import { DEFAULT_LIMITS } from '../limits.js'
+import { evaluate } from '../jsonlogic.js'
+
+const keyFence = JSON.parse(readFileSync(new URL('../../../../../../conformance/hlp.foundation.rule-runtime/borrower-key-fence.json', import.meta.url), 'utf8')) as { cases: { id: string; group: string; expression: Json; bag: Record<string, Json>; refusal?: string; value?: Json }[] }
 
 const clock = () => new Date('2026-09-24T00:00:00Z')
 const allPhases = { AuthoringValidation: true, PublishValidation: true, Render: true, Submission: true, Run: true, SignOff: true }
@@ -19,6 +27,93 @@ const rule = (id: string, scopeTarget: string, expression: unknown, action: Rule
   ({ id, tier: 'JsonLogic', scope: 'Field', scopeTarget, action, expression: expression as RuleDefinition['expression'] })
 const engineCode = (r: { validations: readonly { ruleId: string; validity?: { error?: { code: string } } }[] }) =>
   r.validations.find((o) => o.ruleId === 'rule.engine')?.validity?.error?.code
+
+function assertKeyFenceCase(test: typeof keyFence.cases[number]) {
+  const env = admitEnvironment(declaration({ variables: { field: 'subject fields' }, operations: ['var', 'missing', 'missing_some', 'cat', 'if'] }))
+  const definition = rule(test.id, 'out', test.expression)
+  const compiled = compile([definition])
+  for (const phase of ['AuthoringValidation', 'PublishValidation'] as const) {
+    expect(admissionRefusal(env.forPhase(phase), [test.expression])).toBe(test.group === 'dynamic' ? null : test.refusal ?? null)
+    expect(admissionRefusal(env.forPhase(phase), compiled.rules.map((r) => r.ast))).toBe(test.group === 'dynamic' ? null : test.refusal ?? null)
+  }
+  const result = new GuardEvaluator(clock).evaluateValue(definition, RuleContextSnapshot.fromJsonText(JSON.stringify(test.bag)), env.forPhase('Run'))
+  expect(result).toEqual(test.refusal
+    ? { state: 'Error', error: { code: test.refusal, params: {} } }
+    : { state: 'Resolved', value: test.value })
+  const guard = new GuardEvaluator(clock).evaluateGuard(definition, RuleContextSnapshot.fromJsonText(JSON.stringify(test.bag)), env.forPhase('Run'))
+  if (test.refusal) expect(guard.error?.code).toBe(test.refusal)
+  else expect(guard.ok).toBe(test.group === 'flat' ? test.id !== 'field-alias' : (test.value as Json[]).length > 0)
+
+}
+
+describe('T-1232 borrower key fence', () => {
+  it.each(keyFence.cases.filter((c) => c.group === 'literal'))('acceptance 1 / rules-ck-28 / rules-eng-26: $id', (test) => {
+    assertKeyFenceCase(test)
+  })
+
+  it.each(keyFence.cases.filter((c) => c.group === 'dynamic'))('acceptance 2 / rules-eng-26: $id admits expressions and checks the resolved key', (test) => {
+    assertKeyFenceCase(test)
+  })
+
+  const graphCases = ['missing', 'missing_some'].flatMap(operation =>
+    (['Compute', 'Validate', 'Required'] as const).flatMap(action => [false, true].flatMap(computed =>
+      [false, true].flatMap(declared => [false, true].map(dataDerived => ({ operation, action, computed, declared, dataDerived }))))))
+  const phasedGraphCases = graphCases.flatMap(test => [false, true].map(incremental => ({ ...test, incremental })))
+  it.each(phasedGraphCases)('acceptance 2 graph access ordering: $operation $action computed=$computed declared=$declared data=$dataDerived incremental=$incremental', ({ operation, action, computed, declared, dataDerived, incremental }) => {
+    const keys: Json = dataDerived ? { var: 'field.keys' } : operation === 'missing' ? { cat: ['row.', 'x'] } : { if: [true, ['row.x'], []] }
+    const missing: Json = operation === 'missing' ? { missing: [keys] } : { missing_some: [1, keys] }
+    const definitions: RuleDefinition[] = [{ ...rule('probe', 'items/out', { if: [{ var: 'field.trigger' }, missing, []] }, action), scope: 'Row' }]
+    if (computed) definitions.push({ ...rule('producer', 'items/x', 7), scope: 'Row' })
+    const admission = admitEnvironment(declaration({ variables: declared ? { field: 't', row: 't' } : { field: 't' } })).forPhase('Run')
+    const graph = new FormRuleGraph(compile(definitions), clock, admission)
+    const instance = RuleInstance.fromJsonText('{"trigger":true,"keys":["row.x"],"items":[{"_id":"r1","x":7}]}')
+    if (incremental) graph.evaluateInstance(instance)
+    // Observe the real demand boundary and its raw fallback; retain the production implementation.
+    type DemandBoundary = { resolveDemand(owner: string, plan: boolean, key: string, fallback: () => RefValue, ...rest: unknown[]): RefValue }
+    const boundary = graph as unknown as DemandBoundary
+    const resolveDemand = boundary.resolveDemand.bind(graph)
+    let demands = 0, rawReads = 0, keyReads = 0
+    const source = action === 'Compute' ? 'row:items/r1/out' : 'probe#r1'
+    const observed = vi.spyOn(boundary, 'resolveDemand').mockImplementation((owner, plan, key, fallback, ...rest) => {
+      if (owner === source && key === 'row:items/r1/x' && computed) demands++
+      return resolveDemand(owner, plan, key, () => {
+        if (owner === source && key === 'row:items/r1/x') rawReads++
+        if (owner === source && key === 'field:keys') keyReads++
+        return fallback()
+      }, ...rest)
+    })
+    const check = (result: ReturnType<FormRuleGraph['evaluateInstance']>) => {
+      const outcome = result.byRule.get('probe#r1')!
+      if (!declared) expect((action === 'Compute' ? outcome.value : outcome.validity)?.error?.code).toBe('rule.environment.variable_not_admitted')
+      else if (action === 'Compute') expect(outcome.value).toEqual({ state: 'Resolved', value: [] })
+      else if (action === 'Validate') expect(outcome.validity?.error?.code).toBe('probe')
+      else expect(result.visibility.get('row:items/r1/out')?.required).toBe(false)
+      expect(demands).toBe(declared && computed ? 1 : 0)
+      expect(rawReads).toBe(declared && !computed ? 1 : 0)
+      expect(keyReads).toBe(dataDerived ? 1 : 0)
+    }
+    try {
+      check(incremental ? graph.reevaluate('trigger', RuleValueSnapshot.fromJsonText('true')) : graph.evaluateInstance(instance))
+    } finally { observed.mockRestore() }
+  })
+
+  it.each(keyFence.cases.filter(c => c.group === 'dynamic'))('acceptance 2 counting underlying resolver: $id', test => {
+    const inner = { resolveVar: vi.fn((path: string) => refResolved(test.bag[path] ?? null)), resolveAgg: unavailableAggregate }
+    const admission = admitEnvironment(declaration({ variables: { field: 't' } })).forPhase('Run')
+    const context = { resolver: fenceResolver(admission, inner), now: clock(), budget: new EvalBudget(DEFAULT_LIMITS) }
+    if (test.refusal) {
+      expect(() => evaluate(test.expression, context)).toThrow(expect.objectContaining({ error: expect.objectContaining({ code: 'rule.environment.variable_not_admitted' }) }))
+      expect(inner.resolveVar).toHaveBeenCalledTimes(0)
+    } else {
+      expect(evaluate(test.expression, context)).toEqual(test.value)
+      expect(inner.resolveVar).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it.each(keyFence.cases.filter((c) => c.group === 'flat'))('acceptance 3 / rules-ck-28: $id uses the production flat-bag resolver', (test) => {
+    assertKeyFenceCase(test)
+  })
+})
 
 describe('T-590 borrower environment admission (TS reactive tier)', () => {
   it('rules-ck-28: a typed borrower declaration is admitted; one missing a member, borrowing another grammar, asking for an effect, naming an unregistered function or leaving a phase unmarked refuses', () => {

@@ -26,6 +26,141 @@ public sealed class BorrowerEnvironmentTests
 
     private static string? Code(RuleEvaluationResult result) => result.Validations.SingleOrDefault(o => o.RuleId == "rule.engine")?.Validity?.Error?.Code;
 
+    public static IEnumerable<object[]> LiteralMissingCases() => KeyFenceCases("literal");
+
+    private static IEnumerable<object[]> KeyFenceCases(string group)
+        => JsonNode.Parse(File.ReadAllText(Path.Combine(FunctionRegisterTests.RepositoryRoot(),
+            "conformance/hlp.foundation.rule-runtime/borrower-key-fence.json")))!["cases"]!.AsArray()
+            .Where(item => item!["group"]!.GetValue<string>() == group)
+            .Select(item => new object[] { item!["id"]!.GetValue<string>(), item.ToJsonString() });
+
+    [Theory(DisplayName = "T-1232 acceptance 1 / rules-ck-28 / rules-eng-26: literal missing keys respect the declaration")]
+    [MemberData(nameof(LiteralMissingCases))]
+    public void T1232_A1_Literal_missing_keys(string id, string json) => AssertKeyFenceCase(id, json);
+
+    public static IEnumerable<object[]> DynamicMissingCases() => KeyFenceCases("dynamic");
+
+    [Theory(DisplayName = "T-1232 acceptance 2 / rules-eng-26: expression keys admit and their resolved targets respect the declaration")]
+    [MemberData(nameof(DynamicMissingCases))]
+    public void T1232_A2_Dynamic_missing_keys(string id, string json)
+    {
+        AssertKeyFenceCase(id, json);
+    }
+
+    public static IEnumerable<object[]> GraphFenceCases()
+    {
+        foreach (var operation in new[] { "missing", "missing_some" })
+        foreach (var action in new[] { RuleActionKind.Compute, RuleActionKind.Validate, RuleActionKind.Required })
+        foreach (bool computed in new[] { false, true })
+        foreach (bool declared in new[] { false, true })
+        foreach (bool dataDerived in new[] { false, true })
+        foreach (bool incremental in new[] { false, true })
+            yield return [operation, action, computed, declared, dataDerived, incremental];
+    }
+
+    [Theory]
+    [MemberData(nameof(GraphFenceCases))]
+    public void T1232_A2_Graph_fence_precedes_target_access(string operation, RuleActionKind action, bool computed, bool declared, bool dataDerived, bool incremental)
+    {
+        // Oracle: T-1232 acceptance 2: zero forbidden accesses, one declared target access.
+        string keys = dataDerived ? """{"var":"field.keys"}""" : operation == "missing"
+            ? """{"cat":["row.","x"]}""" : """{"if":[true,["row.x"],[]]}""";
+        string missing = operation == "missing" ? "{\"missing\":[" + keys + "]}"
+            : "{\"missing_some\":[1," + keys + "]}";
+        string expression = "{\"if\":[{\"var\":\"field.trigger\"}," + missing + ",[]]}";
+        var definitions = new List<RuleDefinition> { Rule("probe", "items/out", expression, action, RuleScope.Row) };
+        if (computed) definitions.Add(Rule("producer", "items/x", "7", scope: RuleScope.Row));
+        var graph = new FormRuleGraph(RuleCompiler.Compile(definitions), new FixedClock(Clock),
+            Narrow(variables: declared ? ["field", "row"] : ["field"]));
+        var instance = RuleInstance.FromJson(JsonNode.Parse("""{"trigger":true,"keys":["row.x"],"items":[{"_id":"r1","x":7}]}""")!.AsObject());
+        if (incremental) graph.EvaluateInstance(instance);
+        int demands = 0, rawReads = 0, keyReads = 0;
+        string owner = action == RuleActionKind.Compute ? "row:items/r1/out" : "probe#r1";
+        graph.DemandObserved = (source, key) => { if (source == owner && key == "row:items/r1/x") demands++; };
+        graph.RawReadObserved = (source, key) =>
+        {
+            if (source != owner) return;
+            if (key == "row:items/r1/x") rawReads++;
+            if (key == "field:keys") keyReads++;
+        };
+        Check(incremental ? graph.Reevaluate("trigger", RuleInputValue.FromJsonText("true")) : graph.EvaluateInstance(instance), incremental ? "incremental" : "full");
+
+        void Check(RuleEvaluationResult result, string phase)
+        {
+            var outcome = result.ByRule["probe#r1"];
+            var error = action == RuleActionKind.Compute ? outcome.Value?.Error?.Code : outcome.Validity?.Error?.Code;
+            if (!declared) Assert.Equal("rule.environment.variable_not_admitted", error);
+            else if (action == RuleActionKind.Compute) Assert.True(JsonNode.DeepEquals(JsonNode.Parse("[]"), outcome.Value!.Value), phase);
+            else if (action == RuleActionKind.Validate) Assert.Equal("probe", error); // [] is false.
+            else Assert.False(result.Visibility["row:items/r1/out"].Required);
+            Assert.Equal(declared && computed ? 1 : 0, demands);
+            Assert.Equal(declared && !computed ? 1 : 0, rawReads);
+            Assert.Equal(dataDerived ? 1 : 0, keyReads);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(DynamicMissingCases))]
+    public void T1232_A2_Resolved_fence_counts_underlying_reads(string id, string json)
+    {
+        var test = JsonNode.Parse(json)!;
+        var inner = new CountingResolver(test["bag"]!.AsObject());
+        var resolver = Narrow(variables: ["field"]).Environment.Fence(inner);
+        var context = new EvalContext(resolver, Clock, new EvalBudget(RuleEngineLimits.Default, default));
+        if (test["refusal"] is not null)
+        {
+            Assert.Equal("rule.environment.variable_not_admitted", Assert.Throws<RuleEvalException>(() => HarborlineJsonLogic.Evaluate(test["expression"], context)).Error.Code);
+            Assert.Equal(0, inner.Reads);
+        }
+        else
+        {
+            Assert.True(JsonNode.DeepEquals(test["value"], HarborlineJsonLogic.Evaluate(test["expression"], context)), id);
+            Assert.Equal(1, inner.Reads);
+        }
+    }
+
+    private sealed class CountingResolver(JsonObject bag) : IValueResolver
+    {
+        public int Reads { get; private set; }
+        public RefValue ResolveVar(string path) { Reads++; return RefValue.Resolved(bag[path]); }
+        public RefValue ResolveAgg(string fn, string section, string col) => RefValue.UnavailableAggregate(fn, section, col);
+    }
+
+    public static IEnumerable<object[]> FlatBagCases() => KeyFenceCases("flat");
+
+    [Theory(DisplayName = "T-1232 acceptance 3 / rules-ck-28: a field alias cannot expose a dotted flat-bag key")]
+    [MemberData(nameof(FlatBagCases))]
+    public void T1232_A3_Flat_bag_field_aliases(string id, string json) => AssertKeyFenceCase(id, json);
+
+    private static void AssertKeyFenceCase(string id, string json)
+    {
+        var test = JsonNode.Parse(json)!;
+        var expression = test["expression"]!.ToJsonString();
+        var definition = Rule(id, "out", expression);
+        var declaration = TestAdmission.Declaration(operations: ["var", "missing", "missing_some", "cat", "if"], variables: ["field"]);
+        var environment = BorrowerEnvironmentAdmission.Admit(declaration);
+        var expected = test["refusal"]?.GetValue<string>();
+        var compiled = RuleCompiler.Compile([definition]);
+        foreach (var phase in new[] { EvaluationPhase.AuthoringValidation, EvaluationPhase.PublishValidation })
+        {
+            Assert.Equal(test["group"]!.GetValue<string>() == "dynamic" ? null : expected, environment.Refusal([JsonNode.Parse(expression)]));
+            Assert.Equal(test["group"]!.GetValue<string>() == "dynamic" ? null : expected, BorrowerEnvironmentAdmission.CheckCompiledGuard(compiled, declaration, phase));
+        }
+        var context = RuleContextSnapshot.FromJsonText(new JsonObject { ["root"] = test["bag"]!.DeepClone() }.ToJsonString());
+        var result = new GuardEvaluator(new FixedClock(Clock)).EvaluateValue(definition, context, RuleEvalScope.Root, environment.For(EvaluationPhase.Run));
+        Assert.Equal(expected, result.Error?.Code);
+        var guard = new GuardEvaluator(new FixedClock(Clock)).EvaluateGuard(definition, context, RuleEvalScope.Root, environment.For(EvaluationPhase.Run));
+        if (expected is not null) Assert.Equal(expected, guard.Error?.Code);
+        else if (test["group"]!.GetValue<string>() == "flat") Assert.Equal(id != "field-alias", guard.Ok);
+        else Assert.Equal(test["value"]!.AsArray().Count > 0, guard.Ok);
+
+        if (expected is null)
+        {
+            Assert.Equal(ValueState.Resolved, result.State);
+            Assert.True(JsonNode.DeepEquals(test["value"], result.Value), $"{id}: expected {test["value"]?.ToJsonString() ?? "null"}, actual {result.Value?.ToJsonString() ?? "null"}");
+        }
+    }
+
     [Fact(DisplayName = "rules-ck-28: a typed borrower declaration is admitted; one missing a member, borrowing another grammar, asking for an effect, naming an unregistered function or leaving a phase unmarked refuses")]
     public void Declarations_are_admitted_or_refused_by_member()
     {

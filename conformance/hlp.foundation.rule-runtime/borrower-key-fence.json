@@ -1,0 +1,260 @@
+{
+  "oracle": "T-1232/borrower-key-fence acceptance 1-3 at control a25fb174c7f73ccf7963661074e3d2e3a9ade477; DES-0018 rules-ck-28 and rules-eng-26",
+  "cases": [
+    {
+      "id": "missing-undeclared",
+      "group": "literal",
+      "expression": {
+        "missing": [
+          "row.x"
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "refusal": "rule.environment.variable_not_admitted"
+    },
+    {
+      "id": "missing-present",
+      "group": "literal",
+      "expression": {
+        "missing": [
+          "x"
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "value": []
+    },
+    {
+      "id": "missing-absent",
+      "group": "literal",
+      "expression": {
+        "missing": [
+          "x"
+        ]
+      },
+      "bag": {},
+      "value": [
+        "x"
+      ]
+    },
+    {
+      "id": "missing_some-undeclared",
+      "group": "literal",
+      "expression": {
+        "missing_some": [
+          1,
+          [
+            "row.x"
+          ]
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "refusal": "rule.environment.variable_not_admitted"
+    },
+    {
+      "id": "missing_some-present",
+      "group": "literal",
+      "expression": {
+        "missing_some": [
+          1,
+          [
+            "x"
+          ]
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "value": []
+    },
+    {
+      "id": "missing_some-absent",
+      "group": "literal",
+      "expression": {
+        "missing_some": [
+          1,
+          [
+            "x"
+          ]
+        ]
+      },
+      "bag": {},
+      "value": [
+        "x"
+      ]
+    },
+    {
+      "id": "missing-dynamic-row",
+      "group": "dynamic",
+      "expression": {
+        "missing": [
+          {
+            "cat": [
+              "row.",
+              "x"
+            ]
+          }
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "refusal": "rule.environment.variable_not_admitted"
+    },
+    {
+      "id": "missing-dynamic-present",
+      "group": "dynamic",
+      "expression": {
+        "missing": [
+          {
+            "cat": [
+              "",
+              "x"
+            ]
+          }
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "value": []
+    },
+    {
+      "id": "missing-dynamic-absent",
+      "group": "dynamic",
+      "expression": {
+        "missing": [
+          {
+            "cat": [
+              "",
+              "x"
+            ]
+          }
+        ]
+      },
+      "bag": {},
+      "value": [
+        "x"
+      ]
+    },
+    {
+      "id": "missing_some-dynamic-row",
+      "group": "dynamic",
+      "expression": {
+        "missing_some": [
+          1,
+          {
+            "if": [
+              true,
+              [
+                "row.x"
+              ],
+              []
+            ]
+          }
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "refusal": "rule.environment.variable_not_admitted"
+    },
+    {
+      "id": "missing_some-dynamic-present",
+      "group": "dynamic",
+      "expression": {
+        "missing_some": [
+          1,
+          {
+            "if": [
+              true,
+              [
+                "x"
+              ],
+              []
+            ]
+          }
+        ]
+      },
+      "bag": {
+        "x": 7
+      },
+      "value": []
+    },
+    {
+      "id": "missing_some-dynamic-absent",
+      "group": "dynamic",
+      "expression": {
+        "missing_some": [
+          1,
+          {
+            "if": [
+              true,
+              [
+                "x"
+              ],
+              []
+            ]
+          }
+        ]
+      },
+      "bag": {},
+      "value": [
+        "x"
+      ]
+    },
+    {
+      "id": "field-alias",
+      "group": "flat",
+      "expression": {
+        "var": "field.candidate.secret"
+      },
+      "bag": {
+        "candidate.secret": "SECRET-CANARY",
+        "plain": "PUBLIC-CONTROL"
+      },
+      "value": null
+    },
+    {
+      "id": "plain-field",
+      "group": "flat",
+      "expression": {
+        "var": "plain"
+      },
+      "bag": {
+        "candidate.secret": "SECRET-CANARY",
+        "plain": "PUBLIC-CONTROL"
+      },
+      "value": "PUBLIC-CONTROL"
+    },
+    {
+      "id": "prefixed-field",
+      "group": "flat",
+      "expression": {
+        "var": "field.plain"
+      },
+      "bag": {
+        "candidate.secret": "SECRET-CANARY",
+        "plain": "PUBLIC-CONTROL"
+      },
+      "value": "PUBLIC-CONTROL"
+    },
+    {
+      "id": "direct-candidate",
+      "group": "flat",
+      "expression": {
+        "var": "candidate.secret"
+      },
+      "bag": {
+        "candidate.secret": "SECRET-CANARY",
+        "plain": "PUBLIC-CONTROL"
+      },
+      "refusal": "rule.environment.variable_not_admitted"
+    }
+  ]
+}
