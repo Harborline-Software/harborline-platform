@@ -135,6 +135,71 @@ public sealed class WorkflowFixtureConformanceTests
         Assert.Empty(result.Violations);
     }
 
+    // Independent literal oracles: control 2d1da430, T-488/classification-admission-proof acceptance 1–3.
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: classification wire is closed")]
+    public void Classification_wire_accepts_only_CP_and_AP()
+    {
+        Assert.Equal(ActionClassification.CP, WorkflowWire.Deserialize("ActionClassification", "\"CP\""));
+        Assert.Equal(ActionClassification.AP, WorkflowWire.Deserialize("ActionClassification", "\"AP\""));
+        foreach (var json in new[] { "\"Unspecified\"", "\"not-a-member\"", "0" })
+        {
+            var error = Assert.Throws<WorkflowWireException>(() => WorkflowWire.Deserialize("ActionClassification", json));
+            Assert.Equal(("unknown-closed-value", "ActionClassification"), (error.Code, error.WireType));
+        }
+    }
+
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: declaration must match registry in both directions")]
+    public void Classification_admission_requires_matching_registry()
+    {
+        var graph = ClassificationGraph();
+        var admitted = ValidateClassification(graph, ActionClassification.AP);
+        Assert.True(admitted.IsValid);
+        Assert.Empty(admitted.Violations);
+
+        graph["actions"]![0]!["classification"] = "CP";
+        var declarationMismatch = ValidateClassification(graph, ActionClassification.AP);
+        Assert.False(declarationMismatch.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.classification_mismatch", "act") },
+            declarationMismatch.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+
+        graph["actions"]![0]!["classification"] = "AP";
+        var registryMismatch = ValidateClassification(graph, ActionClassification.CP);
+        Assert.False(registryMismatch.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.classification_mismatch", "act") },
+            registryMismatch.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+    }
+
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: matching CP requires a human task")]
+    public void Classification_CP_admission_requires_human_task()
+    {
+        var graph = ClassificationGraph();
+        graph["actions"]![0]!["classification"] = "CP";
+        var autonomous = ValidateClassification(graph, ActionClassification.CP);
+        Assert.False(autonomous.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.cp_reachable_without_human_task", "act") },
+            autonomous.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+
+        graph["triggers"]![0] = new JsonObject { ["id"] = "issued", ["kind"] = "HumanAction", ["task"] = "review" };
+        var human = ValidateClassification(graph, ActionClassification.CP);
+        Assert.True(human.IsValid);
+        Assert.Empty(human.Violations);
+    }
+
+    private static JsonObject ClassificationGraph()
+    {
+        var graph = GraphDefinition();
+        graph["actions"] = JsonNode.Parse("""
+            [{"id":"act","on":{"transition":"t-ab"},"kind":"EmitEvent",
+              "capabilityRef":"fixture.emit","classification":"AP","params":{}}]
+            """);
+        return graph;
+    }
+
+    private static WorkflowAdmissionResult ValidateClassification(JsonObject graph, ActionClassification registered) =>
+        WorkflowAdmissionValidator.Validate(
+            (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", graph.ToJsonString()),
+            new ImmutableWorkflowAuthorityResolver(new Dictionary<string, ActionClassification> { ["fixture.emit"] = registered }));
+
     private static WorkflowAdmissionResult ValidateGraph(JsonObject graph) => WorkflowAdmissionValidator.Validate(
         (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", graph.ToJsonString()),
         new ImmutableWorkflowAuthorityResolver(new Dictionary<string, ActionClassification>()));
