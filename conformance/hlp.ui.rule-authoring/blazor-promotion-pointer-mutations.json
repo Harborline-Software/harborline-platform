@@ -1,0 +1,193 @@
+{
+  "slice": "T-730/blazor-promotion-refusal-pointers",
+  "date": "2026-11-21",
+  "writtenOn": "MacBook",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "controlCommit": "a0a08889952dabdd647c2122a545660b167ac70d",
+  "candidateSha": "cec282ff8ae950fdc124c310cdef735761ffe34d",
+  "executionBaseSha": "4b000e4d86af72fc6e07a4c532e6a0b0161e5fea",
+  "snapshotNote": "Mutation and initial green runs used the claim SHA with the exact test content later committed as candidateSha; committed-class reran that candidate. Receipt is a later evidence-only commit.",
+  "testPath": "projections/blazor/ui/hlp.ui.rule-authoring.tests/RulesAuthoringTests.cs",
+  "testSha256": "055e64b410d9576de0ce8eaabc93f28f7d7d428ae8a5e3d34f8392bea8b8a917",
+  "originalTestSha256": "cd3fa6a3e72fd2f55631fbd10bf613fc9fc127c315f70a92d498e4d68d96cf33",
+  "productPath": "projections/blazor/ui/hlp.ui.rule-authoring/HarborlineRulesAuthoringEditor.razor",
+  "restoredProductSha256": "e80d11abe7cec4b054324feb868aae120ad02194b48b50f591388ff593cddaf7",
+  "productRestoredByteForByte": true,
+  "oracle": "T-730/field-check-promotion acceptance 5 at controlCommit; literals rule.promote.unsaved_edits, rule.promote.missing_call, /draft and exactly one refusal; DES-0014 C3. Existing null-catalogue and Edited-name controls retained.",
+  "mutants": [
+    {
+      "id": "M3",
+      "change": "Only rule.promote.unsaved_edits pointer changed from /draft to empty string",
+      "originalProductLine": 159,
+      "before": "survived",
+      "beforeRun": "m3-before",
+      "after": "killed",
+      "afterRun": "m3-after",
+      "killingTest": "RefusesDirtyPromotion",
+      "killingAssertion": "Assert.Equal(\"/draft\", refusal.GetAttribute(\"data-pointer\"));",
+      "assertionLine": 196,
+      "compiled": true,
+      "restoredBeforeNextMutation": true,
+      "restorationRuns": [
+        "restored-class",
+        "restored-controls",
+        "project-suite",
+        "committed-class"
+      ]
+    },
+    {
+      "id": "M4",
+      "change": "Only rule.promote.missing_call pointer changed from /draft to empty string",
+      "originalProductLine": 162,
+      "before": "survived",
+      "beforeRun": "m4-before",
+      "after": "killed",
+      "afterRun": "m4-after",
+      "killingTest": "RefusesMissingPromotion",
+      "killingAssertion": "Assert.Equal(\"/draft\", refusal.GetAttribute(\"data-pointer\"));",
+      "assertionLine": 67,
+      "compiled": true,
+      "restoredBeforeNextMutation": true,
+      "restorationRuns": [
+        "restored-class",
+        "restored-controls",
+        "project-suite",
+        "committed-class"
+      ]
+    }
+  ],
+  "runs": {
+    "m3-before": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"M3 original dirty pointer survivor\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests.RefusesDirtyPromotion\"",
+      "exitCode": 0,
+      "logSha256": "0a8667a0f212731504b9edcebb07f105394b64d055bb42c5525240ecbeef5bd4",
+      "tests": {
+        "failed": 0,
+        "passed": 1,
+        "skipped": 0,
+        "total": 1
+      }
+    },
+    "m4-before": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"M4 original missing pointer survivor\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests.RefusesMissingPromotion\"",
+      "exitCode": 0,
+      "logSha256": "a887cf89a54d5d16dd77f3708fd0d1f25e6b89b3227506f029b9b3e0070eec42",
+      "tests": {
+        "failed": 0,
+        "passed": 1,
+        "skipped": 0,
+        "total": 1
+      }
+    },
+    "m3-after": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"M3 changed dirty pointer assertion red\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests.RefusesDirtyPromotion\"",
+      "exitCode": 1,
+      "logSha256": "5ab493c925ad71b6b0cc485a06cdfd5eb7ef30dd1dc61f61cc2f556e8d98eb2f",
+      "tests": {
+        "failed": 1,
+        "passed": 0,
+        "skipped": 0,
+        "total": 1
+      },
+      "failureExcerpt": "Error Message:\n   Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"/draft\"\nActual:   \"\"\n  Stack Trace:\n     at Harborline.UIAdapters.Blazor.Tests.RulesAuthoringTests.RefusesDirtyPromotion() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-730-blazor-prom-37f4a7318bc82546/projections/blazor/ui/hlp.ui.rule-authoring.tests/RulesAuthoringTests.cs:line 196"
+    },
+    "m4-after": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"M4 changed missing pointer assertion red\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests.RefusesMissingPromotion\"",
+      "exitCode": 1,
+      "logSha256": "fd30ebb3d11f23d03ac9be13734d6b92baaeb1885109a165c925be29120c5b9d",
+      "tests": {
+        "failed": 1,
+        "passed": 0,
+        "skipped": 0,
+        "total": 1
+      },
+      "failureExcerpt": "Error Message:\n   Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"/draft\"\nActual:   \"\"\n  Stack Trace:\n     at Harborline.UIAdapters.Blazor.Tests.RulesAuthoringTests.RefusesMissingPromotion() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-730-blazor-prom-37f4a7318bc82546/projections/blazor/ui/hlp.ui.rule-authoring.tests/RulesAuthoringTests.cs:line 67"
+    },
+    "restored-class": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"restored RulesAuthoringTests green\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests\"",
+      "exitCode": 0,
+      "logSha256": "50018b073f93da5981e2c212981a3775ab9061caef64590fc70b56773bc3b890",
+      "tests": {
+        "failed": 0,
+        "passed": 36,
+        "skipped": 0,
+        "total": 36
+      }
+    },
+    "restored-controls": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"restored refusal tests and positive promotion controls\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-build --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests.RefusesDirtyPromotion|FullyQualifiedName~RulesAuthoringTests.RefusesMissingPromotion|FullyQualifiedName~RulesAuthoringTests.PromotesFieldCheck|FullyQualifiedName~RulesAuthoringTests.PromotesSavedSnapshotWithStaleCatalogue\" --logger 'console;verbosity=normal'",
+      "exitCode": 0,
+      "logSha256": "fd12e73ed48f683832abbfabdc65b461c311689b1e123e8e27ccc29a75f089f3",
+      "tests": {
+        "failed": 0,
+        "passed": 4,
+        "skipped": 0,
+        "total": 4
+      }
+    },
+    "project-suite": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"Blazor owning project ordinary suite\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-build --no-restore -m:1 -nr:false",
+      "exitCode": 0,
+      "logSha256": "7f8d5696effac18f623ef350ffeb83661c4fcf01c9006597236c6c669e57f33f",
+      "tests": {
+        "failed": 0,
+        "passed": 1721,
+        "skipped": 0,
+        "total": 1721
+      }
+    },
+    "committed-class": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"committed RulesAuthoringTests candidate\" --candidate cec282ff8ae950fdc124c310cdef735761ffe34d -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj --no-build --no-restore -m:1 -nr:false --filter \"FullyQualifiedName~RulesAuthoringTests\"",
+      "exitCode": 0,
+      "logSha256": "9e121c7d703550e7b2592d4e0ba6f790c49f99d4550be3f5859ce002b7633a5d",
+      "tests": {
+        "failed": 0,
+        "passed": 36,
+        "skipped": 0,
+        "total": 36
+      }
+    },
+    "restore": {
+      "command": "bash $HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mb-730-blazor --workload \"restore Blazor owning test project\" --candidate 4b000e4d86af72fc6e07a4c532e6a0b0161e5fea -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet restore projections/blazor/ui/hlp.ui.button.tests/Harborline.UIAdapters.Blazor.Tests.csproj -m:1 -nr:false",
+      "exitCode": 0,
+      "logSha256": "d51c75a0710f33ee530fba51249c3051944898b7cc7b9f9a2629605432b05c1f"
+    }
+  },
+  "positiveControls": [
+    {
+      "test": "PromotesFieldCheck",
+      "result": "passed",
+      "run": "restored-controls",
+      "assertions": [
+        "ScopeTarget == amount",
+        "input ref == field.amount",
+        "expression ref == field.amount"
+      ]
+    },
+    {
+      "test": "PromotesSavedSnapshotWithStaleCatalogue",
+      "result": "passed",
+      "run": "restored-controls",
+      "assertions": [
+        "saved name/revision/digest retained",
+        "input ref == field.amount"
+      ]
+    }
+  ],
+  "platformGate": {
+    "status": "not-run",
+    "reason": "Full gate including gallery assigned to Mac mini by writer brief; no full-gate pass claimed."
+  },
+  "provenance": {
+    "scanPaths": [
+      "projections/blazor/ui/hlp.ui.rule-authoring.tests/RulesAuthoringTests.cs",
+      "conformance/hlp.ui.rule-authoring/blazor-promotion-pointer-mutations.json"
+    ],
+    "hashOwners": [],
+    "refresh": "not needed: neither final path is hashed by any existing record",
+    "command": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+    "exitCode": 0,
+    "output": "0 record(s) read, 0 stale hash(es)"
+  },
+  "stryker": "Not run; two independent compiling hand mutations only. No score or baseline change claimed."
+}
