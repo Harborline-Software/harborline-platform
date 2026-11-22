@@ -1,0 +1,80 @@
+{
+  "producerHead": "3cfb9ec73d9019cc46ae28ce93edec64078a0eac",
+  "producerTree": "d5d5e2048cadfc0cf7d73a554d39262f9cf92b19",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
+  "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDueQueryClockProofTests.cs",
+  "testSha256": "64afeb889a501e3c27fc88e9240c187fe0cb6fc0ec037031088f96e9673e932f",
+  "fixtureInputs": "inline in test file",
+  "toolchain": "dotnet 11.0.100; DOTNET_CLI_USE_MSBUILD_SERVER=0; MSBUILDDISABLENODEREUSE=1; host-lane writer pc-491-clock",
+  "command": "dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleDueQueryClockProofTests -m:1 -nr:false",
+  "baseline": {
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "900d93fae841042a64b5a083ae5c579e01ef4a2494c6708c0fb60ece6847406a"
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
+      "before": "var now = kernelClock.GetUtcNow();",
+      "after": "var now = kernelClock.GetUtcNow(); _ = kernelClock.GetUtcNow();",
+      "exit": 1,
+      "failed": 3,
+      "passed": 1,
+      "skipped": 0,
+      "detectingAssertion": "QueryReadsOnceAndRefreshes line 32: Assert.Equal(1, clock.Reads), expected 1 actual 2",
+      "logSha256": "38e6dbfee1c89ec4b788f2361220aa5f5f41e6bff4503c49d169ffc3059a2640",
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
+        "logSha256": "477d4c5aa3367c9d181f7da489e2624d89043f02aed9ad10506dce67a96eca78"
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
+      "before": "source.DeriveDue(request, now)",
+      "after": "source.DeriveDue(request, DateTimeOffset.UnixEpoch)",
+      "exit": 1,
+      "failed": 2,
+      "passed": 2,
+      "skipped": 0,
+      "detectingAssertion": "SecondQueryUsesFreshInstant line 49: Assert.Equal(OccurrenceClassification.Late, second.Classification), expected Late actual Pending",
+      "logSha256": "a2651c8370037c1701567a5c14b135af29f81c4bf0abcde2b212dfba75f42cd7",
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
+        "logSha256": "f323727ff4c77fe58632e333c9332b63451e53d03e3fb18e302025d33b13b552"
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
+      "before": "CompletionOffsetBasis => new CompletionOffsetDueOccurrenceSource()",
+      "after": "CompletionOffsetBasis => new LoneDueOccurrenceSource()",
+      "exit": 1,
+      "failed": 1,
+      "passed": 3,
+      "skipped": 0,
+      "detectingAssertion": "CompletionDispatchSucceeds line 64: Assert.Null(exception), actual scheduling.definition.due_date_invalid",
+      "logSha256": "9bca07b25924c730c919d527cd43926614c661d3040f2b9f2d5ac3d0f810b9ba",
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
+        "logSha256": "e4eb0e0e134bab28b97885918bd60fe37d310b4f882045d373fa9dbbf20252a7"
+      }
+    }
+  ]
+}
