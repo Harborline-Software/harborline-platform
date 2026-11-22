@@ -33,7 +33,7 @@
       [
         "date_time",
         "datetime",
-        "2026-11-20T16:34:05-05:00"
+        "2026-11-21T03:04:05+05:30"
       ],
       [
         "integer",
@@ -61,7 +61,8 @@
       "skipped": 0,
       "total": 1,
       "rebuilt": true,
-      "log": "initial-red.log"
+      "log": "initial-red.log",
+      "logSha256": "f1d8718e6bded771912ea672a1b8ddf7fa147ec390b1dba11a5986b37e1bc878"
     },
     "setup": "New proof initially used unchanged Definition(), which has only Integer 7.",
     "assertion": "Assert.Equal(5, hasParameters ? parameters.GetArrayLength() : 0)",
@@ -77,7 +78,8 @@
     "skipped": 0,
     "total": 1,
     "rebuilt": true,
-    "log": "baseline-green.log"
+    "log": "baseline-green.log",
+    "logSha256": "abb345471515cd4e100bd53cab1924895ef906037d26ee906eeea3ddbdc118d4"
   },
   "mutants": [
     {
@@ -103,7 +105,8 @@
         "skipped": 0,
         "total": 1,
         "rebuilt": true,
-        "log": "datetime-mutant.log"
+        "log": "datetime-mutant.log",
+        "logSha256": "710d54c1cfb12f4991eba3c3960b708e51a5c0b84978fb730f97102096e12f1f"
       },
       "restoredGreen": {
         "command": "& 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-489-typed-pack --workload 'T-489 restored datetime green' --candidate 27e596e13addffa175eb09311e23291db63baeb6 -- dotnet test projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj --no-restore '-m:1' '-nr:false' --filter FullyQualifiedName~reports_ck_12_ck_1_ck_2_pack_preserves_five_literal_typed_defaults",
@@ -113,7 +116,8 @@
         "skipped": 0,
         "total": 1,
         "rebuilt": true,
-        "log": "datetime-restored.log"
+        "log": "datetime-restored.log",
+        "logSha256": "b894c73ba4690242097ded657dc660fcec14f752467b90cbaad6cc2df2bc2674"
       }
     },
     {
@@ -140,7 +144,8 @@
         "skipped": 0,
         "total": 1,
         "rebuilt": true,
-        "log": "parameters-mutant.log"
+        "log": "parameters-mutant.log",
+        "logSha256": "b42eff3bca66e385e0023608e137bb3960e10af38c6c0a1ddae1c679f36cc544"
       },
       "restoredGreen": {
         "command": "& 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-489-typed-pack --workload 'T-489 restored parameters green' --candidate 27e596e13addffa175eb09311e23291db63baeb6 -- dotnet test projections/dotnet/blocks/hlp.blocks.reports.tests/Harborline.Blocks.Reports.Tests.csproj --no-restore '-m:1' '-nr:false' --filter FullyQualifiedName~reports_ck_12_ck_1_ck_2_pack_preserves_five_literal_typed_defaults",
@@ -150,7 +155,8 @@
         "skipped": 0,
         "total": 1,
         "rebuilt": true,
-        "log": "parameters-restored.log"
+        "log": "parameters-restored.log",
+        "logSha256": "2f79e990c7ce5c89008b64e356c5282b0a8060cd32754fd5f8b97fcc4648952d"
       }
     }
   ],
