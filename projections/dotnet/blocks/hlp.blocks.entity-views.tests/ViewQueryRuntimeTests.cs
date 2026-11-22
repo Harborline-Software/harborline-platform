@@ -219,6 +219,69 @@ public sealed class ViewQueryRuntimeTests
         Assert.Equal(["resolve", "open", "kind", "record-type"], calls);
     }
 
+    // Oracle: Control 89fc5b2d2, T-486/required-shape-role-proof acceptance 1–2;
+    // DES-0017 views-eng-5/views-auth-15 and T-1177's read-time backstop.
+    [Theory(DisplayName = "views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures")]
+    [InlineData(null, "view_definition.shape_role_field_missing")]
+    [InlineData("", "view_definition.shape_role_field_missing")]
+    [InlineData(" ", "view_definition.shape_role_field_missing")]
+    [InlineData("missing_title", "view_definition.shape_role_field_missing")]
+    [InlineData("priority", "view_definition.shape_role_field_incompatible")]
+    public async Task RequiredTableTitleRefusesBeforeDownstreamPorts(string? titleField, string expectedCode)
+    {
+        var calls = new List<string>();
+        var (runtime, request, measures) = await RequiredTableTitleSetup(calls, titleField);
+
+        var error = await Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request));
+
+        Assert.Equal(expectedCode, error.Code);
+        Assert.Equal("The view binding is incompatible with its record type.", error.Message);
+        Assert.Equal(["resolve", "open", "record-type"], calls);
+        Assert.Equal(0, measures.EvaluationCount);
+    }
+
+    [Fact(DisplayName = "views-eng-5 views-auth-15 views-eng-9: valid table Title reaches rows and returns the measure sentinel")]
+    public async Task RequiredTableTitleValidBindingReturnsPortData()
+    {
+        var calls = new List<string>();
+        var (runtime, request, measures) = await RequiredTableTitleSetup(calls, "title");
+
+        var result = await runtime.ExecuteAsync(request);
+
+        Assert.Equal(["resolve", "open", "record-type", "access", "rows", "measure"], calls);
+        Assert.Equal(1, measures.EvaluationCount);
+        Assert.Empty(result.Rows);
+        Assert.Equal(0, result.Total);
+        Assert.Equal(new ViewMeasureResult("work.open-count", 731), result.Measure);
+    }
+
+    private static async Task<(ViewQueryRuntime Runtime, ViewQueryRequest Request, RecordingMeasures Measures)>
+        RequiredTableTitleSetup(List<string> calls, string? titleField)
+    {
+        var kinds = ViewKindRegistry.Platform;
+        var table = Assert.IsType<ViewKindDescriptor>(await kinds.ResolveAsync("layout.table"));
+        Assert.Equal([ViewShapeRole.Title], table.RequiredRoles);
+        var roles = new Dictionary<ViewShapeRole, string>();
+        if (titleField is not null)
+        {
+            roles.Add(ViewShapeRole.Title, titleField);
+        }
+        var request = Request() with { Binding = new("layout.table", roles) };
+        var definition = Definition(new("work.open-count", new Dictionary<string, string> { ["format"] = "integer" }));
+        var measures = new RecordingMeasures(calls, new("work.open-count", 731));
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, definition),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            kinds,
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new RecordingRows(calls),
+            measures,
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch),
+            environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
+        return (runtime, request, measures);
+    }
+
     [Fact(DisplayName = "open authority and Access filtering precede every row read")]
     public async Task OpenAuthorityAndAccessFilteringPrecedeEveryRowRead()
     {
