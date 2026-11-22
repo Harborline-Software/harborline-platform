@@ -16,6 +16,23 @@ It provides:
 - **Typed source and intent** (`RuleDefinitionDocument`, strict codec and validator) — Author,
   Publish and Persisted diagnostics share the full compiler, stable codes and RFC 6901 locations.
 - **Key suggestion** — a pure advisory slug without a version suffix; it never allocates a key.
+- **Field presets** — `fieldPresetsFor(kind)` offers `NonNegative` for `Number`,
+  `NotBlank` for `Text`, or `MustBeTrue` for `Boolean`. `createFieldPreset(envelope,
+  fieldKey, kind, preset)` produces an ordinary editable `RuleDefinitionDocument`:
+  a field-scoped Formula with one `self` input and `Validate` output. Incompatible
+  pairs throw. The exported `FieldPreset` union has these three values. This is the
+  additive revision 4 contract, matching native `FieldRuleBindings.Preset` against
+  `conformance/hlp.foundation.rule-authoring/field-presets.json`.
+
+```ts
+const rule = createFieldPreset(envelope, 'amount', 'Number', 'NonNegative')
+// Edit rule.draft through the same Formula source used by other authored rules.
+const result = validateRuleDefinitionJson(serializeRuleDefinition(rule), 'Publish')
+```
+
+Presets use the existing source codec and compiler; they introduce no evaluator,
+storage token, persistence operation or pinning policy. Editor surfaces remain a
+separate consumer obligation under T-730.
 
 The .NET `RuleDefinitionCatalog` in blocks.builder-definitions composes the shared versioned
 store and archive lifecycle. Foundation has no store or dependency on blocks. Callers supply

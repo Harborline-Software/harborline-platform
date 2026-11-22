@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-authoring",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Typed Rules source, strict canonical codecs and located intent diagnostics, with draft lowering, advisory lint, seeds and preview over the shared rule engine.",
   "dependencies": [
@@ -31,7 +31,10 @@
       "BlankTableDraft() / BlankFormulaDraft() / BlankDraftFor(skin)",
       "ValidateJson(source, Author|Publish|Persisted) -> typed source or coded RFC 6901 diagnostics",
       "SerializeCanonical(source) -> canonical source JSON; SerializeBody / ParseBody split shared identity metadata",
-      "RuleKeySuggestion.Suggest / suggestRuleKey -> advisory key without allocation"
+      "RuleKeySuggestion.Suggest / suggestRuleKey -> advisory key without allocation",
+      "FieldPreset = 'NonNegative' | 'NotBlank' | 'MustBeTrue' (TypeScript)",
+      "fieldPresetsFor(kind: RuleDefinitionValueType) -> FieldPreset[] (TypeScript)",
+      "createFieldPreset(envelope: RuleDefinitionEnvelope, fieldKey: string, kind: RuleDefinitionValueType, preset: FieldPreset) -> RuleDefinitionDocument (TypeScript)"
     ],
     "context": "Foundation owns source and intent only, with no dependency on blocks. Hosts compose RuleDefinitionCatalog with IVersionedDefinitionStore and IDefinitionLifecycleStore in blocks.builder-definitions. A successful TS Publish-phase diagnostic result is not a committed publication."
   },
@@ -44,7 +47,8 @@
     "Author, Publish and Persisted use full lowering and compiler admission including cycles and static bounds, with stable code and authored pointer. Unknown and duplicate members refuse without normalization.",
     "VersionPolicy is a caller selector, never an authored source member. The shared store owns semantic-version admission; source preserves the label.",
     "Provider-neutral metadata excludes policy-owned retention and legal-hold authority. Canonical round-trip preserves admitted source.",
-    "TS preview and intent validation do not persist or allocate versions."
+    "TS preview and intent validation do not persist or allocate versions.",
+    "Revision 4 adds kind-appropriate field presets to TypeScript, matching the existing native FieldRuleBindings producer. Applied presets are ordinary editable Formula validation source. Incompatible Number/Text/Boolean kind and preset pairs throw; dependencies, native API and refusal codes are unchanged."
   ],
   "errors": [
     "rule.skin.no_match_unresolved",
@@ -72,6 +76,7 @@
   ],
   "conformance": {
     "sharedCorpus": "conformance/hlp.foundation.rule-authoring/definition-intent-cases.json",
+    "fieldPresets": "conformance/hlp.foundation.rule-authoring/field-presets.json",
     "phases": [
       "Author",
       "Publish",
