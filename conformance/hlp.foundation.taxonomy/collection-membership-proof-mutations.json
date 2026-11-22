@@ -1,0 +1,203 @@
+{
+  "slice": "T-493/collection-membership-proof",
+  "date": "2026-11-21",
+  "machine": "PC",
+  "controlRecordRevision": "a28830f42fcb3569bac849ca5001dc2c31bab9cb",
+  "controlPR": 1630,
+  "snapshot": {
+    "sourceCommit": "98bf9620b21f0b0187f851703773917be9bc4084",
+    "sourceTree": "e8097e025093d1084f7941442440c5977d0aa454",
+    "overlayTest": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyCollectionAdmissionProofTests.cs",
+    "overlayTestGitBlob": "601ea9a453ff4eac46bf18d98a7e63cbc411dbda",
+    "overlayTestSha256": "724e147b574a0513ba07ef5042af7a1300e905cba464faf80aa855be82885064",
+    "producerSha256": "f7db9b14f3ef29b91d0e102de27444279caf66e59b8d0573f80cd5f791df22c6",
+    "description": "Exact tested source is sourceCommit/tree plus the named test overlay; each mutant applies only its recorded replacement to the producer. Receipt was written after execution."
+  },
+  "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyCollectionAdmissionProofTests -m:1 -nr:false",
+  "lane": {
+    "entry": "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+    "holder": "writer",
+    "session": "pc-493-collection",
+    "candidate": "98bf9620b21f0b0187f851703773917be9bc4084",
+    "invocation": "bash <entry> run --holder writer --session pc-493-collection --workload <run workload> --candidate <candidate> -- <command>",
+    "environment": {
+      "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+      "MSBUILDDISABLENODEREUSE": "1"
+    }
+  },
+  "oracle": {
+    "sources": [
+      "DES-0024 taxonomy-ck-17, taxonomy-ck-18, taxonomy-auth-8 and ruling 4",
+      "named-collections Acceptance evidence at control a28830f4",
+      "Taxonomy frozen interface revision 4",
+      "ADR-0103 decisions 1-3 and T-724 ruling 121"
+    ],
+    "refusals": [
+      {
+        "pointer": "/collections/0/node_codes/1",
+        "code": "collection.node_unknown"
+      }
+    ],
+    "correctedRefusals": [],
+    "requireCorrected": "same supplied definition instance",
+    "assertions": "Assert.Collection on the entire unfiltered list pins length and order; literal code and pointer assertions. Require asserts the exception type and its complete list. No expected value is derived from another admission method."
+  },
+  "baseline": "baseline",
+  "runs": [
+    {
+      "id": "baseline",
+      "exitCode": 0,
+      "selected": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "summary": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 49 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "e8f07c16e9525cf61b73686f1ae0fc558fde98e825ee61ae68a233fafc40a927",
+      "workload": "collection baseline"
+    },
+    {
+      "id": "mutant-1-repeat",
+      "exitCode": 1,
+      "selected": 9,
+      "passed": 0,
+      "failed": 9,
+      "skipped": 0,
+      "summary": "Failed!  - Failed:     9, Passed:     0, Skipped:     0, Total:     9, Duration: 53 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "d47dd72a2be2eb0c8929b62b451b6665afdba51576a55e922d2519c1b9177e50",
+      "workload": "collection mutant remove call repeat"
+    },
+    {
+      "id": "restored-1-repeat",
+      "exitCode": 0,
+      "selected": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "summary": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 48 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "d0a332b6ac0df48101b28cf9881430d1641da59d89bf54b4a98b424e97cd2fdf",
+      "workload": "collection restored 1 repeat"
+    },
+    {
+      "id": "mutant-2",
+      "exitCode": 1,
+      "selected": 9,
+      "passed": 0,
+      "failed": 9,
+      "skipped": 0,
+      "summary": "Failed!  - Failed:     9, Passed:     0, Skipped:     0, Total:     9, Duration: 54 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "a1c01efce435b47548b0fa070a1d4aa7a56d1be65556d949324b3f0a24567057",
+      "workload": "collection mutant skip final"
+    },
+    {
+      "id": "restored-2",
+      "exitCode": 0,
+      "selected": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "summary": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 47 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "ee4f2f84d8cf80324351a6a854fd9eafe926b30a4e75f1233aa06deca48587ff",
+      "workload": "collection restored 2"
+    },
+    {
+      "id": "mutant-3",
+      "exitCode": 1,
+      "selected": 9,
+      "passed": 0,
+      "failed": 9,
+      "skipped": 0,
+      "summary": "Failed!  - Failed:     9, Passed:     0, Skipped:     0, Total:     9, Duration: 55 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "e39de7ca160bc6d5f0a74277e547a6c762b248c2a8626ff594118ba29efacc6a",
+      "workload": "collection mutant pointer zero"
+    },
+    {
+      "id": "restored-3",
+      "exitCode": 0,
+      "selected": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "summary": "Passed!  - Failed:     0, Passed:     9, Skipped:     0, Total:     9, Duration: 45 ms - Harborline.Foundation.Taxonomy.Tests.dll (net11.0)",
+      "logSha256": "c8f6008702dc5e496a906de0b0d0971f59fb20f49d9ac7c10edc28a1fe484a7a",
+      "workload": "collection restored 3"
+    }
+  ],
+  "mutants": [
+    {
+      "id": "remove-call",
+      "line": 246,
+      "before": "ValidateCollections(definition.Collections, byCode, refusals);",
+      "after": "",
+      "red": "mutant-1-repeat",
+      "restored": "restored-1-repeat",
+      "failure": "Validate/AdmitJson: Assert.Collection expected count 1, actual 0; Require: Assert.Throws expected TaxonomyAdmissionException, no exception thrown.",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "killingTests": [
+        "Validate_proves_closed_world_collection_membership",
+        "Require_proves_closed_world_collection_membership",
+        "AdmitJson_proves_closed_world_collection_membership"
+      ],
+      "phases": [
+        "Author",
+        "Publish",
+        "Install"
+      ],
+      "compiled": true
+    },
+    {
+      "id": "skip-final-member",
+      "line": 307,
+      "before": "nodeIndex < collection.NodeCodes.Count",
+      "after": "nodeIndex < collection.NodeCodes.Count - 1",
+      "red": "mutant-2",
+      "restored": "restored-2",
+      "failure": "Validate/AdmitJson: Assert.Collection expected count 1, actual 0; Require: Assert.Throws expected TaxonomyAdmissionException, no exception thrown.",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "killingTests": [
+        "Validate_proves_closed_world_collection_membership",
+        "Require_proves_closed_world_collection_membership",
+        "AdmitJson_proves_closed_world_collection_membership"
+      ],
+      "phases": [
+        "Author",
+        "Publish",
+        "Install"
+      ],
+      "compiled": true
+    },
+    {
+      "id": "pointer-index-zero",
+      "line": 310,
+      "before": "var pointer = $\"/collections/{collectionIndex}/node_codes/{nodeIndex}\";",
+      "after": "var pointer = $\"/collections/{collectionIndex}/node_codes/0\";",
+      "red": "mutant-3",
+      "restored": "restored-3",
+      "failure": "All boundaries: Assert.Collection item comparison fails at Assert.Equal; expected /collections/0/node_codes/1, actual /collections/0/node_codes/0.",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "killingTests": [
+        "Validate_proves_closed_world_collection_membership",
+        "Require_proves_closed_world_collection_membership",
+        "AdmitJson_proves_closed_world_collection_membership"
+      ],
+      "phases": [
+        "Author",
+        "Publish",
+        "Install"
+      ],
+      "compiled": true
+    }
+  ],
+  "restoration": "Producer restored byte-for-byte from pre-mutation backup; git diff --exit-code is empty. Refresh source timestamp after each backup copy so MSBuild rebuilds restored code.",
+  "executionNotes": [
+    "Initial command handoff split unquoted MSBuild colon arguments: MSB1031; corrected by quoting -m:1 and -nr:false. Not mutation evidence.",
+    "Initial test compilation rejected redundant Assert.Equal size assertion (xUnit2013); removed it because Assert.Collection already asserts exact length. Not mutation evidence.",
+    "Initial restored-1 run reused mutant binary due to preserved backup timestamp and failed 9/9. Excluded as restoration evidence; refreshed timestamp, restored-2 passed, then repeated mutant-1 red and restored-1-repeat green."
+  ],
+  "provenance": {
+    "ownershipScan": "No contentHashes record matches either delivery path; no Taxonomy provenance record. Scan repeated after restoring all mutants.",
+    "command": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+    "meaning": "Ownership check only; no module-specific hash proof and no refresh required.",
+    "output": "0 record(s) read, 0 stale hash(es)",
+    "exitCode": 0
+  }
+}
