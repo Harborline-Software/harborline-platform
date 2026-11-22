@@ -1,0 +1,39 @@
+{
+  "source": "T-730/field-preset-contract acceptance 1 and 2; DES-0018 rules-auth-17; ADR-0030; L262",
+  "cases": [
+    {
+      "kind": "Number",
+      "preset": "NonNegative",
+      "source": {
+        "envelope": {"id":"preset-proof","version":"1.0.0","tenant":"tenant-a","cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},"requires":[],"contract":{"major":1,"minor":0}},
+        "name": "amount NonNegative",
+        "tier": "JsonLogic",
+        "draft": {"kind":"Formula","scope":"Field","scopeTarget":"amount","outputType":"Validate","inputs":[{"id":"self","ref":"self","type":"Number"}],"expression":{"kind":"Call","op":">=","args":[{"kind":"Ref","name":"self"},{"kind":"Literal","value":"0","valueType":"Number"}]}}
+      },
+      "lowered": {">=":[{"var":"field.amount"},0]}
+    },
+    {
+      "kind": "Text",
+      "preset": "NotBlank",
+      "source": {
+        "envelope": {"id":"preset-proof","version":"1.0.0","tenant":"tenant-a","cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},"requires":[],"contract":{"major":1,"minor":0}},
+        "name": "amount NotBlank",
+        "tier": "JsonLogic",
+        "draft": {"kind":"Formula","scope":"Field","scopeTarget":"amount","outputType":"Validate","inputs":[{"id":"self","ref":"self","type":"Text"}],"expression":{"kind":"Call","op":"!=","args":[{"kind":"Ref","name":"self"},{"kind":"Literal","value":"","valueType":"Text"}]}}
+      },
+      "lowered": {"!=":[{"var":"field.amount"},""]}
+    },
+    {
+      "kind": "Boolean",
+      "preset": "MustBeTrue",
+      "source": {
+        "envelope": {"id":"preset-proof","version":"1.0.0","tenant":"tenant-a","cascadeLayer":"domain-package","provenance":{"kind":"package","id":"finance"},"requires":[],"contract":{"major":1,"minor":0}},
+        "name": "amount MustBeTrue",
+        "tier": "JsonLogic",
+        "draft": {"kind":"Formula","scope":"Field","scopeTarget":"amount","outputType":"Validate","inputs":[{"id":"self","ref":"self","type":"Boolean"}],"expression":{"kind":"Call","op":"==","args":[{"kind":"Ref","name":"self"},{"kind":"Literal","value":"true","valueType":"Boolean"}]}}
+      },
+      "lowered": {"==":[{"var":"field.amount"},true]}
+    }
+  ],
+  "numberEdit": {"threshold":"5","lowered":{">=":[{"var":"field.amount"},5]}}
+}
