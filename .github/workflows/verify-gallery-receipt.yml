@@ -24,6 +24,7 @@ jobs:
       changed: ${{ steps.plan.outputs.changed }}
       head: ${{ steps.plan.outputs.head }}
       revision: ${{ steps.plan.outputs.revision }}
+      release-eligible: ${{ steps.plan.outputs.release-eligible }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -41,6 +42,7 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             node tooling/gates/scan-evidence-provenance.mjs --receipt plan-refresh
@@ -50,7 +52,7 @@ jobs:
 
   ledger-data:
     needs: plan
-    if: needs.plan.outputs.changed == 'true'
+    if: needs.plan.outputs.changed == 'true' || needs.plan.outputs.release-eligible == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -77,9 +79,18 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  main-sbom:
+    needs: plan
+    if: needs.plan.outputs.release-eligible == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/license-sbom.yml
+    with:
+      tested-commit: ${{ needs.plan.outputs.head }}
+
   gallery-shard:
     needs: [plan, ledger-data]
-    if: needs.plan.outputs.changed == 'true'
+    if: needs.plan.outputs.changed == 'true' || needs.plan.outputs.release-eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -152,8 +163,12 @@ jobs:
           retention-days: 90
 
   phase-4:
-    needs: [plan, ledger-data, gallery-shard]
-    if: needs.plan.outputs.changed == 'true'
+    needs: [plan, ledger-data, gallery-shard, main-sbom]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.ledger-data.result == 'success' &&
+      needs.gallery-shard.result == 'success' &&
+      ((needs.plan.outputs.release-eligible == 'true' && needs.main-sbom.result == 'success') ||
+       (needs.plan.outputs.release-eligible != 'true' && needs.plan.outputs.changed == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:

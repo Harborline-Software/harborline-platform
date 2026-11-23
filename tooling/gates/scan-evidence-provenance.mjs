@@ -234,9 +234,87 @@ export function buildGalleryPredicate({root, head, queue, producer, gate, shards
   }
 }
 
-function api(path) {
+function api(path, {timeout = 60000} = {}) {
   return JSON.parse(execFileSync('gh', ['api', path], {encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'pipe']}))
+    timeout, stdio: ['ignore', 'pipe', 'pipe']}))
+}
+
+export async function waitForReleaseRunPrerequisites({readApi = api, now = Date.now,
+  wait = ms => new Promise(resolve => setTimeout(resolve, ms)), maxWaitMs = 600000, pollMs = 10000, ...expected}) {
+  if (!Number.isFinite(maxWaitMs) || maxWaitMs <= 0 || maxWaitMs > 1800000
+    || !Number.isFinite(pollMs) || pollMs <= 0) throw new Error('release prerequisites: invalid polling budget')
+  const deadline = now() + maxWaitMs
+  const boundedApi = path => {
+    const remaining = deadline - now()
+    if (remaining <= 0) throw new Error('release prerequisites: timeout')
+    return readApi(path, {timeout: Math.min(60000, remaining)})
+  }
+  while (now() < deadline) {
+    try {
+      const result = releaseRunPrerequisites({...expected, readApi: boundedApi})
+      if (now() < deadline) return result
+    } catch {
+      // Never turn an unavailable record or an incomplete attempt into an admission.
+    }
+    const remaining = deadline - now()
+    if (remaining > 0) await wait(Math.min(pollMs, remaining))
+  }
+  throw new Error('release prerequisites: timeout')
+}
+
+// Run records are prerequisites only. The producer must still perform the trusted main-side
+// computations; a green candidate job never substitutes for the fresh receipt or SPDX scan.
+export function releaseRunPrerequisites({head, queueId, actionsAppId, readApi = api}) {
+  const require = (condition, reason) => {
+    if (!condition) throw new Error(`release prerequisites: ${reason}`)
+  }
+  const prefix = `repos/${RECEIPT_REPOSITORY}/`
+  const read = suffix => {
+    try { return readApi(prefix + suffix) } catch { throw new Error('release prerequisites: API unavailable') }
+  }
+  require(OBJECT_ID.test(head ?? '') && Number.isSafeInteger(queueId) && queueId > 0
+    && Number.isSafeInteger(actionsAppId) && actionsAppId > 0, 'invalid expected identity')
+  const checkRun = (run, id, workflow, names) => {
+    require(run?.id === id && run.path === `.github/workflows/${workflow}.yml`
+      && run.event === 'merge_group' && run.head_sha === head
+      && run.repository?.full_name === RECEIPT_REPOSITORY
+      && run.head_repository?.full_name === RECEIPT_REPOSITORY
+      && run.status === 'completed' && run.conclusion === 'success'
+      && Number.isSafeInteger(run.run_attempt) && run.run_attempt > 0
+      && Number.isSafeInteger(run.check_suite_id) && run.check_suite_id > 0, 'run source or result differs')
+    const attempt = read(`actions/runs/${id}/attempts/${run.run_attempt}`)
+    require(['id', 'path', 'event', 'head_sha', 'status', 'conclusion', 'run_attempt', 'check_suite_id']
+      .every(field => attempt?.[field] === run[field])
+      && attempt.repository?.full_name === RECEIPT_REPOSITORY
+      && attempt.head_repository?.full_name === RECEIPT_REPOSITORY, 'latest attempt differs')
+    const listing = read(`actions/runs/${id}/attempts/${run.run_attempt}/jobs?per_page=100`)
+    require(Array.isArray(listing?.jobs) && listing.total_count === listing.jobs.length
+      && listing.total_count <= 100, 'incomplete job inventory')
+    for (const name of names) {
+      const matches = listing.jobs.filter(job => job.name === name)
+      require(matches.length === 1, `missing or duplicate ${name}`)
+      const job = matches[0]
+      require(job.run_id === id && job.head_sha === head && job.status === 'completed'
+        && job.conclusion === 'success', `unsuccessful or unrelated ${name}`)
+      require(Number.isSafeInteger(job.id) && job.id > 0
+        && job.check_run_url === `https://api.github.com/${prefix}check-runs/${job.id}`, `untrusted check URL for ${name}`)
+      const check = read(`check-runs/${job.id}`)
+      require(check?.id === job.id && check.name === name && check.head_sha === head
+        && check.status === 'completed' && check.conclusion === 'success'
+        && check.app?.id === actionsAppId && check.check_suite?.id === run.check_suite_id,
+      `unknown check source or association for ${name}`)
+    }
+    return {id, attempt: run.run_attempt}
+  }
+  const queue = checkRun(read(`actions/runs/${queueId}`), queueId, 'verify',
+    ['phase-4-gate', ...[1, 2, 3, 4, 5, 6].map(i => `gallery-shard (${i})`), 'gallery-collect', 'verify'])
+  const listing = read(`actions/workflows/license-sbom.yml/runs?event=merge_group&head_sha=${head}&per_page=100`)
+  require(Array.isArray(listing?.workflow_runs) && listing.total_count === listing.workflow_runs.length
+    && listing.total_count > 0 && listing.total_count <= 100, 'missing or incomplete SBOM run inventory')
+  require(listing.workflow_runs.every(run => Number.isSafeInteger(run.id) && run.id > 0), 'invalid SBOM run identity')
+  const sbomId = Math.max(...listing.workflow_runs.map(run => run.id))
+  const sbom = checkRun(read(`actions/runs/${sbomId}`), sbomId, 'license-sbom', ['sbom'])
+  return {queue, sbom}
 }
 
 function writeApi(method, path, body) {
@@ -414,7 +492,14 @@ if (import.meta.main && process.argv.includes('--receipt')) {
         const refusal = checkEvidenceProvenance(root, JSON.stringify(durable))
         requireThat(!refusal, 'durable main evidence failed provenance')
         const changed = !!needsGalleryReceipt(root, expected.head, durable)
-        writeFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nhead=${expected.head}\nrevision=${revision}\n`, {flag: 'a'})
+        const releaseEligible = OBJECT_ID.test(process.env.RELEASE_APPROVED_COMMIT ?? '')
+          && process.env.RELEASE_APPROVED_COMMIT === expected.head
+        if (releaseEligible) {
+          const policy = JSON.parse(api(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`).value)
+          await waitForReleaseRunPrerequisites({head: expected.head, queueId: expected.id, actionsAppId: policy.actionsAppId})
+        }
+        writeFileSync(process.env.GITHUB_OUTPUT,
+          `changed=${changed}\nhead=${expected.head}\nrevision=${revision}\nrelease-eligible=${releaseEligible}\n`, {flag: 'a'})
       } else if (mode === 'build') {
         mkdirSync(directory, {recursive: true})
         const names = readdirSync(directory).filter(name => name === 'phase4.json' || /^gallery-shard-\d+\.json$/.test(name)).sort()

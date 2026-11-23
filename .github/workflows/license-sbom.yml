@@ -3,6 +3,20 @@
 # check). Only the optional dependency-review job keeps the ACTIONS_ENABLED switch.
 name: license-sbom
 on:
+  workflow_call:
+    inputs:
+      tested-commit:
+        type: string
+        required: true
+    outputs:
+      artifact-id:
+        value: ${{ jobs.sbom.outputs.artifact-id }}
+      sbom-sha256:
+        value: ${{ jobs.sbom.outputs.sbom-sha256 }}
+      policy-sha256:
+        value: ${{ jobs.sbom.outputs.policy-sha256 }}
+      tested-tree:
+        value: ${{ jobs.sbom.outputs.tested-tree }}
   push:
     branches: [main]
   pull_request:
@@ -19,34 +33,103 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
-  pull-requests: read
 jobs:
   sbom:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact-id: ${{ steps.artifact.outputs.artifact-id }}
+      sbom-sha256: ${{ steps.evidence.outputs.sbom-sha256 }}
+      policy-sha256: ${{ steps.evidence.outputs.policy-sha256 }}
+      tested-tree: ${{ steps.evidence.outputs.tested-tree }}
+    env:
+      TESTED_COMMIT: ${{ inputs.tested-commit || github.sha }}
     steps:
-      - uses: actions/checkout@v7
-      - name: Generate SBOM (SPDX JSON, includes detected licenses)
-        uses: anchore/sbom-action@v0
-        with:
-          format: spdx-json
-          output-file: sbom.spdx.json
-          upload-artifact: true
-      - name: Fail on disallowed licenses in the SBOM
+      - name: Bind reusable computation to main's triggering queue
+        env:
+          REQUESTED_COMMIT: ${{ inputs.tested-commit }}
+          QUEUE_HEAD: ${{ github.event.workflow_run.head_sha }}
+          QUEUE_EVENT: ${{ github.event.workflow_run.event }}
         run: |
-          node -e '
-            const s = JSON.parse(require("fs").readFileSync("sbom.spdx.json","utf8"));
-            const deny = /GPL-2\.0-only|GPL-3\.0|AGPL|SSPL|BUSL|CC-BY-NC/i;
-            const bad = (s.packages||[]).filter(p => deny.test(p.licenseConcluded||"") || deny.test(p.licenseDeclared||""));
-            for (const p of bad) console.log(`DENY ${p.name}@${p.versionInfo}: ${p.licenseDeclared||p.licenseConcluded}`);
-            if (bad.length) process.exit(1);
-            console.log(`ok: ${(s.packages||[]).length} packages, none on the deny list`);
-          '
+          [[ "$TESTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          if [ -n "$REQUESTED_COMMIT" ]; then
+            test "$GITHUB_EVENT_NAME" = workflow_run
+            test "$GITHUB_REF" = refs/heads/main
+            test "$QUEUE_EVENT" = merge_group
+            test "$REQUESTED_COMMIT" = "$QUEUE_HEAD"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tested-commit || github.sha }}
+          path: subject
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Write main's scanner configuration and unchanged license deny policy
+        run: |
+          cat > "$RUNNER_TEMP/syft.yaml" <<'SYFT'
+          exclude: []
+          check-for-app-update: false
+          select-catalogers: ["+javascript-package-cataloger"]
+          SYFT
+          cat > "$RUNNER_TEMP/license-policy.cjs" <<'NODE'
+          const fs = require('node:fs');
+          const s = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!/^SPDX-2\.[23]$/.test(s.spdxVersion || '') || !Array.isArray(s.packages) || s.packages.length === 0)
+            throw new Error('missing or invalid fresh SPDX package inventory');
+          const deny = /GPL-2\.0-only|GPL-3\.0|AGPL|SSPL|BUSL|CC-BY-NC/i;
+          const bad = s.packages.filter(p => deny.test(p.licenseConcluded || '') || deny.test(p.licenseDeclared || ''));
+          for (const p of bad) console.log(`DENY ${p.name}@${p.versionInfo}: ${p.licenseDeclared || p.licenseConcluded}`);
+          if (bad.length) process.exit(1);
+          console.log(`ok: ${s.packages.length} packages, none on the deny list`);
+          NODE
+      - name: Generate SBOM (SPDX JSON, includes detected licenses)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: subject
+          config: ${{ runner.temp }}/syft.yaml
+          syft-version: v1.57.2
+          format: spdx-json
+          output-file: ${{ runner.temp }}/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+          dependency-snapshot: false
+      - name: Fail on disallowed licenses in the SBOM
+        run: node "$RUNNER_TEMP/license-policy.cjs" "$RUNNER_TEMP/sbom.spdx.json"
+      - name: Bind fresh bytes, policy and exact tested tree to this producer attempt
+        id: evidence
+        run: |
+          test "$(git -C subject rev-parse HEAD)" = "$TESTED_COMMIT"
+          export TESTED_TREE="$(git -C subject rev-parse 'HEAD^{tree}')"
+          node <<'NODE'
+          const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto');
+          const digest = name => crypto.createHash('sha256').update(fs.readFileSync(path.join(process.env.RUNNER_TEMP, name))).digest('hex');
+          const record = {schemaVersion: 1, testedCommit: process.env.TESTED_COMMIT, testedTree: process.env.TESTED_TREE,
+            producerRevision: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
+            scanner: {name: 'syft', version: '1.57.2', action: 'e22c389904149dbc22b58101806040fa8d37a610'},
+            sbomSha256: digest('sbom.spdx.json'), policySha256: digest('license-policy.cjs'), configSha256: digest('syft.yaml'), result: 'PASS'};
+          fs.writeFileSync(path.join(process.env.RUNNER_TEMP, 'sbom-evidence.json'), JSON.stringify(record));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `sbom-sha256=${record.sbomSha256}\npolicy-sha256=${record.policySha256}\ntested-tree=${record.testedTree}\n`);
+          NODE
+      - id: artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: main-sbom-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/sbom.spdx.json
+            ${{ runner.temp }}/sbom-evidence.json
+            ${{ runner.temp }}/license-policy.cjs
+            ${{ runner.temp }}/syft.yaml
+          if-no-files-found: error
+          retention-days: 90
   dependency-review:
     if: vars.ACTIONS_ENABLED == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/dependency-review-action@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5
         with:
           deny-licenses: GPL-2.0-only, GPL-3.0-only, GPL-3.0-or-later, AGPL-3.0-only, AGPL-3.0-or-later, SSPL-1.0, BUSL-1.1
           # ADR-0086 clause 5: the audit bar is high and critical; moderate findings are recorded, not blocking.

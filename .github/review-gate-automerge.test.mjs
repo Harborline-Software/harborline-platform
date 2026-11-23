@@ -7,10 +7,11 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, chmodSync, existsSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {delimiter, join} from 'node:path'
 import {spawnSync} from 'node:child_process'
+import {fileURLToPath} from 'node:url'
 
-const here = new URL('.', import.meta.url).pathname
+const here = fileURLToPath(new URL('.', import.meta.url))
 const HEAD = 'a'.repeat(40)
 const GROUP = 'c'.repeat(40)
 // The queue's ref ends in the sha the group was built on (merge_group.base_sha), not the PR head: seen on this repo's
@@ -66,10 +67,14 @@ function run(script, {args = [], env = {}, fixtures = {}, fail} = {}) {
   try {
     const bin = join(dir, 'bin'); const fix = join(dir, 'fix'); mkdirSync(bin); mkdirSync(fix)
     writeFileSync(join(bin, 'gh'), stub); chmodSync(join(bin, 'gh'), 0o755)
+    if (process.platform === 'win32') {
+      writeFileSync(join(bin, 'jq'), '#!/usr/bin/env bash\nexec jq.exe --binary "$@"\n')
+      chmodSync(join(bin, 'jq'), 0o755)
+    }
     for (const [name, value] of Object.entries(fixtures)) writeFileSync(join(fix, name), JSON.stringify(value))
     const log = join(dir, 'log'); const out = join(dir, 'out'); writeFileSync(log, ''); writeFileSync(out, '')
     const r = spawnSync('bash', [join(here, script), ...args], {encoding: 'utf8', env: {
-      ...process.env, PATH: `${bin}:${process.env.PATH}`, FIX: fix, LOG: log, FAIL: fail ?? '',
+      ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, FIX: fix, LOG: log, FAIL: fail ?? '',
       GITHUB_REPOSITORY: 'o/r', GITHUB_OUTPUT: out, GITHUB_STEP_SUMMARY: '', DRY_RUN: '', ...env}})
     const calls = readFileSync(log, 'utf8').split('\n').filter(Boolean)
     const outputs = Object.fromEntries(readFileSync(out, 'utf8').split('\n').filter(Boolean).map(l => l.split('=')))

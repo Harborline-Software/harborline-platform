@@ -572,14 +572,15 @@ for (const [label, revision] of [['mismatched', 'b'.repeat(40)], ['missing', und
   })
 }
 
-test('every external action in the receipt workflow is pinned; only its local reusable call is exempt', () => {
+test('every external action in the receipt workflow is pinned; only the two same-revision reusable workflows are exempt', () => {
   const workflow = readWorkflow('verify-gallery-receipt.yml')
   const uses = [...workflow.matchAll(/^\s*(?:-\s+)?uses:\s*(.+)$/gm)].map(match => match[1])
-  const local = './.github/workflows/sign-gallery-receipt.yml'
+  // ADR-0139 decision 3 and ADR-0198 decision 2 require the caller's own main revision.
+  const local = ['./.github/workflows/sign-gallery-receipt.yml', './.github/workflows/license-sbom.yml']
   assert.ok(uses.length > 1)
-  assert.equal(uses.filter(reference => reference === local).length, 1)
+  for (const reference of local) assert.equal(uses.filter(value => value === reference).length, 1)
   for (const reference of uses) {
-    if (reference === local) continue
+    if (local.includes(reference)) continue
     assert.match(reference, /^[\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d+(?:\s.*)?$/,
       `receipt workflow action must use an immutable commit and version comment: ${reference}`)
   }
