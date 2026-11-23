@@ -200,9 +200,11 @@ public sealed class DocumentRuntimeCompletionTests
     public async Task WellFormedLocaleTagsPass(string tag, string name)
     {
         var template = FromRecord();
-        var preview = await Runtime(template).PreviewAsync(
+        var rendering = Runtime(template).PreviewAsync(
             new DocumentInlineTemplate(TemplateDefinitionJson.SerializeCanonical(template)),
-            new DocumentPageFlow([new("a", "first", "x")]), new(tag, "en-US", "USD"), null);
+            new DocumentPageFlow([new("a", "first", "x")]), new(tag, "en-US", "USD"), null).AsTask();
+        Assert.Null(await Record.ExceptionAsync(async () => { await rendering; }));
+        var preview = await rendering;
         Assert.Equal(name, preview.Document.LocaleTag);
     }
 
@@ -214,7 +216,7 @@ public sealed class DocumentRuntimeCompletionTests
     {
         var template = Template() with { Locale = new(TemplateLocaleKind.Fixed, tag) };
 
-        Assert.Equal([new DefinitionRefusal(TemplateDefinitionCodes.LocaleInvalid, "/locale")], TemplateDefinitionAdmission.Validate(template, Surfaces()));
+        Assert.Equal([new DefinitionRefusal("documents.template.locale_invalid", "/locale")], TemplateDefinitionAdmission.Validate(template, Surfaces()));
         Assert.Throws<DefinitionRefusalException>(() => TemplatePack.Export(template, Surfaces()));
     }
 

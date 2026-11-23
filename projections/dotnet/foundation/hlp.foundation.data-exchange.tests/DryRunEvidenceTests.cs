@@ -69,6 +69,97 @@ public sealed class DryRunEvidenceTests
             () => store.SaveDryRunAsync(first).AsTask());
     }
 
+    [Fact]
+    [Trait("Holds", "data-exchange-eng-11")]
+    [Trait("Holds", "data-exchange-run-4")]
+    public async Task Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata()
+    {
+        var valid = await new DataExchangeRuntime(new InMemoryExchangeRunStore(), TimeProvider.System, new FakeLifecyclePolicy())
+            .CreateDryRunAsync(Fixtures.DryRunRequest());
+        var normalizedMetadata = valid.NormalizedEffects.Select(effect => new Dictionary<string, string>(effect.Metadata)).ToArray();
+        var evaluatedMetadata = valid.Evaluations.Select(evaluation => new Dictionary<string, string>(evaluation.Effect.Metadata)).ToArray();
+        var normalized = valid.NormalizedEffects.Select((effect, i) => effect with { Metadata = normalizedMetadata[i] }).ToArray();
+        var evaluated = valid.Evaluations.Select((evaluation, i) => evaluation with
+        {
+            Effect = evaluation.Effect with { Metadata = evaluatedMetadata[i] },
+        }).ToArray();
+        var caller = valid with
+        {
+            Id = new DryRunId("snapshot-proof-original"),
+            NormalizedEffects = normalized,
+            Evaluations = evaluated,
+        };
+        var store = new InMemoryExchangeRunStore();
+        await store.SaveDryRunAsync(caller);
+
+        for (var i = 0; i < 2; i++)
+        {
+            normalizedMetadata[i]["target"] = "attack:normalized-target";
+            normalizedMetadata[i]["digest"] = "attack:normalized-digest";
+            evaluatedMetadata[i]["target"] = "attack:evaluated-target";
+            evaluatedMetadata[i]["digest"] = "attack:evaluated-digest";
+            normalized[i] = normalized[i] with { SourceRecordIdentity = "attack:normalized-array" };
+            evaluated[i] = evaluated[i] with
+            {
+                Effect = evaluated[i].Effect with { SourceRecordIdentity = "attack:evaluated-array" },
+                Outcome = new(ExchangeEffectStatus.Failed, "attack:outcome"),
+            };
+        }
+        Assert.All(caller.NormalizedEffects, effect =>
+        {
+            Assert.Equal("attack:normalized-array", effect.SourceRecordIdentity);
+            Assert.Equal("attack:normalized-target", effect.Metadata["target"]);
+            Assert.Equal("attack:normalized-digest", effect.Metadata["digest"]);
+        });
+        Assert.All(caller.Evaluations, evaluation =>
+        {
+            Assert.Equal("attack:evaluated-array", evaluation.Effect.SourceRecordIdentity);
+            Assert.Equal("attack:evaluated-target", evaluation.Effect.Metadata["target"]);
+            Assert.Equal("attack:evaluated-digest", evaluation.Effect.Metadata["digest"]);
+            Assert.Equal(new EffectTerminalOutcome(ExchangeEffectStatus.Failed, "attack:outcome"), evaluation.Outcome);
+        });
+
+        AssertLiteralEvidence((await store.GetDryRunAsync(new DryRunId("snapshot-proof-original")))!);
+        AssertLiteralEvidence((await store.GetDryRunAsync(new DryRunId("snapshot-proof-original")))!);
+        await Assert.ThrowsAsync<ExchangeRunConflictException>(() => store.SaveDryRunAsync(caller).AsTask());
+        AssertLiteralEvidence((await store.GetDryRunAsync(new DryRunId("snapshot-proof-original")))!);
+
+        await store.SaveDryRunAsync(valid with { Id = new DryRunId("snapshot-proof-independent") });
+        var independent = await store.GetDryRunAsync(new DryRunId("snapshot-proof-independent"));
+        Assert.NotNull(independent);
+        Assert.Equal(new DryRunId("snapshot-proof-independent"), independent.Id);
+        AssertLiteralEvidence(independent);
+        var original = await store.GetDryRunAsync(new DryRunId("snapshot-proof-original"));
+        Assert.NotNull(original);
+        Assert.Equal(new DryRunId("snapshot-proof-original"), original.Id);
+        AssertLiteralEvidence(original);
+
+        // Oracle: T-601/dry-run-snapshot-proof acceptance 1–2, not a production snapshot.
+        static void AssertLiteralEvidence(DryRunArtifact evidence)
+        {
+            Assert.NotNull(evidence);
+            Assert.Equal(new[] { "customer-42", "customer-43" }, evidence.NormalizedEffects.Select(effect => effect.SourceRecordIdentity));
+            Assert.Equal(new[] { "customer-42", "customer-43" }, evidence.NormalizedEffects.Select(effect => effect.Metadata["target"]));
+            Assert.Equal(new[] { "sha256:effect-1", "sha256:effect-2" }, evidence.NormalizedEffects.Select(effect => effect.Metadata["digest"]));
+            Assert.All(evidence.NormalizedEffects, effect => Assert.Equal(2, effect.Metadata.Count));
+            Assert.Equal(new[] { "customer-42", "customer-43" }, evidence.Evaluations.Select(evaluation => evaluation.Effect.SourceRecordIdentity));
+            Assert.Equal(new[] { "customer-42", "customer-43" }, evidence.Evaluations.Select(evaluation => evaluation.Effect.Metadata["target"]));
+            Assert.Equal(new[] { "sha256:effect-1", "sha256:effect-2" }, evidence.Evaluations.Select(evaluation => evaluation.Effect.Metadata["digest"]));
+            Assert.All(evidence.Evaluations, evaluation =>
+            {
+                Assert.Equal(2, evaluation.Effect.Metadata.Count);
+                Assert.Equal(new EffectTerminalOutcome(ExchangeEffectStatus.Applied, "mapping.proposed"), evaluation.Outcome);
+            });
+            Assert.Equal(2, evidence.Census.Accounted);
+            Assert.Equal(2, evidence.Census.Applied);
+            Assert.Equal(0, evidence.Census.Skipped);
+            Assert.Equal(0, evidence.Census.Conflicted);
+            Assert.Equal(0, evidence.Census.Rejected);
+            Assert.Equal(0, evidence.Census.Failed);
+            Assert.Equal(0, evidence.Census.Halted);
+        }
+    }
+
     [Theory]
     [InlineData("source")]
     [InlineData("definition")]
