@@ -1,0 +1,88 @@
+{
+  "producerSha": "6fc4d5119c3a6116b52a19ed58101aae32195863",
+  "producerTree": "0d51899ca5542e0180a593dfc84a4d9a37641f91",
+  "toolchain": "dotnet 11.0.100",
+  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session mb-491-stage --workload <run> --candidate 6fc4d5119c3a6116b52a19ed58101aae32195863 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleModuleStageProofTests -m:1 -nr:false",
+  "inputs": {
+    "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs": "b1076fa1665cab1917e21cfaf7183dced297659b329b2d30aecd8af51dbff64e",
+    "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleModuleStageProofTests.cs": "4af3dfa0a96305e9c43073bb86bcc89998972ee8465e97b416e8a52897943e27"
+  },
+  "baseline": {
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "859df663d53bceb49ceb17aaeb73a23eb8bb9fbf30ec84feb8f650b3d76006a7"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
+      "span": "70",
+      "before": "if ((int)next != (int)Stage + 1 || !Enum.IsDefined(next))",
+      "after": "if (!Enum.IsDefined(next))",
+      "detectingTest": "SkipsRefuse",
+      "assertion": "Assert.Throws<UnsupportedProfileException>: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 3,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "f3e846524ebbfc79b7994be7e1322dbf92920d513d4d1dc6f7b7a17f96f6bd31"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "c379bc8bc7e934954fcc5b814def37b55463d9f2c5ea016a82a7d6592597b7b4"
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
+      "span": "107",
+      "before": "next == ConstraintModuleStage.BackendSupported && (backend is null || !backend.Modules.Contains(Kind!.Value))",
+      "after": "next == ConstraintModuleStage.BackendSupported && backend is null",
+      "detectingTest": "UnsupportedBackendRefuses",
+      "assertion": "Assert.Throws<UnsupportedProfileException>: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 3,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "b1611f30fc278342856b2dc7b02a23ed92cead5882033ea55a32d5c414df0c41"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "0ee2753b1014bdea87fad6e33ac2d39635a4d6b4d5e16c95fa372c2f6f854dd3"
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
+      "span": "72-73",
+      "before": "if (next == ConstraintModuleStage.Certified)\n            throw new UnsupportedProfileException(\"MODULE_CERTIFICATE_UNDEFINED: DES-0022 open ruling 3 defines no certificate.\");",
+      "after": "(removed)",
+      "detectingTest": "CertificateRefuses",
+      "assertion": "Assert.Throws<UnsupportedProfileException>: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 3,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "3289c247e69e5f90a76fe75a557c98712cbac51376d9b3de9babed35b62bd943"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "2d7bb509207fdb4e8f78341dd0047acd53316e576bb8a8def8485300d08006e4"
+      }
+    }
+  ]
+}
