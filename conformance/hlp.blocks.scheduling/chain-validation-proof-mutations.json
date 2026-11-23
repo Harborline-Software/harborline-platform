@@ -20,7 +20,7 @@
   "mutations": [
     {
       "id": "M1",
-      "line": 33,
+      "line": 34,
       "before": "ScheduleDefinitionAdmission.Chain(new(definition.Anchor, definition.Nodes), found);",
       "after": "// Mutation M1: omit structural admission.",
       "detectingTest": "StructuralRefusal: Assert.Empty(nodes)",
@@ -45,7 +45,7 @@
     },
     {
       "id": "M2",
-      "line": 34,
+      "line": 35,
       "before": "definition.DefinitionRevision < 1 || string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
       "after": "string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
       "detectingTest": "InvalidRevision(0): Assert.Empty(nodes)",
@@ -70,7 +70,7 @@
     },
     {
       "id": "M3",
-      "line": 34,
+      "line": 35,
       "before": "definition.DefinitionRevision < 1 || string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
       "after": "definition.DefinitionRevision < 1",
       "detectingTest": "BlankId: Assert.Empty(nodes)",
