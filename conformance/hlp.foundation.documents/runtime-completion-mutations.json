@@ -1,0 +1,874 @@
+{
+  "schemaVersion": 1,
+  "slice": "T-594/runtime-mutation-proof",
+  "writtenOn": "MacBook",
+  "date": "2026-11-22T08:34:29.487596+00:00",
+  "controlCommit": "a25fb174c7f73ccf7963661074e3d2e3a9ade477",
+  "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+  "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+  "testPath": "projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs",
+  "testSha256": "905b41c8b28603a93addce529f6800648ff8390583650acc34e2554001d4e8f3",
+  "oracleSource": "Control T-594/runtime-mutation-proof acceptance 1 at a25fb174c7f73ccf7963661074e3d2e3a9ade477; DES-0021 documents-eng-7/documents-run-1; Documents interface revision 3; T-724 rulings 73/121",
+  "provenance": {
+    "recordCount": 98,
+    "paths": [
+      "projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs",
+      "conformance/hlp.foundation.documents/runtime-completion-mutations.json",
+      "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "projections/dotnet/foundation/hlp.foundation.documents/TemplateDefinitionAdmission.cs"
+    ],
+    "owners": []
+  },
+  "restore": {
+    "exitCode": 0,
+    "nuCodes": [],
+    "restoredProjects": 18,
+    "projectClosure": [
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.definitions/Harborline.Foundation.Definitions.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.execution-runtime/Harborline.Foundation.ExecutionRuntime.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/kernel/hlp.kernel.schema-validation/Harborline.Kernel.SchemaValidation.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.taxonomy/Harborline.Foundation.Taxonomy.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/contracts/hlp.contracts.identities/Harborline.Contracts.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.rule-authoring/Harborline.Foundation.RuleAuthoring.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.content-store/Harborline.Foundation.ContentStore.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.rule-runtime/Harborline.Foundation.RuleEngine.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.forms-engine/Harborline.Foundation.Forms.Engine.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.actor/Harborline.Foundation.Authorization.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.forms/Harborline.Foundation.Forms.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.field-runtime/Harborline.Foundation.FieldRuntime.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/Harborline.Foundation.Documents.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/blocks/hlp.blocks.layout-runtime/Harborline.Blocks.LayoutRuntime.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/blocks/hlp.blocks.builder-definitions/Harborline.Blocks.BuilderDefinitions.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/kernel/hlp.kernel.core/Harborline.Kernel.Core.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.tenancy/Harborline.Foundation.MultiTenancy.csproj",
+      "/Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj"
+    ],
+    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/restore.log",
+    "logSha256": "89cefd5adc8585972a3085821fe340863c9834eda42f239d7b07579ac6d621f4"
+  },
+  "mutations": [
+    {
+      "method": "NegativeCurrencyKeepsItsSign",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "var amount = CanonicalDecimal(value);",
+      "after": "var amount = decimal.Abs(CanonicalDecimal(value));",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 01-NegativeCurrencyKeepsItsSign-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-baseline.log",
+        "logSha256": "4e9275316c6b35001c4d88702824488f128dcb8035626c913488d2997dcba008",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-baseline.trx",
+        "trxSha256": "fb1157f307c707cdbc03512093f7285c3119f8959b96fd87b2d0a4f6715178b3",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "70029f06663216c2f3142f0e90b1216ced797374",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 01-NegativeCurrencyKeepsItsSign-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 139,
+          "failed": 3,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-mutant.log",
+        "logSha256": "1a5732755ea50fb60653960e88f2f31f75b830ae221454dc862e7dc468e3dd51",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-mutant.trx",
+        "trxSha256": "79b0c9a5b7f2753803be2826e54d49256655bec9bfc630a24e1ba7877b08b8a9",
+        "failures": [
+          {
+            "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"de-DE\", code: \"EUR\", expected: \"-1.234,50 €\")",
+            "method": "NegativeCurrencyKeepsItsSign",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-1.234,50 €\"\nActual:   \"1.234,50 €\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"en-US\", code: \"USD\", expected: \"-$1,234.50\")",
+            "method": "NegativeCurrencyKeepsItsSign",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-$1,234.50\"\nActual:   \"$1,234.50\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"en-GB\", code: \"GBP\", expected: \"-£1,234.50\")",
+            "method": "NegativeCurrencyKeepsItsSign",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-£1,234.50\"\nActual:   \"£1,234.50\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"de-DE\", code: \"EUR\", expected: \"-1.234,50 €\")",
+          "method": "NegativeCurrencyKeepsItsSign",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-1.234,50 €\"\nActual:   \"1.234,50 €\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"en-US\", code: \"USD\", expected: \"-$1,234.50\")",
+          "method": "NegativeCurrencyKeepsItsSign",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-$1,234.50\"\nActual:   \"$1,234.50\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a negative amount keeps its sign under each locale's own pattern(locale: \"en-GB\", code: \"GBP\", expected: \"-£1,234.50\")",
+          "method": "NegativeCurrencyKeepsItsSign",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"-£1,234.50\"\nActual:   \"£1,234.50\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.NegativeCurrencyKeepsItsSign(String locale, String code, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 175\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 01-NegativeCurrencyKeepsItsSign-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-restored.log",
+        "logSha256": "09bf7e1e0e04678c45243b1a406521daabea690bc1edcb9388acd7c02ac8d1ea",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/01-NegativeCurrencyKeepsItsSign-restored.trx",
+        "trxSha256": "6a856ba128fb5c598fe76867c2d0790af892daf8d84a1b19df468270ed5f972d",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "MalformedLocaleTagIsRefused",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "if (!IsWellFormedLocaleTag(tag)) throw",
+      "after": "if (false) throw",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 02-MalformedLocaleTagIsRefused-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-baseline.log",
+        "logSha256": "30f071787f08c25ea811ea6a2248adb495556a55a656a721f2c41b0f86d86297",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-baseline.trx",
+        "trxSha256": "8796f8f0385dceccbdf23ecaa48d3c78b5747e06ccf50fcbfbc840b3421092a0",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "5cc1658e12154e8f2ab29c8989d6bd0c11fb4429",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 02-MalformedLocaleTagIsRefused-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 131,
+          "failed": 11,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-mutant.log",
+        "logSha256": "cca69d0b6d9623e4051561a07947ea2081979c09efb6e3ca73b52334e00d2dd4",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-mutant.trx",
+        "trxSha256": "4cf708e6fdbe69bdec14313c9cbd11b89c976d79ca71583922fa8c4285ca1ec7",
+        "failures": [
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"d\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"es-٤١٩\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"ca-ES-valencia\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"en-US-posix\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"en-US-x-private\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE-1996\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"ar-SA-u-ca-gregory\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE-u-nu-arab\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de_DE\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE\\n\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-\")",
+            "method": "MalformedLocaleTagIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"d\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"es-٤١٩\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"ca-ES-valencia\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"en-US-posix\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"en-US-x-private\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE-1996\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"ar-SA-u-ca-gregory\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE-u-nu-arab\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de_DE\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-DE\\n\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-eng-7: a locale tag that is not language, script and region is refused rather than half-parsed(tag: \"de-\")",
+          "method": "MalformedLocaleTagIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(System.InvalidOperationException)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.MalformedLocaleTagIsRefused(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 191\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 02-MalformedLocaleTagIsRefused-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-restored.log",
+        "logSha256": "9f9ca7e8d3955685dcfeb4e49486c4b8d5bb113e4c44d6ff9a4689b335f3f7b6",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/02-MalformedLocaleTagIsRefused-restored.trx",
+        "trxSha256": "909076bfc899e249e6558866ab859cdc620941935250142605860c6f0e42b48d",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "WellFormedLocaleTagsPass",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "public static bool IsWellFormedLocaleTag(string tag) => LocaleTag().IsMatch(tag);",
+      "after": "public static bool IsWellFormedLocaleTag(string tag) => tag != \"es-419\" && LocaleTag().IsMatch(tag);",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 03-WellFormedLocaleTagsPass-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-baseline.log",
+        "logSha256": "8a3e235787d8d3613069c46e011333fc61d026f05981e5b43d2c3d451d5c45e7",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-baseline.trx",
+        "trxSha256": "92d0612ba22e31e020c84ba3da5dcec209f978a4775729808cb5fbfcbaf31bb2",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "339b20fa1694e2330c5244a82a9f2542bd8d8ed1",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 03-WellFormedLocaleTagsPass-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 141,
+          "failed": 1,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-mutant.log",
+        "logSha256": "7a25df087ad0522932d2dd315a4ca08c393b8c2d299bc739af09f4c28f2b3291",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-mutant.trx",
+        "trxSha256": "bc18b7adc7b961c525b2de1d83fe8a8041caa8093198c5ae11ce8e76daab081c",
+        "failures": [
+          {
+            "testCase": "documents-eng-7: script and numeric-region tags pass the shape check(tag: \"es-419\", name: \"es-419\")",
+            "method": "WellFormedLocaleTagsPass",
+            "assertionOutput": "Assert.Null() Failure: Value is not null\nExpected: null\nActual:   System.InvalidOperationException: documents.template.locale_invalid\n   at Harborline.Foundation.Documents.DocumentValueFormatter.ResolveCulture(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 60\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 156\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.<>c__DisplayClass22_0.<<WellFormedLocaleTagsPass>b__0>d.MoveNext() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 206\n--- End of stack trace from previous location ---\n   at Xunit.Record.ExceptionAsync(Func`1 testCode) in /_/src/xunit.core/Record.cs:line 76",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.WellFormedLocaleTagsPass(String tag, String name) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 206\n--- End of stack trace from previous location ---"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-eng-7: script and numeric-region tags pass the shape check(tag: \"es-419\", name: \"es-419\")",
+          "method": "WellFormedLocaleTagsPass",
+          "assertionOutput": "Assert.Null() Failure: Value is not null\nExpected: null\nActual:   System.InvalidOperationException: documents.template.locale_invalid\n   at Harborline.Foundation.Documents.DocumentValueFormatter.ResolveCulture(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 60\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 156\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.<>c__DisplayClass22_0.<<WellFormedLocaleTagsPass>b__0>d.MoveNext() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 206\n--- End of stack trace from previous location ---\n   at Xunit.Record.ExceptionAsync(Func`1 testCode) in /_/src/xunit.core/Record.cs:line 76",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.WellFormedLocaleTagsPass(String tag, String name) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 206\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 03-WellFormedLocaleTagsPass-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-restored.log",
+        "logSha256": "aa00bcb36088b9a44a3ea447f77f161231083d5314670430daae1a4ac3537697",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/03-WellFormedLocaleTagsPass-restored.trx",
+        "trxSha256": "cb85bd38cfb15341f00047606f797ecfffa0f11187a4f6eeb78f0171aa5a9468",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "PublishRefusesAMalformedFixedLocale",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/TemplateDefinitionAdmission.cs",
+      "originalSha256": "325968619297cda0d48ac2e55e9a20f13d4534f4c9be86e94f673f09e84b9c00",
+      "before": "&& !DocumentValueFormatter.IsWellFormedLocaleTag(tag))",
+      "after": "&& false)",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 04-PublishRefusesAMalformedFixedLocale-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-baseline.log",
+        "logSha256": "080d0a18ead138b3bcf162ad6af91b27472ad6f68538a0f00a8a62006df67b30",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-baseline.trx",
+        "trxSha256": "a3b4ffd85b2d99866f2ccbb8e7d31daa1822c21f92e78b32db18a84ffb58c1a8",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "239724b06bf6e947ba573ae1379a3d0a4fafcdb8",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 04-PublishRefusesAMalformedFixedLocale-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 139,
+          "failed": 3,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-mutant.log",
+        "logSha256": "5233f1846ce6007693ccc3de5f289747a2332ab232b2391ef40f46e08795a50d",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-mutant.trx",
+        "trxSha256": "25afd223a6bd55e8ac325bae119dfaa0a99548bf875e4be3b53b3b7c83d04aaa",
+        "failures": [
+          {
+            "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"de-DE-u-nu-arab\")",
+            "method": "PublishRefusesAMalformedFixedLocale",
+            "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at InvokeStub_DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          },
+          {
+            "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"de_DE\")",
+            "method": "PublishRefusesAMalformedFixedLocale",
+            "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at InvokeStub_DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          },
+          {
+            "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"ca-ES-valencia\")",
+            "method": "PublishRefusesAMalformedFixedLocale",
+            "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\n   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"de-DE-u-nu-arab\")",
+          "method": "PublishRefusesAMalformedFixedLocale",
+          "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at InvokeStub_DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+        },
+        {
+          "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"de_DE\")",
+          "method": "PublishRefusesAMalformedFixedLocale",
+          "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at InvokeStub_DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+        },
+        {
+          "testCase": "documents-eng-7: publish refuses a fixed locale tag that could never render(tag: \"ca-ES-valencia\")",
+          "method": "PublishRefusesAMalformedFixedLocale",
+          "assertionOutput": "Assert.Equal() Failure: Collections differ\n                                   ↓ (pos 0)\nExpected: <generated>             [DefinitionRefusal { Code = documents.template.locale_invalid, Pointer = /locale, Target =  }]\nActual:   List<DefinitionRefusal> []",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.PublishRefusesAMalformedFixedLocale(String tag) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 219\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\n   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 04-PublishRefusesAMalformedFixedLocale-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-restored.log",
+        "logSha256": "cba6d45c166dfdfa90b2d5a6357ba5ae5757a36770c63375fcc3ff4eff89f7ff",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/04-PublishRefusesAMalformedFixedLocale-restored.trx",
+        "trxSha256": "8ac6c84c329458aced1f144b9183237edafc1f1b1f9dade0c9199e2bca11db49",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "DateOutsideTheCalendarIsRefused",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "throw new InvalidOperationException(\"documents.merge.date_outside_calendar\");",
+      "after": "throw;",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 05-DateOutsideTheCalendarIsRefused-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-baseline.log",
+        "logSha256": "4054d688769d15959d0e29add2b5ce637dcaf6164c282761fb91a20c12f0f67a",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-baseline.trx",
+        "trxSha256": "1d6a9c129b6ffcd20a21244e94c003347fcaadf86573477e313434871fad04f2",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "48930a4b9f71b4341c523ddfbe24606857c9585d",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 05-DateOutsideTheCalendarIsRefused-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 140,
+          "failed": 2,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-mutant.log",
+        "logSha256": "fa32d676a32e3e12cb8136a3a1c2ef4fb866a3223a263978b00927c364e0adbd",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-mutant.trx",
+        "trxSha256": "0ff4fb11d33541a5fbb949fecc13cf5f146eced6b1befbe855ccb92bd8cb611b",
+        "failures": [
+          {
+            "testCase": "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception(value: \"0001-01-01T00:00:00Z\")",
+            "method": "DateOutsideTheCalendarIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.InvalidOperationException)\nActual:   typeof(System.ArgumentOutOfRangeException)\n---- System.ArgumentOutOfRangeException : Specified time is not supported in this calendar. It should be between 3/22/0622 12:00:00 AM (Gregorian date) and 12/31/9999 11:59:59 PM (Gregorian date), inclusive. (Parameter 'time')\nActual value was 0.",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.DateOutsideTheCalendarIsRefused(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 228\n--- End of stack trace from previous location ---\n----- Inner Stack Trace -----\n   at System.Globalization.PersianCalendar.CheckTicksRange(Int64 ticks)\n   at System.Globalization.PersianCalendar.GetDatePart(Int64 ticks, Int32 part)\n   at System.DateTimeFormat.FormatCustomized[TChar](DateTime dateTime, ReadOnlySpan`1 format, DateTimeFormatInfo dtfi, TimeSpan offset, ValueListBuilder`1& result)\n   at System.DateTimeFormat.Format(DateTime dateTime, String format, IFormatProvider provider, TimeSpan offset)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Date(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 153\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Format(String value, DocumentMergeFormat format) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 83\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatMerge(DocumentMergeRun merge) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 77\n   at Harborline.Foundation.Documents.DocumentValueFormatter.<FormatRuns>b__4_0(DocumentFlowRun run) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at System.Linq.Enumerable.ArraySelectIterator`2.MoveNext()\n   at System.String.Concat(IEnumerable`1 values)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatRuns(IEnumerable`1 runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at Harborline.Foundation.Documents.DocumentRuntime.<>c__DisplayClass5_0.<RenderAsync>b__0(DocumentFlowBlock block) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 159\n   at System.Linq.Enumerable.IListSelectIterator`2.Fill(IList`1 source, Span`1 results, Func`2 func)\n   at System.Linq.Enumerable.IListSelectIterator`2.ToArray()\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 158\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.Rendered(DocumentRenderContext context, DocumentFlowRun[] runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 26"
+          },
+          {
+            "testCase": "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception(value: \"0001-01-01\")",
+            "method": "DateOutsideTheCalendarIsRefused",
+            "assertionOutput": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.InvalidOperationException)\nActual:   typeof(System.ArgumentOutOfRangeException)\n---- System.ArgumentOutOfRangeException : Specified time is not supported in this calendar. It should be between 3/22/0622 12:00:00 AM (Gregorian date) and 12/31/9999 11:59:59 PM (Gregorian date), inclusive. (Parameter 'time')\nActual value was 0.",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.DateOutsideTheCalendarIsRefused(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 228\n--- End of stack trace from previous location ---\n----- Inner Stack Trace -----\n   at System.Globalization.PersianCalendar.CheckTicksRange(Int64 ticks)\n   at System.Globalization.PersianCalendar.GetDatePart(Int64 ticks, Int32 part)\n   at System.DateTimeFormat.FormatCustomized[TChar](DateTime dateTime, ReadOnlySpan`1 format, DateTimeFormatInfo dtfi, TimeSpan offset, ValueListBuilder`1& result)\n   at System.DateTimeFormat.Format(DateTime dateTime, String format, IFormatProvider provider, TimeSpan offset)\n   at System.DateOnly.ToString(String format, IFormatProvider provider)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Date(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 152\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Format(String value, DocumentMergeFormat format) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 83\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatMerge(DocumentMergeRun merge) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 77\n   at Harborline.Foundation.Documents.DocumentValueFormatter.<FormatRuns>b__4_0(DocumentFlowRun run) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at System.Linq.Enumerable.ArraySelectIterator`2.MoveNext()\n   at System.String.Concat(IEnumerable`1 values)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatRuns(IEnumerable`1 runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at Harborline.Foundation.Documents.DocumentRuntime.<>c__DisplayClass5_0.<RenderAsync>b__0(DocumentFlowBlock block) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 159\n   at System.Linq.Enumerable.IListSelectIterator`2.Fill(IList`1 source, Span`1 results, Func`2 func)\n   at System.Linq.Enumerable.IListSelectIterator`2.ToArray()\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 158\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.Rendered(DocumentRenderContext context, DocumentFlowRun[] runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 26"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception(value: \"0001-01-01T00:00:00Z\")",
+          "method": "DateOutsideTheCalendarIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.InvalidOperationException)\nActual:   typeof(System.ArgumentOutOfRangeException)\n---- System.ArgumentOutOfRangeException : Specified time is not supported in this calendar. It should be between 3/22/0622 12:00:00 AM (Gregorian date) and 12/31/9999 11:59:59 PM (Gregorian date), inclusive. (Parameter 'time')\nActual value was 0.",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.DateOutsideTheCalendarIsRefused(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 228\n--- End of stack trace from previous location ---\n----- Inner Stack Trace -----\n   at System.Globalization.PersianCalendar.CheckTicksRange(Int64 ticks)\n   at System.Globalization.PersianCalendar.GetDatePart(Int64 ticks, Int32 part)\n   at System.DateTimeFormat.FormatCustomized[TChar](DateTime dateTime, ReadOnlySpan`1 format, DateTimeFormatInfo dtfi, TimeSpan offset, ValueListBuilder`1& result)\n   at System.DateTimeFormat.Format(DateTime dateTime, String format, IFormatProvider provider, TimeSpan offset)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Date(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 153\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Format(String value, DocumentMergeFormat format) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 83\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatMerge(DocumentMergeRun merge) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 77\n   at Harborline.Foundation.Documents.DocumentValueFormatter.<FormatRuns>b__4_0(DocumentFlowRun run) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at System.Linq.Enumerable.ArraySelectIterator`2.MoveNext()\n   at System.String.Concat(IEnumerable`1 values)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatRuns(IEnumerable`1 runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at Harborline.Foundation.Documents.DocumentRuntime.<>c__DisplayClass5_0.<RenderAsync>b__0(DocumentFlowBlock block) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 159\n   at System.Linq.Enumerable.IListSelectIterator`2.Fill(IList`1 source, Span`1 results, Func`2 func)\n   at System.Linq.Enumerable.IListSelectIterator`2.ToArray()\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 158\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.Rendered(DocumentRenderContext context, DocumentFlowRun[] runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 26"
+        },
+        {
+          "testCase": "documents-eng-7: a date outside the culture's calendar is refused by name, never an unnamed exception(value: \"0001-01-01\")",
+          "method": "DateOutsideTheCalendarIsRefused",
+          "assertionOutput": "Assert.Throws() Failure: Exception type was not an exact match\nExpected: typeof(System.InvalidOperationException)\nActual:   typeof(System.ArgumentOutOfRangeException)\n---- System.ArgumentOutOfRangeException : Specified time is not supported in this calendar. It should be between 3/22/0622 12:00:00 AM (Gregorian date) and 12/31/9999 11:59:59 PM (Gregorian date), inclusive. (Parameter 'time')\nActual value was 0.",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.DateOutsideTheCalendarIsRefused(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 228\n--- End of stack trace from previous location ---\n----- Inner Stack Trace -----\n   at System.Globalization.PersianCalendar.CheckTicksRange(Int64 ticks)\n   at System.Globalization.PersianCalendar.GetDatePart(Int64 ticks, Int32 part)\n   at System.DateTimeFormat.FormatCustomized[TChar](DateTime dateTime, ReadOnlySpan`1 format, DateTimeFormatInfo dtfi, TimeSpan offset, ValueListBuilder`1& result)\n   at System.DateTimeFormat.Format(DateTime dateTime, String format, IFormatProvider provider, TimeSpan offset)\n   at System.DateOnly.ToString(String format, IFormatProvider provider)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Date(String value) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 152\n   at Harborline.Foundation.Documents.DocumentValueFormatter.Format(String value, DocumentMergeFormat format) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 83\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatMerge(DocumentMergeRun merge) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 77\n   at Harborline.Foundation.Documents.DocumentValueFormatter.<FormatRuns>b__4_0(DocumentFlowRun run) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at System.Linq.Enumerable.ArraySelectIterator`2.MoveNext()\n   at System.String.Concat(IEnumerable`1 values)\n   at Harborline.Foundation.Documents.DocumentValueFormatter.FormatRuns(IEnumerable`1 runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs:line 50\n   at Harborline.Foundation.Documents.DocumentRuntime.<>c__DisplayClass5_0.<RenderAsync>b__0(DocumentFlowBlock block) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 159\n   at System.Linq.Enumerable.IListSelectIterator`2.Fill(IList`1 source, Span`1 results, Func`2 func)\n   at System.Linq.Enumerable.IListSelectIterator`2.ToArray()\n   at Harborline.Foundation.Documents.DocumentRuntime.RenderAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 158\n   at Harborline.Foundation.Documents.DocumentRuntime.PreviewAsync(DocumentTemplateInput input, DocumentPageFlow pageFlow, DocumentRenderContext context, String authoringUiLocale, CancellationToken cancellationToken) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents/DocumentRuntime.cs:line 119\n   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.Rendered(DocumentRenderContext context, DocumentFlowRun[] runs) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 26"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 05-DateOutsideTheCalendarIsRefused-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-restored.log",
+        "logSha256": "fa2b88bb40250f3727094a8f6a109eb9d0ffd167e35bf28e55a79b02a4269cbf",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/05-DateOutsideTheCalendarIsRefused-restored.trx",
+        "trxSha256": "c4c761afa01557d7154d032478b7a8495a30a123076cb1f8875938ee1b02e566",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "CurrencyIsReportedUpperCase",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "? code.ToUpperInvariant() : code;",
+      "after": "? code : code;",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 06-CurrencyIsReportedUpperCase-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-baseline.log",
+        "logSha256": "ed9c72f23dfa31b42605012e5e8c5393a9071e19fa568a97e998a99aa77967c8",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-baseline.trx",
+        "trxSha256": "81df8e2b31de39e37477613edecf9348330b9ad12a9e8da89066ab9c232f7634",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "dc4a5e1ac87e32b4c394ff4edd580bd97468163c",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 06-CurrencyIsReportedUpperCase-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 140,
+          "failed": 2,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-mutant.log",
+        "logSha256": "488422cbf55d36b4964a5bdb8e11a6b08a62941963b311257ae6989e1b892c9a",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-mutant.trx",
+        "trxSha256": "8c47727462309eae7e63d7fb137a50a958daa5a23a143207da256d27c02f5b14",
+        "failures": [
+          {
+            "testCase": "documents-run-1: spellings of one currency code report and hash as ISO 4217 upper case(spelled: \"Usd\")",
+            "method": "CurrencyIsReportedUpperCase",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n            ↓ (pos 1)\nExpected: \"USD\"\nActual:   \"Usd\"\n            ↑ (pos 1)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.CurrencyIsReportedUpperCase(String spelled) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 422\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-run-1: spellings of one currency code report and hash as ISO 4217 upper case(spelled: \"usd\")",
+            "method": "CurrencyIsReportedUpperCase",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"USD\"\nActual:   \"usd\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.CurrencyIsReportedUpperCase(String spelled) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 422\n--- End of stack trace from previous location ---"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-run-1: spellings of one currency code report and hash as ISO 4217 upper case(spelled: \"Usd\")",
+          "method": "CurrencyIsReportedUpperCase",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n            ↓ (pos 1)\nExpected: \"USD\"\nActual:   \"Usd\"\n            ↑ (pos 1)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.CurrencyIsReportedUpperCase(String spelled) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 422\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-run-1: spellings of one currency code report and hash as ISO 4217 upper case(spelled: \"usd\")",
+          "method": "CurrencyIsReportedUpperCase",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"USD\"\nActual:   \"usd\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.CurrencyIsReportedUpperCase(String spelled) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 422\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 06-CurrencyIsReportedUpperCase-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-restored.log",
+        "logSha256": "bb5f691d3d7aa75be02f3f8e42b0c12e88f284bc55420c05a4983f3ea1c49090",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/06-CurrencyIsReportedUpperCase-restored.trx",
+        "trxSha256": "f315a74d7475c51e54d01173a6b06e10168b5b8e032b0f6485b60dfaae9d8662",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    },
+    {
+      "method": "OtherCurrencyIsReportedAsGiven",
+      "sourceSHA": "23baaacd755f333ed42202a8031c5702128a59dd",
+      "sourceTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+      "file": "projections/dotnet/foundation/hlp.foundation.documents/DocumentFormatting.cs",
+      "originalSha256": "7f70aead298d41c2e571e477d8337e3927089be77e7ada18baec41e43d550816",
+      "before": "? code.ToUpperInvariant() : code;",
+      "after": "? code.ToUpperInvariant() : code?.ToUpperInvariant()!;",
+      "baseline": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 07-OtherCurrencyIsReportedAsGiven-baseline --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-baseline.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-baseline.log",
+        "logSha256": "6d2becf9baafa9530fd686581f53808d066651838e73b65d93542172afd5014a",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-baseline.trx",
+        "trxSha256": "a62294b17cb24f8886da46a5abcb608f389d0fd9c0380584977d34962c0331c9",
+        "failures": []
+      },
+      "mutant": {
+        "testedTree": "aaac2d9f7c520721a83c887bcc03ebba78e1f013",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 07-OtherCurrencyIsReportedAsGiven-mutant --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-mutant.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 1,
+        "counts": {
+          "selected": 142,
+          "passed": 140,
+          "failed": 2,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-mutant.log",
+        "logSha256": "1b8096827512160eb9a87e2204d0479ddac54c4356ae7aebc3694e26326b13d7",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-mutant.trx",
+        "trxSha256": "bd8314df70ae5f47b9fc05388a63c273c9c383566424b6c71dddf995ce27e516",
+        "failures": [
+          {
+            "testCase": "documents-run-1: a currency code that is not alpha-3 is reported as given, because only a currency run refuses it(given: \"us1\")",
+            "method": "OtherCurrencyIsReportedAsGiven",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"us1\"\nActual:   \"US1\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.OtherCurrencyIsReportedAsGiven(String given) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 437\n--- End of stack trace from previous location ---"
+          },
+          {
+            "testCase": "documents-run-1: a currency code that is not alpha-3 is reported as given, because only a currency run refuses it(given: \"usdx\")",
+            "method": "OtherCurrencyIsReportedAsGiven",
+            "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"usdx\"\nActual:   \"USDX\"\n           ↑ (pos 0)",
+            "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.OtherCurrencyIsReportedAsGiven(String given) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 437\n--- End of stack trace from previous location ---"
+          }
+        ]
+      },
+      "detectingAssertions": [
+        {
+          "testCase": "documents-run-1: a currency code that is not alpha-3 is reported as given, because only a currency run refuses it(given: \"us1\")",
+          "method": "OtherCurrencyIsReportedAsGiven",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"us1\"\nActual:   \"US1\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.OtherCurrencyIsReportedAsGiven(String given) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 437\n--- End of stack trace from previous location ---"
+        },
+        {
+          "testCase": "documents-run-1: a currency code that is not alpha-3 is reported as given, because only a currency run refuses it(given: \"usdx\")",
+          "method": "OtherCurrencyIsReportedAsGiven",
+          "assertionOutput": "Assert.Equal() Failure: Strings differ\n           ↓ (pos 0)\nExpected: \"usdx\"\nActual:   \"USDX\"\n           ↑ (pos 0)",
+          "stackTrace": "   at Harborline.Foundation.Documents.Tests.DocumentRuntimeCompletionTests.OtherCurrencyIsReportedAsGiven(String given) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-594-runtime-mut-c65498d0bb3b60a3/projections/dotnet/foundation/hlp.foundation.documents.tests/DocumentRuntimeCompletionTests.cs:line 437\n--- End of stack trace from previous location ---"
+        }
+      ],
+      "restored": {
+        "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+        "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload 07-OtherCurrencyIsReportedAsGiven-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~DocumentRuntimeCompletionTests' --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-restored.trx'",
+        "environment": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1"
+        },
+        "exitCode": 0,
+        "counts": {
+          "selected": 142,
+          "passed": 142,
+          "failed": 0,
+          "skipped": 0
+        },
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-restored.log",
+        "logSha256": "c23aaf9c6d2c0f17b66b9137606f294572403714e0253c0ba1d25e0dba175a26",
+        "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/07-OtherCurrencyIsReportedAsGiven-restored.trx",
+        "trxSha256": "822269687ef2aa1bb01a56aef28a225a266788686b47a7d64abd20f275aab217",
+        "failures": []
+      },
+      "restoredByteForByte": true
+    }
+  ],
+  "acceptance5": {
+    "status": "pending Mac mini",
+    "receiptModeDependency": "platform PR 559"
+  },
+  "wholeProject": {
+    "testedTree": "2267a163ca1dc486e2fe3b0085f1e6ca3a53fda2",
+    "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session mbp-594-runtime-mutation --workload whole-project-restored --candidate 23baaacd755f333ed42202a8031c5702128a59dd -- dotnet test projections/dotnet/foundation/hlp.foundation.documents.tests/Harborline.Foundation.Documents.Tests.csproj -c Release --no-restore -m:1 -nr:false --logger 'trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/whole-project-restored.trx'",
+    "environment": {
+      "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+      "MSBUILDDISABLENODEREUSE": "1"
+    },
+    "exitCode": 0,
+    "counts": {
+      "selected": 200,
+      "passed": 200,
+      "failed": 0,
+      "skipped": 0
+    },
+    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/whole-project-restored.log",
+    "logSha256": "2a54ecd9992db7418fed8b6b96752ac2332efc0a549a3bf6af5a9ef0d6622ea6",
+    "trx": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t594-runtime-mutation/whole-project-restored.trx",
+    "trxSha256": "dc5fadb4ef94bc6d87f8ac586ff869db3761504ff186519b45ffa927b13035d7",
+    "failures": []
+  }
+}
