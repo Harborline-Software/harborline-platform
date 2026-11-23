@@ -1,0 +1,460 @@
+{
+  "slice": "T-601/dry-run-snapshot-proof",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "host": "MacBook",
+  "verifiedAtUtc": "2026-11-22T02:16:46.066116+00:00",
+  "controlRevision": "89fc5b2d25717ac99f1ccbffecf0cab5d7b997c4",
+  "baseCandidate": "91a643ff28267c2f5df424cb886539a71d89d996",
+  "oracle": "Control slice acceptance 1\u20132 literals; ADR-0098 decision 3; T-724 ruling 121. Attack sentinels and distinct IDs are test-authored literals.",
+  "baseline": {
+    "log": "baseline.log",
+    "exit": 0,
+    "counts": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "total": 1
+    },
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-601-dry-run",
+      "--workload",
+      "T-601 focused baseline green",
+      "--candidate",
+      "91a643ff28267c2f5df424cb886539a71d89d996",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false",
+      "--filter",
+      "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+    ],
+    "logSha256": "bf09e4ba856dee47590708d39034ab831074d79f8f4f20bd9c214cbb1998a0b6",
+    "logRecoveredWithoutRerun": true
+  },
+  "initialRed": {
+    "log": "initial-red.log",
+    "exit": 1,
+    "failed": 1,
+    "passed": 0,
+    "assertion": "NormalizedEffects identities exactly [customer-42, customer-43]",
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-601-dry-run",
+      "--workload",
+      "T-601 initial red ingress proof",
+      "--candidate",
+      "91a643ff28267c2f5df424cb886539a71d89d996",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false",
+      "--filter",
+      "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+    ],
+    "logSha256": "21ca96ce2c288b5b526043b0ef6255cdd1a02f87091d32f0893438b65968a78f",
+    "logRecoveredWithoutRerun": true
+  },
+  "mutants": [
+    {
+      "id": "no-ingress-snapshot",
+      "source": "projections/dotnet/foundation/hlp.foundation.data-exchange/RunEvidence.cs",
+      "line": 184,
+      "original": "_dryRuns.TryAdd(artifact.Id, Snapshot(artifact))",
+      "replacement": "_dryRuns.TryAdd(artifact.Id, artifact)",
+      "compiles": true,
+      "killingTest": "DryRunEvidenceTests.Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata",
+      "killingAssertion": "NormalizedEffects identities exactly [customer-42, customer-43]",
+      "actualAttackSentinel": "attack:normalized-array",
+      "red": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "no-ingress-snapshot",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 0,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "f76b84b385019e2a7c0794f1c2f2aa2cc4efbee3ff69023ebbdf178d71bd37b2"
+      },
+      "restoredGreen": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "no-ingress-snapshot-restored",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 1,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "b020eb73d8b46e445b8cb716497678ef2e9a188962929681c51c8507b2579fd9"
+      }
+    },
+    {
+      "id": "normalized-metadata-alias",
+      "source": "projections/dotnet/foundation/hlp.foundation.data-exchange/RunEvidence.cs",
+      "line": 321,
+      "original": "Metadata = effect.Metadata.ToImmutableDictionary(StringComparer.Ordinal),",
+      "replacement": "Metadata = effect.Metadata,",
+      "compiles": true,
+      "killingTest": "DryRunEvidenceTests.Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata",
+      "killingAssertion": "NormalizedEffects metadata target exactly [customer-42, customer-43]",
+      "actualAttackSentinel": "attack:normalized-target",
+      "red": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "normalized-metadata-alias",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 0,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "9b9114e5ad8db39fdbc098cb8c3d91fc94161354a0307a0111893b5b2c692afa"
+      },
+      "restoredGreen": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "normalized-metadata-alias-restored",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 1,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "867338aa95fa6a420de66f6fbf85175a0f670490ec1b064fa2480eb07607620d"
+      }
+    },
+    {
+      "id": "evaluated-metadata-alias",
+      "source": "projections/dotnet/foundation/hlp.foundation.data-exchange/RunEvidence.cs",
+      "line": 328,
+      "original": "Metadata = evaluation.Effect.Metadata.ToImmutableDictionary(StringComparer.Ordinal),",
+      "replacement": "Metadata = evaluation.Effect.Metadata,",
+      "compiles": true,
+      "killingTest": "DryRunEvidenceTests.Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata",
+      "killingAssertion": "Evaluations metadata target exactly [customer-42, customer-43]",
+      "actualAttackSentinel": "attack:evaluated-target",
+      "red": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "evaluated-metadata-alias",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 0,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "53f2ee1484cae6957ee8398514278d5fac3894b55d295185634fd16f43ebf494"
+      },
+      "restoredGreen": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "evaluated-metadata-alias-restored",
+          "--candidate",
+          "91a643ff28267c2f5df424cb886539a71d89d996",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "--no-restore",
+          "-m:1",
+          "-nr:false",
+          "--filter",
+          "FullyQualifiedName~Store_ingress_snapshots_caller_owned_effect_arrays_and_metadata"
+        ],
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 1,
+          "skipped": 0,
+          "total": 1
+        },
+        "logSha256": "c64dfbcf3e50b035ae37a9c1e5020ddf563929f18967f82745cdb7b77cb77733"
+      }
+    }
+  ],
+  "wholeProject": {
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-601-dry-run",
+      "--workload",
+      "whole-data-exchange",
+      "--candidate",
+      "91a643ff28267c2f5df424cb886539a71d89d996",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false"
+    ],
+    "exit": 0,
+    "counts": {
+      "failed": 0,
+      "passed": 135,
+      "skipped": 0,
+      "total": 135
+    },
+    "logSha256": "5d2684b7b57b6cc17f39c470d5e101d7b110d01e2d48c929b00b47fb26f50556"
+  },
+  "productRestored": true,
+  "provenanceRescan": {
+    "paths": [
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/DryRunEvidenceTests.cs",
+      "conformance/hlp.foundation.data-exchange/dry-run-snapshot-proof-mutations.json"
+    ],
+    "matches": 0,
+    "moduleRecordExists": false
+  },
+  "limits": "In-memory store ingress only; no durable restart, commit-ledger or authorization proof. Final pushed-head full check recorded in PR; exact-tree receipt waits on platform #559.",
+  "followUpVerification": {
+    "verifiedAtUtc": "2026-11-22T03:17:21.349924+00:00",
+    "baseCandidate": "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+    "changes": [
+      "Assert last original re-read ID equals literal snapshot-proof-original after distinct-id save.",
+      "Recover exact baseline/initialRed commands and SHA-256 hashes from retained original logs; no rerun of historical steps."
+    ],
+    "oracle": "Test-authored literal snapshot-proof-original; Control slice acceptance 2 independent-id positive control.",
+    "focused": {
+      "command": [
+        "bash",
+        "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "macbook-601-dry-run",
+        "--workload",
+        "T-601 follow-up focused tests",
+        "--candidate",
+        "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false",
+        "--filter",
+        "FullyQualifiedName~DryRunEvidenceTests"
+      ],
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 14,
+        "skipped": 0,
+        "total": 14
+      },
+      "logSha256": "4815204444b59eb60cfcb5eeee2c1b7f6c97b11098756f971da597bce067b86a"
+    },
+    "wholeProject": {
+      "command": [
+        "bash",
+        "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "macbook-601-dry-run",
+        "--workload",
+        "T-601 follow-up whole DataExchange project",
+        "--candidate",
+        "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+        "--no-restore",
+        "-m:1",
+        "-nr:false"
+      ],
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 135,
+        "skipped": 0,
+        "total": 135
+      },
+      "logSha256": "5032fa1ea315fa032dc799377266349fe6997360e2cb5795cc0578df8dd4c220"
+    },
+    "provenance": {
+      "refresh": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "T-601 follow-up provenance refresh",
+          "--candidate",
+          "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+          "--",
+          "node",
+          "tooling/refresh-provenance-hashes.mjs",
+          "--changed-from",
+          "HEAD"
+        ],
+        "exit": 0
+      },
+      "check": {
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-601-dry-run",
+          "--workload",
+          "T-601 follow-up provenance check",
+          "--candidate",
+          "336543f327ac6e5250b8897de0a8a8334a9a1b68",
+          "--",
+          "node",
+          "tooling/refresh-provenance-hashes.mjs",
+          "--changed-from",
+          "HEAD",
+          "--check"
+        ],
+        "exit": 0
+      },
+      "recordsRead": 0,
+      "staleHashes": 0,
+      "note": "Re-scan still finds no owner for either changed path. No provenance record invented or changed."
+    }
+  }
+}
