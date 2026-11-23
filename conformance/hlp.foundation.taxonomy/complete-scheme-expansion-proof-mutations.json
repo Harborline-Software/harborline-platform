@@ -1,0 +1,306 @@
+{
+  "slice": "T-493/complete-scheme-expansion-proof",
+  "kind": "reversible hand mutations, not Stryker or a full platform gate",
+  "writtenOn": "PC",
+  "date": "2026-11-21",
+  "pcBaselineCommit": "6e851512ae23663a215a227c39835e4afacb4b08",
+  "producerMainCommit": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+  "claimCommit": "b33a06de96a192cdf61e1b27569727721f85d3a4",
+  "controlRecordCommit": "a0a08889952dabdd647c2122a545660b167ac70d",
+  "testedTreeNote": "Superseding PC rerun: all runs below used committed b05f19b70bdb412b7a116242aec207bbc612a4f0 test bytes identified by sourceSha256, with no restore. Red runs replaced only the exact producer line below; baseline and every restored run rebuilt with refreshed source timestamps. Final receipt-only candidate is identified in the PR; the receipt does not hash itself. Earlier evidence remains in b05f19b7 and PR history but its test-byte claim is not relied upon.",
+  "oracle": "DES-0024 taxonomy-eng-11/taxonomy-run-5 whole-scheme arm; frozen interface revision 4 original order including tombstones; independent hand-authored literals. Empty authoring definition is not published admission.",
+  "restore": {
+    "exit": 0,
+    "nuCodes": [],
+    "command": "dotnet restore Harborline.Platform.slnx -m:1 -nr:false",
+    "scopeNote": "Historical prior run only, retained for transparency: the earlier writer brief requested this restore, contrary to slice acceptance 4. It is not evidence for the superseding no-restore rerun. No restore was performed in the follow-up."
+  },
+  "environment": {
+    "node": "24.14.1",
+    "sdk": "11.0.100",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1"
+  },
+  "lane": {
+    "entry": "<CONTROL_REPO>/tools/ci/host-lane.sh",
+    "holder": "writer",
+    "session": "pc-554-followup",
+    "candidate": "b05f19b70bdb412b7a116242aec207bbc612a4f0"
+  },
+  "invalidRuns": [],
+  "mutations": [
+    {
+      "id": "active-only",
+      "redLabel": "mutant-active-only",
+      "restoredLabel": "restored-active-only",
+      "redExit": 1,
+      "restoredExit": 0,
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "line": 394,
+        "originalText": "Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();",
+        "replacementText": "Index(definition); return definition.Nodes.Where(node => node.Status == TaxonomyNodeStatus.Active).Select(node => node.Code).ToArray();"
+      },
+      "mutatedSourceSha256": "1f82637c9f67db46f9326680ab5a92be2546c48b13d634ff39a8268388d1ab31",
+      "killingAssertion": "Assert.Collection v1 slot 1: expected retired, actual a-leaf"
+    },
+    {
+      "id": "ordinal-sort",
+      "redLabel": "mutant-ordinal-sort",
+      "restoredLabel": "restored-ordinal-sort",
+      "redExit": 1,
+      "restoredExit": 0,
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "line": 394,
+        "originalText": "Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();",
+        "replacementText": "Index(definition); return definition.Nodes.Select(node => node.Code).OrderBy(code => code, StringComparer.Ordinal).ToArray();"
+      },
+      "mutatedSourceSha256": "1ce92f068ce1929b0ca9a916e90811a6d91f8fbf8f2491f48b28c174702bc4dc",
+      "killingAssertion": "Assert.Collection v1 slot 0 (also corrected positive control): expected z-root, actual a-leaf"
+    },
+    {
+      "id": "registered-v2",
+      "redLabel": "mutant-registered-v2",
+      "restoredLabel": "restored-registered-v2",
+      "redExit": 1,
+      "restoredExit": 0,
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "line": 394,
+        "originalText": "Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();",
+        "replacementText": "Index(definition); return definitions.GetValueOrDefault(new TaxonomyDefinitionCoordinates(definition.Tenant, definition.DefinitionId, \"2.0.0\"), definition).Nodes.Select(node => node.Code).ToArray();"
+      },
+      "mutatedSourceSha256": "98ba40d8efd0845c6e729552062870c3e3bd1471e8c087ae75fac371b833523f",
+      "killingAssertion": "Assert.Collection v1 slot 0: expected z-root, actual new-only"
+    },
+    {
+      "id": "bypass-index",
+      "redLabel": "mutant-bypass-index",
+      "restoredLabel": "restored-bypass-index",
+      "redExit": 1,
+      "restoredExit": 0,
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "line": 394,
+        "originalText": "Index(definition); return definition.Nodes.Select(node => node.Code).ToArray();",
+        "replacementText": "return definition.Nodes.Select(node => node.Code).ToArray();"
+      },
+      "mutatedSourceSha256": "ca76b7ff00cc6dff5023fd139aa173aa3d099dc02d44dcb5636b265a9bcee66c",
+      "killingAssertion": "Assert.Throws<TaxonomyTraversalException>: no exception thrown"
+    }
+  ],
+  "sourceSha256": {
+    "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs": "de6caaf12499c44e8ac457f158e7ad989c8eeecbc54edaf9960026d503d2978f",
+    "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca"
+  },
+  "runs": [
+    {
+      "label": "baseline",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'baseline' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=baseline.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:55:11.2520537-05:00",
+      "finished": "2026-11-21T14:55:11.7128975-05:00",
+      "failures": [],
+      "logSha256": "10451abe0e460e80ad356df6e2026f8dfde049047abeff5959279e3569f29695",
+      "trxSha256": "1a1e40a16f884aaf1f69124ba6e88c792dea35909e9fb00ea2d0c9afd8dca055"
+    },
+    {
+      "label": "mutant-active-only",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'mutant-active-only' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=mutant-active-only.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 1,
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "started": "2026-11-21T14:55:27.2980089-05:00",
+      "finished": "2026-11-21T14:55:27.7526594-05:00",
+      "failures": [
+        {
+          "test": "Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order",
+          "assertion": "Assert.Collection() Failure: Item comparison failure\r\n                       ↓ (pos 1)\r\nCollection: [\"z-root\", \"a-leaf\"]\r\nError:      Assert.Equal() Failure: Strings differ\r\n                       ↓ (pos 0)\r\n            Expected: \"retired\"\r\n            Actual:   \"a-leaf\"\r\n                       ↑ (pos 0)\r\n            Stack Trace:\r\n              projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs(26,0): at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.<>c.<Whole_scheme_preserves_supplied_version_every_node_and_declaration_order>b__0_1(String code)",
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order() in projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs:line 24\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+        }
+      ],
+      "logSha256": "a917d8b6e902f1822ee4d83ae8cabd78d2cdae398903b62055b16dfc872f20ba",
+      "trxSha256": "d2f7e12b14f32ed52c6697349a9d38ffb68af0e7ddd1627f6ea8a420b7ecde49"
+    },
+    {
+      "label": "restored-active-only",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'restored-active-only' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=restored-active-only.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:55:46.6203029-05:00",
+      "finished": "2026-11-21T14:55:47.0615185-05:00",
+      "failures": [],
+      "logSha256": "610b4736f782a78f57147f57d8be141acac675e030dafecb4654f7fca31e9f29",
+      "trxSha256": "122f664027833a1c515fd79d61dacb9b7593dc3f2e051337f9299830ecb768b1"
+    },
+    {
+      "label": "mutant-ordinal-sort",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'mutant-ordinal-sort' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=mutant-ordinal-sort.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 1,
+      "total": 3,
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0,
+      "started": "2026-11-21T14:56:04.903875-05:00",
+      "finished": "2026-11-21T14:56:05.3616821-05:00",
+      "failures": [
+        {
+          "test": "Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_refuses_duplicate_codes_and_accepts_the_corrected_positive_control",
+          "assertion": "Assert.Collection() Failure: Item comparison failure\r\n             ↓ (pos 0)\r\nCollection: [\"a-leaf\", \"z-root\"]\r\nError:      Assert.Equal() Failure: Strings differ\r\n                       ↓ (pos 0)\r\n            Expected: \"z-root\"\r\n            Actual:   \"a-leaf\"\r\n                       ↑ (pos 0)\r\n            Stack Trace:\r\n              projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs(52,0): at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.<>c.<Whole_scheme_refuses_duplicate_codes_and_accepts_the_corrected_positive_control>b__2_1(String code)",
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_refuses_duplicate_codes_and_accepts_the_corrected_positive_control() in projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs:line 51\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+        },
+        {
+          "test": "Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order",
+          "assertion": "Assert.Collection() Failure: Item comparison failure\r\n             ↓ (pos 0)\r\nCollection: [\"a-leaf\", \"retired\", \"z-root\"]\r\nError:      Assert.Equal() Failure: Strings differ\r\n                       ↓ (pos 0)\r\n            Expected: \"z-root\"\r\n            Actual:   \"a-leaf\"\r\n                       ↑ (pos 0)\r\n            Stack Trace:\r\n              projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs(25,0): at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.<>c.<Whole_scheme_preserves_supplied_version_every_node_and_declaration_order>b__0_0(String code)",
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order() in projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs:line 24\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+        }
+      ],
+      "logSha256": "0554637a9ec474435341e73b71e62c394a58023c768162c6a77cdf68b74773d3",
+      "trxSha256": "fe797078a2d390da269dae2dd94791d3ea445d0379e030021173f0b22e965d75"
+    },
+    {
+      "label": "restored-ordinal-sort",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'restored-ordinal-sort' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=restored-ordinal-sort.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:56:20.1382895-05:00",
+      "finished": "2026-11-21T14:56:20.5864471-05:00",
+      "failures": [],
+      "logSha256": "182de0fd1a9e9397cf0151cd61b6f1595dba203175f0e8934e1f1942953601eb",
+      "trxSha256": "813dfcebf702a8d480fc9d1886e65f07e5e2c8b09196c1a0643abae6638eb16a"
+    },
+    {
+      "label": "mutant-registered-v2",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'mutant-registered-v2' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=mutant-registered-v2.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 1,
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "started": "2026-11-21T14:56:34.9018052-05:00",
+      "finished": "2026-11-21T14:56:35.3535565-05:00",
+      "failures": [
+        {
+          "test": "Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order",
+          "assertion": "Assert.Collection() Failure: Item comparison failure\r\n             ↓ (pos 0)\r\nCollection: [\"new-only\"]\r\nError:      Assert.Equal() Failure: Strings differ\r\n                       ↓ (pos 0)\r\n            Expected: \"z-root\"\r\n            Actual:   \"new-only\"\r\n                       ↑ (pos 0)\r\n            Stack Trace:\r\n              projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs(25,0): at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.<>c.<Whole_scheme_preserves_supplied_version_every_node_and_declaration_order>b__0_0(String code)",
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_preserves_supplied_version_every_node_and_declaration_order() in projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs:line 24\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+        }
+      ],
+      "logSha256": "e785449f3e2755c167eabf4ffef2a7e7972f5044f4f34fcea6e398de1d6914d0",
+      "trxSha256": "41dcda069eac95e096715603fc2785760914cc6a362cdb1839c8bd0516fe3405"
+    },
+    {
+      "label": "restored-registered-v2",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'restored-registered-v2' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=restored-registered-v2.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:56:49.4121824-05:00",
+      "finished": "2026-11-21T14:56:49.8751084-05:00",
+      "failures": [],
+      "logSha256": "45d527a07ce2d76ac8d1758e018cac9509a01ed26be4cfac44cb2a1d1e05deab",
+      "trxSha256": "c89f3ffc98bf67f5e11ad7bab1c2b0a628656261a4c4388e39fccf49640d0813"
+    },
+    {
+      "label": "mutant-bypass-index",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'mutant-bypass-index' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=mutant-bypass-index.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 1,
+      "total": 3,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 0,
+      "started": "2026-11-21T14:57:03.6594711-05:00",
+      "finished": "2026-11-21T14:57:04.1285112-05:00",
+      "failures": [
+        {
+          "test": "Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_refuses_duplicate_codes_and_accepts_the_corrected_positive_control",
+          "assertion": "Assert.Throws() Failure: No exception was thrown\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyTraversalException)",
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWholeSchemeProofTests.Whole_scheme_refuses_duplicate_codes_and_accepts_the_corrected_positive_control() in projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyWholeSchemeProofTests.cs:line 47\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+        }
+      ],
+      "logSha256": "cfeb05ea1309684bccd0191b201c48faa1c797615ac4f95fa5a0cbe510556c98",
+      "trxSha256": "00d51ce75b036d3fe2eb039316d4619d063a4e012ade90e1a4013a4a5d8f1f19"
+    },
+    {
+      "label": "restored-bypass-index",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'restored-bypass-index' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--filter' 'FullyQualifiedName~TaxonomyWholeSchemeProofTests' '--logger' 'trx;LogFileName=restored-bypass-index.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:57:19.0098327-05:00",
+      "finished": "2026-11-21T14:57:19.4439797-05:00",
+      "failures": [],
+      "logSha256": "34fa9fd0c4729ce57440ac2f204a8b0b2e6e2a0f91c60ec2c06e68884f27a918",
+      "trxSha256": "d869b4eb00f2d2478e223b979fe6450b3cc0aff2ea30ec350191a462373c4301"
+    },
+    {
+      "label": "taxonomy-suite",
+      "command": "Set-Location <PLATFORM_REPO>; $env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'bash' '<CONTROL_REPO>/tools/ci/host-lane.sh' 'run' '--holder' 'writer' '--session' 'pc-554-followup' '--workload' 'taxonomy-suite' '--candidate' 'b05f19b70bdb412b7a116242aec207bbc612a4f0' '--' 'dotnet' 'test' 'projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj' '-c' 'Release' '--no-restore' '-m:1' '-nr:false' '--logger' 'trx;LogFileName=taxonomy-suite.trx' '--results-directory' '<TEMP>/harborline/pr554-followup'",
+      "exit": 0,
+      "total": 138,
+      "passed": 138,
+      "failed": 0,
+      "skipped": 0,
+      "started": "2026-11-21T14:57:34.0581758-05:00",
+      "finished": "2026-11-21T14:57:36.4105359-05:00",
+      "failures": [],
+      "logSha256": "e4a5e2c94312cf07f7962efde1cbf8865406a41d386931dca9d5df77db8f2b1c",
+      "trxSha256": "84f6e79308f7015af9f4a563fbd2c749586a4f901e5853b35e5ac60d93fb5004"
+    }
+  ],
+  "provenance": {
+    "recordsRead": 98,
+    "owners": [],
+    "exit": 0,
+    "refresh": "Not applicable: neither delivered path is hashed by an existing record.",
+    "checkOutput": "98 record(s) read, 0 stale hash(es)",
+    "checkCommand": "Set-Location <PLATFORM_REPO>; node tooling/refresh-provenance-hashes.mjs --check"
+  },
+  "testedCommit": "b05f19b70bdb412b7a116242aec207bbc612a4f0",
+  "controlFollowupCommit": "7ab32a11de2afa954072d864abcecb09ff8653c7",
+  "followupRestore": {
+    "performed": false,
+    "policy": "Acceptance 4: missing assets or a changed closure is a failed PC precondition, not permission to restore.",
+    "assetProvenance": "The no-restore rerun ran in the same PC checkout where the earlier, superseded restore had already run, so it cannot by itself show which restore produced the assets in use."
+  },
+  "verification": {
+    "previousTestSha256": "5a91df1897959d0c8df55104813550c189e073cedbe4db8ba72a821aaef7b67c",
+    "committedTestSha256": "de6caaf12499c44e8ac457f158e7ad989c8eeecbc54edaf9960026d503d2978f",
+    "history": "git log b05f19b7 -- TaxonomyWholeSchemeProofTests.cs lists only b05f19b7, which introduced the file; no committed pre-run version exists to establish the earlier uncommitted bytes.",
+    "previousMutantHashes": "All four match the recorded exact edits applied to the committed LF producer.",
+    "closureDiff": "Direct 6e851512-to-b05f19b7 diff of all three projects and shared build/config inputs is empty."
+  },
+  "historicalInvalidRuns": [
+    {
+      "label": "initial baseline invocation",
+      "exit": 1,
+      "reason": "MSB1031 before compilation because unquoted PowerShell -m:1 and -nr:false were split. Not test red or a mutation kill; quoted flags thereafter."
+    },
+    {
+      "label": "restored-active",
+      "exit": 1,
+      "selected": 3,
+      "passed": 2,
+      "failed": 1,
+      "reason": "Copy-Item preserved old source timestamp, so incremental build reused mutant binary. Not restored-green evidence. Refreshed timestamp; restored-active-rebuilt passed 3/3."
+    }
+  ],
+  "pathNormalization": "Local checkout/tool paths are placeholders and displayed assertion/stack source paths are repository-relative. logSha256 and trxSha256 identify the unchanged original raw artifacts, not these normalized excerpts; the receipt does not hash itself."
+}

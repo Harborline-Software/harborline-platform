@@ -104,28 +104,67 @@ public sealed class FormsStateGapTests
             () => store.RegisterAndPublishAsync(different).AsTask());
     }
 
-    [Fact]
+    [Fact(DisplayName = "forms-eng-1 (store), forms-ck-8: literal published heads and catalogue stay tenant scoped")]
     public async Task Current_list_returns_one_highest_published_revision_per_id()
     {
-        using var store = FormGateRegisters.Store();
-        var v1 = Definition(FormOne, new SemanticVersion(1, 0, 0));
-        var v2 = Definition(FormOne, new SemanticVersion(1, 0, 1));
-        var draftOnly = Definition(new FormDefinitionId("draft-only"), new SemanticVersion(1, 0, 0));
-        await store.RegisterAsync(v1);
-        await store.PublishAsync(Tenant, FormOne, v1.Version);
-        await store.RegisterAsync(v2);
-        await store.PublishAsync(Tenant, FormOne, v2.Version);
-        await store.RegisterAsync(draftOnly);
-
-        var current = new List<FormDefinition>();
-        await foreach (var definition in store.ListCurrentPublishedByTenantAsync(Tenant))
+        using var store = FormGateRegisters.Store(new FixedClock(DateTimeOffset.Parse("2026-08-08T12:00:00Z")));
+        var otherTenant = new TenantId("tenant-state-gaps-b");
+        var unknownTenant = new TenantId("tenant-state-gaps-unknown");
+        var alpha = new FormDefinitionId("alpha");
+        var draftOnly = new FormDefinitionId("draft-only");
+        // Literal fixture from T-485/published-head-store-proof; all states use normal admission.
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(1, 9, 0)) with { Status = FormDefinitionStatus.Published });
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(1, 10, 0)) with { Status = FormDefinitionStatus.Published });
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(2, 0, 0)));
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(3, 0, 0)) with { Status = FormDefinitionStatus.Deprecated });
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(4, 0, 0)) with { Status = FormDefinitionStatus.Withdrawn });
+        await store.RegisterAsync(Definition(alpha, new SemanticVersion(1, 0, 0)) with { Status = FormDefinitionStatus.Published });
+        await store.RegisterAsync(Definition(draftOnly, new SemanticVersion(9, 0, 0)));
+        await store.RegisterAsync(Definition(FormOne, new SemanticVersion(99, 0, 0)) with
         {
-            current.Add(definition);
-        }
+            Tenant = otherTenant,
+            Status = FormDefinitionStatus.Published,
+        });
 
-        var row = Assert.Single(current);
-        Assert.Equal(FormOne, row.Id);
-        Assert.Equal(v2.Version, row.Version);
+        // Independent literal oracles: neither public read supplies the other's expected rows.
+        Assert.Equal(new SemanticVersion(1, 10, 0), (await store.GetCurrentPublishedAsync(Tenant, FormOne))!.Version);
+        var current = new List<(string Id, string Version)>();
+        await foreach (var definition in store.ListCurrentPublishedByTenantAsync(Tenant))
+            current.Add((definition.Id.Value, definition.Version.ToString()));
+        Assert.Equal([("alpha", "1.0.0"), ("inspection", "1.10.0")], current);
+
+        Assert.Equal(new SemanticVersion(99, 0, 0), (await store.GetCurrentPublishedAsync(otherTenant, FormOne))!.Version);
+        Assert.Null(await store.GetCurrentPublishedAsync(Tenant, new FormDefinitionId("missing")));
+        Assert.Null(await store.GetCurrentPublishedAsync(unknownTenant, FormOne));
+        Assert.Null(await store.GetCurrentPublishedAsync(Tenant, draftOnly));
+        var unknownCurrent = new List<FormDefinition>();
+        await foreach (var definition in store.ListCurrentPublishedByTenantAsync(unknownTenant))
+            unknownCurrent.Add(definition);
+        Assert.Empty(unknownCurrent);
+        var pinned = await store.GetAsync(Tenant, FormOne, new SemanticVersion(2, 0, 0));
+        Assert.Equal(new SemanticVersion(2, 0, 0), pinned.Version);
+        Assert.Equal(FormDefinitionStatus.Draft, pinned.Status);
+        Assert.Equal("tenant-state-gaps", pinned.Tenant.Value);
+
+        await store.DeprecateAsync(Tenant, FormOne, new SemanticVersion(1, 10, 0));
+        Assert.Equal(new SemanticVersion(1, 9, 0), (await store.GetCurrentPublishedAsync(Tenant, FormOne))!.Version);
+        current.Clear();
+        await foreach (var definition in store.ListCurrentPublishedByTenantAsync(Tenant))
+            current.Add((definition.Id.Value, definition.Version.ToString()));
+        Assert.Equal([("alpha", "1.0.0"), ("inspection", "1.9.0")], current);
+        var deprecated = await store.GetAsync(Tenant, FormOne, new SemanticVersion(1, 10, 0));
+        Assert.Equal(new SemanticVersion(1, 10, 0), deprecated.Version);
+        Assert.Equal(FormDefinitionStatus.Deprecated, deprecated.Status);
+
+        await store.WithdrawAsync(Tenant, FormOne, new SemanticVersion(1, 9, 0));
+        Assert.Null(await store.GetCurrentPublishedAsync(Tenant, FormOne));
+        current.Clear();
+        await foreach (var definition in store.ListCurrentPublishedByTenantAsync(Tenant))
+            current.Add((definition.Id.Value, definition.Version.ToString()));
+        Assert.Equal([("alpha", "1.0.0")], current);
+        var withdrawn = await store.GetAsync(Tenant, FormOne, new SemanticVersion(1, 9, 0));
+        Assert.Equal(new SemanticVersion(1, 9, 0), withdrawn.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, withdrawn.Status);
     }
 
     [Fact]

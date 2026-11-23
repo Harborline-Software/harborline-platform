@@ -1,0 +1,283 @@
+{
+  "slice": "T-493/designation-fallback-proof",
+  "kind": "reversible hand-mutation evidence; not a Stryker baseline or full platform receipt",
+  "recordedAt": "2026-11-21",
+  "machine": "Mac mini",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "controlRecordSha": "4d55e2e907e6cfe92ecd65371d5bdf6e50cf1693",
+  "sourceSha": "b2d5189edb17d410675b722e640e480aaa7d8814",
+  "sourceTree": "0451aa7a987f22edfcbdc402585fbaa4c1d53704",
+  "sourceIdentityNote": "The staged source tree is the claim tree plus the new test, before this evidence file. All mutations and restored runs used these producer/test bytes. The final exact-staged-tree receipt and its tested tree are reported in PR #551 without rewriting this file afterward.",
+  "sourceSha256": {
+    "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+    "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyDesignationFallbackProofTests.cs": "0af177bfd8d316f2d747931932d0874657285286b147df253aeefc1621203459"
+  },
+  "oracle": {
+    "fields": "DES-0024 taxonomy-ck-19/taxonomy-auth-10 and Taxonomy interface revision 4 at 9c105eb1478a43a3c1490918fde4febc732ad041: supplied fields, including empty strings, override independently; only null falls back.",
+    "preservation": "DES-0024 taxonomy-auth-10: no change to the vendor definition; captured fixture definition, backing-array and node identities stay the same. Expected code/status/labels are hand-authored literals, not producer output.",
+    "mutation": "ADR-0103 decisions 1-3 and T-724 ruling 121. Every kill below is an assertion failure after a successful compile."
+  },
+  "lane": {
+    "entry": "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+    "holder": "writer",
+    "session": "mini-493-designation",
+    "workload": "designation four red-restored mutations with corrected evidence parsing",
+    "candidate": "b2d5189edb17d410675b722e640e480aaa7d8814"
+  },
+  "environment": {
+    "DOTNET_ROOT": "/usr/local/share/dotnet",
+    "PATH": "/usr/local/share/dotnet first",
+    "sdk": "11.0.100",
+    "node": "v24.21.0",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1",
+    "scratch": "${TMPDIR%/}/harborline/t493-designation"
+  },
+  "restore": {
+    "command": "dotnet restore projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -m:1 -nr:false",
+    "exitCode": 0,
+    "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/restore.log",
+    "logSha256": "40d104602671164ab3958225da3e1c8cabd55f0251d6df6bc911d9d5a24f44ce"
+  },
+  "baseline": {
+    "build": {
+      "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/baseline-build.log",
+      "logSha256": "945e5067ede86c2070caa3dd598a8add168cdc1c25cfcdb0a9649c3d4a822367"
+    },
+    "test": {
+      "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=baseline.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+      "exitCode": 0,
+      "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/baseline.log",
+      "logSha256": "f30a40f6e9d3cb89d7c4f6e9c44803c865c8a54e6e94145e314996be21adf42b",
+      "counts": {
+        "total": 3,
+        "executed": 3,
+        "passed": 3,
+        "failed": 0
+      }
+    }
+  },
+  "mutations": [
+    {
+      "id": "ignore-supplied-display",
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "originalText": "            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "replacementText": "            results.Add(new(designation.VendorNodeCode, vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "operation": "Replace the unique exact original text once; restore original bytes in finally."
+      },
+      "mutatedSourceSha256": "d1265a536aead2906cd5243d0fdc18a9d2aadce34a91bcf4aa23221c1a1fe0e0",
+      "build": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-display-build.log",
+        "logSha256": "f7f3aaf5b6beede335fcfbbdbf3866b39bbd4f99a1f660d5a994321ad73b1544"
+      },
+      "sourceSha": "b2d5189edb17d410675b722e640e480aaa7d8814",
+      "sourceTree": "0451aa7a987f22edfcbdc402585fbaa4c1d53704",
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyDesignationFallbackProofTests.Designations_fall_back_per_field_without_changing_the_same_vendor",
+      "detectingAssertion": "Assert.Equal((\"root\", item.ExpectedDisplay, item.ExpectedDescription), (designation.VendorNodeCode, designation.Display, designation.Description))",
+      "red": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=ignore-supplied-display-red.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 1,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-display-red.log",
+        "logSha256": "0c27a977b37d59ba53c76a00f9c2370808c16123e212c9fc7046aaa9cdd93920",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 2,
+          "failed": 1
+        }
+      },
+      "assertionFailure": "Assert.Equal() Failure: Values differ\nExpected: Tuple (\"root\", \"Tenant label\", \"Vendor description\")\nActual:   Tuple (\"root\", \"Vendor label\", \"Vendor description\")",
+      "restoredBuild": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-display-restored-build.log",
+        "logSha256": "86ad9a7072d6e13239b95d77cd75f20cea34042350cbf62f9fe69b3b80998ec1"
+      },
+      "restored": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=ignore-supplied-display-restored.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-display-restored.log",
+        "logSha256": "274cca18d1e3fd01e01e1b990ba58e49d69ba98bdb81f8e3589240ab11b2f4e3",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "id": "ignore-supplied-description",
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "originalText": "            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "replacementText": "            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, vendorNode.Description));",
+        "operation": "Replace the unique exact original text once; restore original bytes in finally."
+      },
+      "mutatedSourceSha256": "2bb0205c00a6d6e5f97b57451f2da7680b4324da2ba473710b1b24cb0a5adfbb",
+      "build": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-description-build.log",
+        "logSha256": "0d897432467eee529ed30bb97fdf5c03ef8b0b3c86cfc14f14bb45bb39f55934"
+      },
+      "sourceSha": "b2d5189edb17d410675b722e640e480aaa7d8814",
+      "sourceTree": "0451aa7a987f22edfcbdc402585fbaa4c1d53704",
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyDesignationFallbackProofTests.Designations_fall_back_per_field_without_changing_the_same_vendor",
+      "detectingAssertion": "Assert.Equal((\"root\", item.ExpectedDisplay, item.ExpectedDescription), (designation.VendorNodeCode, designation.Display, designation.Description))",
+      "red": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=ignore-supplied-description-red.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 1,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-description-red.log",
+        "logSha256": "a2ee6f6a76001f635902fe96c0bb7118349e92cde4d17e44fd4504375d9c2649",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 2,
+          "failed": 1
+        }
+      },
+      "assertionFailure": "Assert.Equal() Failure: Values differ\nExpected: Tuple (\"root\", \"Vendor label\", \"Tenant description\")\nActual:   Tuple (\"root\", \"Vendor label\", \"Vendor description\")",
+      "restoredBuild": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-description-restored-build.log",
+        "logSha256": "cc45525cd2e7ffde299a5c723419fe14fc326c902afc61135691fc86aae2d076"
+      },
+      "restored": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=ignore-supplied-description-restored.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/ignore-supplied-description-restored.log",
+        "logSha256": "90f69710f062e1d38f7658f59ae1d56ad91a1cc91f82b17e4427e1f0f19f7809",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "id": "empty-as-absent",
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "originalText": "            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "replacementText": "            results.Add(new(designation.VendorNodeCode, string.IsNullOrEmpty(designation.Display) ? vendorNode.Display : designation.Display, string.IsNullOrEmpty(designation.Description) ? vendorNode.Description : designation.Description));",
+        "operation": "Replace the unique exact original text once; restore original bytes in finally."
+      },
+      "mutatedSourceSha256": "c7c17a883545bcd03d386e0bcd95acb69336cb1dca987227832e6c3c87e3892c",
+      "build": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/empty-as-absent-build.log",
+        "logSha256": "29c4eac3a776a127cd0f3d9ca2fd23e4f78b97bcfb2436ac59380eda1702f2b9"
+      },
+      "sourceSha": "b2d5189edb17d410675b722e640e480aaa7d8814",
+      "sourceTree": "0451aa7a987f22edfcbdc402585fbaa4c1d53704",
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyDesignationFallbackProofTests.Designations_fall_back_per_field_without_changing_the_same_vendor",
+      "detectingAssertion": "Assert.Equal((\"root\", item.ExpectedDisplay, item.ExpectedDescription), (designation.VendorNodeCode, designation.Display, designation.Description))",
+      "red": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=empty-as-absent-red.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 1,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/empty-as-absent-red.log",
+        "logSha256": "672b0f3be6404a0ce71336cf4ce09f5c59980f04b4dc517073730f5a1a6e0618",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 2,
+          "failed": 1
+        }
+      },
+      "assertionFailure": "Assert.Equal() Failure: Values differ\nExpected: Tuple (\"root\", \"\", \"\")\nActual:   Tuple (\"root\", \"Vendor label\", \"Vendor description\")",
+      "restoredBuild": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/empty-as-absent-restored-build.log",
+        "logSha256": "04aa8d28a9644409a2636b1f3c8179567e656ebea71715c794ffd5c2fbe1f1be"
+      },
+      "restored": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=empty-as-absent-restored.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/empty-as-absent-restored.log",
+        "logSha256": "deb5979bf28658dd28d71967ea2a61c58fc65a4b0890934012396c108cb9a310",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "id": "replace-vendor-node",
+      "sourceEdit": {
+        "file": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+        "originalText": "            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "replacementText": "            ((IList<TaxonomyNode>)vendor.Nodes)[0] = vendorNode with { Display = designation.Display ?? vendorNode.Display, Description = designation.Description ?? vendorNode.Description };\n            results.Add(new(designation.VendorNodeCode, designation.Display ?? vendorNode.Display, designation.Description ?? vendorNode.Description));",
+        "operation": "Replace the unique exact original text once; restore original bytes in finally."
+      },
+      "mutatedSourceSha256": "7bdbeb47ad4e14fe22ef9a41cd932e788c5efe76822e3cc22c0381fe1027cf22",
+      "build": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/replace-vendor-node-build.log",
+        "logSha256": "67fd85476f24ca7cf0d4bf6465757bc21c8ae7a18ae973bfbcc7fd359ebb6692"
+      },
+      "sourceSha": "b2d5189edb17d410675b722e640e480aaa7d8814",
+      "sourceTree": "0451aa7a987f22edfcbdc402585fbaa4c1d53704",
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyDesignationFallbackProofTests.Designations_fall_back_per_field_without_changing_the_same_vendor",
+      "detectingAssertion": "Assert.Same(node, unchanged)",
+      "red": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=replace-vendor-node-red.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 1,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/replace-vendor-node-red.log",
+        "logSha256": "4c2513c5b85d81877a6acf673ef7bbce18c4335a5c31d61d63d44755f0fee571",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 2,
+          "failed": 1
+        }
+      },
+      "assertionFailure": "Assert.Same() Failure: Values are not the same instance\nExpected: TaxonomyNode { Code = root, Display = Vendor label, Description = Vendor description, Status = Active, DisplayHistoryEntries = Harborline.Foundation.Taxonomy.DisplayHistoryEntry[], ParentCode = , PublishedAt = , TombstonedAt = , SuccessorCode = , DeprecationReason =  }\nActual:   TaxonomyNode { Code = root, Display = Tenant label, Description = Vendor description, Status = Active, DisplayHistoryEntries = Harborline.Foundation.Taxonomy.DisplayHistoryEntry[], ParentCode = , PublishedAt = , TombstonedAt = , SuccessorCode = , DeprecationReason =  }",
+      "restoredBuild": {
+        "command": "dotnet build projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/replace-vendor-node-restored-build.log",
+        "logSha256": "f2125300ed261811b8c1e4ef4a3ba0602b439b718d576c1cbbda32f1727dbd75"
+      },
+      "restored": {
+        "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --filter 'FullyQualifiedName~TaxonomyDesignationFallbackProofTests' --logger 'trx;LogFileName=replace-vendor-node-restored.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+        "exitCode": 0,
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/replace-vendor-node-restored.log",
+        "logSha256": "b4403875b3abd9a9ec12c6dda1553a30f11367a7838bed3476b69363466cc6a8",
+        "counts": {
+          "total": 3,
+          "executed": 3,
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    }
+  ],
+  "restoredProject": {
+    "command": "dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-build --no-restore -m:1 -nr:false --logger 'trx;LogFileName=project-restored.trx' --results-directory /var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation",
+    "exitCode": 0,
+    "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t493-designation/project-restored.log",
+    "logSha256": "c648b88c6d27b8b5cacabf82b2eb0b3f9e73039a7a6e222249fff2a000af5a76",
+    "counts": {
+      "total": 138,
+      "executed": 138,
+      "passed": 138,
+      "failed": 0
+    }
+  },
+  "producerRestored": true,
+  "initialAttempt": "An initial scratch-runner check looked for the class name in the xUnit display name and stopped after the first actual assertion failure. Source bytes were restored in finally. The corrected run identified the class in the stack trace, rebuilt the restored source green, then completed all four independent red/restored cycles recorded here. Initial logs are retained under scratch/initial-attempt.",
+  "fullPlatformEvidence": "The separate final command is node tooling/run-phase4-receipt.mjs through the host lane, after checking ports 6106/6107. PR #551 records outcome, mode exact-staged-tree, tested tree, and local .git receipt/gate-report evidence. No tracked gate output is part of this bounded mutation record."
+}
