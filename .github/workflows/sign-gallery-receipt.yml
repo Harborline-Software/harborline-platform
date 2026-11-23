@@ -2,17 +2,22 @@
 name: sign-gallery-receipt
 on:
   workflow_call:
+    outputs:
+      artifact-id:
+        description: Verified gallery evidence artifact from this producer attempt
+        value: ${{ jobs.sign.outputs.artifact-id }}
 permissions: {}
 jobs:
-  sign-and-post:
+  sign:
     if: github.event_name == 'workflow_run' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: gallery-receipt
     permissions:
       contents: read
       actions: read
       id-token: write
       attestations: write
+    outputs:
+      artifact-id: ${{ steps.evidence.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -66,20 +71,3 @@ jobs:
           path: receipt
           if-no-files-found: error
           retention-days: 90
-      - id: app
-        if: always()
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
-        with:
-          client-id: ${{ vars.GALLERY_RECEIPT_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GALLERY_RECEIPT_APP_KEY }}
-          repositories: harborline-platform
-          permission-checks: write
-          permission-statuses: write
-      - name: Post on the authenticated queue head, after verification
-        if: always() && steps.app.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RECEIPT_CHECK_TOKEN: ${{ steps.app.outputs.token }}
-          RECEIPT_VERIFIED: ${{ steps.verify.outcome == 'success' && steps.evidence.outcome == 'success' }}
-          RECEIPT_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact-id }}
-        run: node tooling/gates/scan-evidence-provenance.mjs --receipt post
