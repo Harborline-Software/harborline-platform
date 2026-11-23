@@ -1,0 +1,122 @@
+{
+  "producerSha": "701d0a821c6cca4090fc38a49df969f56add76f3",
+  "producerBase": "a50ab30e6902c2d3d5977a704b6c0a8b886d575d",
+  "producerTree": "d5d5e2048cadfc0cf7d73a554d39262f9cf92b19",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDueOccurrenceSource.cs",
+  "targetSha256": "e3693bf281ee9ff15f5b0188490589b4e2e68aad6f85835b3b678f8a6a7920d8",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainBindingProofTests.cs",
+  "testSha256": "0683fc08a4f20f0602663781086f09f88ed6bfccba2dab141dad82a22eebb1d4",
+  "fixtureInputs": "local fixture in test file",
+  "dotnetVersion": "11.0.100",
+  "command": "bash $CONTROL/tools/ci/host-lane.sh run --holder writer --session mb-491-binding --workload <case> --candidate 701d0a82 -- env -u HARBORLINE_TESTED_TREE -u HARBORLINE_BASE_HEAD DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleChainBindingProofTests -m:1 -nr:false",
+  "baseline": {
+    "name": "baseline-final",
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "e6667870968e4b52ffc3dc3d78dbd17d1520e2d8159812d09ff061d22e14f255"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDueOccurrenceSource.cs",
+      "span": "binding guard lines 13-15",
+      "before": "chain.ChainInstanceId != request.Series.SeriesId || ",
+      "after": "",
+      "detectingTest": "MismatchRefusesAndCorrectionRestores(instance)",
+      "assertion": "Assert.Throws<OccurrenceRefusalException>: no exception thrown",
+      "mutant": {
+        "name": "m1",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "4571bca1aae4ed15d538fc189ce32c50bbafa26d9fc03d9d921aa0c4151e4e63"
+      },
+      "restored": {
+        "name": "r1",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "27a4e18d6fd6e26de834a40b3f62ee99fcc7cd2223757b6e6d1010c5adfd4ff8"
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDueOccurrenceSource.cs",
+      "span": "binding guard lines 13-15",
+      "before": " || chain.SubjectRef != request.Series.SubjectRef",
+      "after": "",
+      "detectingTest": "MismatchRefusesAndCorrectionRestores(subject)",
+      "assertion": "Assert.Throws<OccurrenceRefusalException>: no exception thrown",
+      "mutant": {
+        "name": "m2",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "ad01598ead39690ef90974b431e79b0d8d4ec3a64eb90d00cf8dd278f4793b13"
+      },
+      "restored": {
+        "name": "r2",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "d612741cab2ccc63acdb6635a6b8b0b16f964854501e05b14dc269932429095a"
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDueOccurrenceSource.cs",
+      "span": "binding guard lines 13-15",
+      "before": "            || chain.TimezoneId != (request.Series.Timezone ?? \"UTC\")\n",
+      "after": "",
+      "detectingTest": "MismatchRefusesAndCorrectionRestores(timezone)",
+      "assertion": "Assert.Throws<OccurrenceRefusalException>: no exception thrown",
+      "mutant": {
+        "name": "m3",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "13312d1b8e529c0b63ae95de3981e2522431bc4c1597db2c580c93ceaa131429"
+      },
+      "restored": {
+        "name": "r3",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "18c2c0f892ad62b5279f921ce20d8fd8d02cd8eb486c08c4e8557e1a8301e3cd"
+      }
+    },
+    {
+      "id": "M4",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDueOccurrenceSource.cs",
+      "span": "binding guard lines 13-15",
+      "before": " || !chain.Definition.Nodes.SequenceEqual(basis.Nodes)",
+      "after": "",
+      "detectingTest": "MismatchRefusesAndCorrectionRestores(nodes)",
+      "assertion": "Assert.Throws<OccurrenceRefusalException>: no exception thrown",
+      "mutant": {
+        "name": "m4",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "logSha256": "18db76cf3bc462522f2e254fdeb6f41ea5aac69d09c386e2ae37af7935ec2b11"
+      },
+      "restored": {
+        "name": "r4",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "1bd63c2dc701617c32942271c4f33557eaa1d72893f697995b3e7190b8b7b0d3"
+      }
+    }
+  ]
+}
