@@ -15,7 +15,7 @@ public sealed class ScheduleChainRevisionProofTests
     private static RelativeChainLedger Apply(RelativeChainExpansionRequest request, RelativeChainExpansionResult result) =>
         new(request.PriorLedger.LedgerVersion + 1, [.. request.PriorLedger.Occurrences, .. result.AppendedOccurrences], [.. request.PriorLedger.Supersessions, .. result.Supersessions]);
     private static void Tuples(IEnumerable<RelativeChainOccurrence> rows, int revision) =>
-        Assert.Equal(new[] { ("a", Eight, revision), ("b", Ten, revision) }, rows.Select(o => (o.OccurrenceId.NodeId, o.DueDate, o.OccurrenceId.OccurrenceRevision)));
+        Assert.Equal(new[] { ("series", "a", Eight, revision), ("series", "b", Ten, revision) }, rows.Select(o => (o.OccurrenceId.ChainInstanceId, o.OccurrenceId.NodeId, o.DueDate, o.OccurrenceId.OccurrenceRevision)));
 
     [Fact(DisplayName = "scheduling-eng-5 scheduling-run-2 same-instant anchor revision appends and retries")]
     public void SameInstantAnchorRevisionAppendsAndRetries()

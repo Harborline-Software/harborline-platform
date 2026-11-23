@@ -4,13 +4,13 @@
   "source": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/InMemoryRelativeChainExpansionService.cs",
   "sourceSha256": "6023d6dee614bf135abef73690f178698ec63cae1b70f0454673fe6fd3a43881",
   "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainRevisionProofTests.cs",
-  "testSha256": "9692d2acd70c12a5a0873f8bac073ce9f48f8e2d37c27be8923857bebcf93093",
+  "testSha256": "1cf33bc2c9cf07e7b0b74a2fdce319da657310dab043410e55db161253f988d8",
   "fixtureInputs": "inline literals in test file",
-  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session mb-491-revision --workload <run> --candidate a4842d904ed1dfc7a239f1a8a1211859b98d8011 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleChainRevisionProofTests -m:1 -nr:false",
+  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session mb-575-fix --workload <run> --candidate 2054ad7d321337f93e49fa60bffeb4ce29511605 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleChainRevisionProofTests -m:1 -nr:false",
   "toolchain": "11.0.100",
   "baseline": {
-    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/baseline.log",
-    "logSha256": "92e3523565dee2350d31fd0cddde7fe7a869ddf1354802b4520019eb4905390c",
+    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/baseline.log",
+    "logSha256": "ea5e34944231b1afc45c0bdaa20eee878e1dc7669b52932adaa795bc1234ce3c",
     "exit": 0,
     "selected": 1,
     "passed": 1,
@@ -26,8 +26,8 @@
       "detectingTest": "SameInstantAnchorRevisionAppendsAndRetries",
       "assertion": "missing appended r2 tuples",
       "mutant": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/m1.log",
-        "logSha256": "0ec288450326014fd5ef543ada21cf115fb77887df427189aa738c08478b40a8",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/m1.log",
+        "logSha256": "5f89196a5c1ab8d9a2e700d41b5c7e5eb82b3fc26a475c6eeda02af946014421",
         "exit": 1,
         "selected": 1,
         "passed": 0,
@@ -35,8 +35,8 @@
         "skipped": 0
       },
       "restored": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/r1.log",
-        "logSha256": "63a35f9ec2c0e94f7d3db376d4fca5c16da51265c3500f661be0781523b865ab",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/r1.log",
+        "logSha256": "be9d91b0e782fa7f8f402208dc3d299976e948ca2aa2d8186cb5d6cd8bda141a",
         "exit": 0,
         "selected": 1,
         "passed": 1,
@@ -52,8 +52,8 @@
       "detectingTest": "SameInstantAnchorRevisionAppendsAndRetries",
       "assertion": "wrong appended revision",
       "mutant": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/m2.log",
-        "logSha256": "ff0a80b585e6ab2286f7fcc4b9e2429af0a3323c79ff02297399b1a8cbd4019b",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/m2.log",
+        "logSha256": "8dca8873fc44f15f5c170b780e201487443f3ae419044fe9674a29e1076b78ce",
         "exit": 1,
         "selected": 1,
         "passed": 0,
@@ -61,8 +61,8 @@
         "skipped": 0
       },
       "restored": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/r2.log",
-        "logSha256": "05036049a9118ab2420d7bab432eeb4f240a5c6d814d9d08c9e371a46dbd9e12",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/r2.log",
+        "logSha256": "3cfdc14a2239695e6cc90e2756bc557f52f5e9ce8a9e0c9a1af8d5e2b6940c07",
         "exit": 0,
         "selected": 1,
         "passed": 1,
@@ -78,8 +78,8 @@
       "detectingTest": "SameInstantAnchorRevisionAppendsAndRetries",
       "assertion": "wrong current set without edges",
       "mutant": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/m3.log",
-        "logSha256": "50c201a5854be168e2377280e25ec91f45db2d0ab8f734e59b3971af917c42d4",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/m3.log",
+        "logSha256": "9437c98d3f192266f13333fb82a635c6b48f34091ee8a9c057995b7bb1df3d07",
         "exit": 1,
         "selected": 1,
         "passed": 0,
@@ -87,8 +87,8 @@
         "skipped": 0
       },
       "restored": {
-        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision/r3.log",
-        "logSha256": "a181ef964ec97684755090bb3f9f6c36dd438a64d88fed41d846fd5c693a8fbb",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-revision-fix/r3.log",
+        "logSha256": "4c7fde108a2599bf7d8d72e0b4acca2db5ff408b4dc3241ec3de312f13d74a71",
         "exit": 0,
         "selected": 1,
         "passed": 1,
