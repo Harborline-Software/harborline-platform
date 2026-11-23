@@ -311,8 +311,18 @@
       "tier": "dotnet",
       "id": "graph-integration",
       "path": "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/FormRuleGraph.cs",
-      "before": "_environment!.Fence(new DemandResolver(",
-      "after": "new DemandResolver(",
+      "lines": [
+        545,
+        578
+      ],
+      "before": [
+        "_environment!.Fence(new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope))",
+        "_environment!.Fence(new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true))"
+      ],
+      "after": [
+        "new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope)",
+        "new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true)"
+      ],
       "killingTest": "T1232_A2_Graph_fence_precedes_target_access",
       "assertion": "public compute/Validate/Required full and incremental refusal",
       "sourceSha256": "38f6d20dd0b838ddab63b41c6cf494dc9e51fb50f89e171d625ab8f18d6f60bb",
@@ -1134,6 +1144,106 @@
         "failed": 0,
         "total": 124
       }
+    },
+    {
+      "tier": "dotnet",
+      "id": "bare-row-read",
+      "path": "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs",
+      "before": "!path.StartsWith(\"field.\", StringComparison.Ordinal) && name.Contains('.') && row is not null",
+      "after": "!path.StartsWith(\"field.\", StringComparison.Ordinal) && row is not null",
+      "killingTest": "T1232_Bare_missing_key_under_row_reads_the_field(missing-bare-row, missing_some-bare-row)",
+      "assertion": "guard Ok true and value [\"x\"]: a bare missing key reads the absent declared field, not the snapshot row's ROW-CANARY",
+      "oracle": "Fixture literal [\"x\"] in borrower-key-fence.json group row (T-1232 What to fix bullet 1: a bare key means field; acceptance 1 empty-field answer)",
+      "sourceIdentityNote": "Runs used the uncommitted bytes in runSourceSha256 atop the candidate merge head; the source was restored byte-for-byte before the restored run. The PR names the resulting committed head.",
+      "runSourceSha256": {
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "2f416015e88456a36c1305467718d8024e644504ec84c9451083f6102db2bb86",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "90d32af9820ac1cc6c885a34a2d1e7978acdeb2d1da756f3eade8d05eb533243",
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/__tests__/borrower-environment.test.ts": "0ea9a68d403a18f2358214da8d465fa2cbc605f517d2ebee4203f8383de1adb7",
+        "conformance/hlp.foundation.rule-runtime/borrower-key-fence.json": "e4003b1f84a41a9d8bebda990e592998f81a9f425ed327eb149a1a7564f85f83"
+      },
+      "sourceSha256": "2f416015e88456a36c1305467718d8024e644504ec84c9451083f6102db2bb86",
+      "mutantSourceSha256": "f95c8476110eb16a474c1a150fe3a3ddad5b62f388e5d15bb489c22d3553c9fd",
+      "baseline": {
+        "label": "bare-key-mutant-dotnet-bare-row-read-baseline",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "bare-key-mutant-dotnet-bare-row-read-baseline",
+          "--candidate",
+          "a045b355fefd91068e19a6a7ded6c3407c49e002",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+        ],
+        "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "exitCode": 0,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-mutant-dotnet-bare-row-read-baseline.log",
+        "logSha256": "6d6fa2b1ed681a069f7a9eeaa0b52bb805e180bcd35582e0d1875fc3e49a5780",
+        "passed": 122,
+        "failed": 0,
+        "total": 122
+      },
+      "red": {
+        "label": "bare-key-mutant-dotnet-bare-row-read-red",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "bare-key-mutant-dotnet-bare-row-read-red",
+          "--candidate",
+          "a045b355fefd91068e19a6a7ded6c3407c49e002",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+        ],
+        "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "exitCode": 1,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-mutant-dotnet-bare-row-read-red.log",
+        "logSha256": "320a94c030e8b969220e43dac3ca6c1fbc93a498723782e2273072aa07e0b479",
+        "passed": 120,
+        "failed": 2,
+        "total": 122
+      },
+      "restored": {
+        "label": "bare-key-mutant-dotnet-bare-row-read-restored",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "bare-key-mutant-dotnet-bare-row-read-restored",
+          "--candidate",
+          "a045b355fefd91068e19a6a7ded6c3407c49e002",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+        ],
+        "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "exitCode": 0,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-mutant-dotnet-bare-row-read-restored.log",
+        "logSha256": "222011da5c4450ad586d6e3b28139044948fd4a525ff61419bc61f175779ba36",
+        "passed": 122,
+        "failed": 0,
+        "total": 122
+      }
     }
   ],
   "orderingCoverage": {
@@ -1695,6 +1805,88 @@
       "exitCode": 0,
       "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-borrower/resume4-ts-contracts-existing-compiler.log",
       "logSha256": "36e23eb5b0623d5a466949c9abf0707fcd3909a88b7ac6c2f107cbad3bc88032"
+    },
+    {
+      "label": "bare-key-dotnet-red",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "bare-key-dotnet-red",
+        "--candidate",
+        "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+      ],
+      "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+      "exitCode": 1,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-dotnet-red.log",
+      "logSha256": "f053855b24d2b0f13807182e9082a4146f9338257a8ccb6eeb1c283d073077e7",
+      "passed": 120,
+      "failed": 2,
+      "total": 122,
+      "note": "Head before the fix with the new row cases: both failures are T1232_Bare_missing_key_under_row_reads_the_field"
+    },
+    {
+      "label": "bare-key-dotnet-green",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "bare-key-dotnet-green",
+        "--candidate",
+        "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+      ],
+      "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+      "exitCode": 0,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-dotnet-green.log",
+      "logSha256": "0c85cbfa84555db4d9413b2af020f09ab28fab504ce62b66b3654db8fd469a68",
+      "passed": 122,
+      "failed": 0,
+      "total": 122
+    },
+    {
+      "label": "bare-key-dotnet-full",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "bare-key-dotnet-full",
+        "--candidate",
+        "a045b355fefd91068e19a6a7ded6c3407c49e002",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+      ],
+      "candidate": "a045b355fefd91068e19a6a7ded6c3407c49e002",
+      "exitCode": 0,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/bare-key-dotnet-full.log",
+      "logSha256": "0a7e9a2adee2f6bb82c8a75c304870895eedf9c31d496e548b745c9d6dc41c79",
+      "passed": 1249,
+      "failed": 0,
+      "total": 1249
     }
   ]
 }

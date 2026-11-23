@@ -113,6 +113,12 @@ describe('T-1232 borrower key fence', () => {
   it.each(keyFence.cases.filter((c) => c.group === 'flat'))('acceptance 3 / rules-ck-28: $id uses the production flat-bag resolver', (test) => {
     assertKeyFenceCase(test)
   })
+
+  // A TS RuleContextSnapshot is one flat bag with no row, so the case's row has no reader on
+  // this tier; the same literal answer still pins the bare key to the declared field here.
+  it.each(keyFence.cases.filter((c) => c.group === 'row'))('rules-ck-28: bare missing key reads the declared field: $id (flat snapshot, no row)', (test) => {
+    assertKeyFenceCase(test)
+  })
 })
 
 describe('T-590 borrower environment admission (TS reactive tier)', () => {

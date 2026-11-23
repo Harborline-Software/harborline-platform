@@ -132,6 +132,14 @@ public sealed class BorrowerEnvironmentTests
     [MemberData(nameof(FlatBagCases))]
     public void T1232_A3_Flat_bag_field_aliases(string id, string json) => AssertKeyFenceCase(id, json);
 
+    public static IEnumerable<object[]> BareRowCases() => KeyFenceCases("row");
+
+    // Oracle: the fixture's literal ["x"] (T-1232 What to fix bullet 1: a bare key means field).
+    // The row holds an undeclared x and the declared field x is absent, so a row read answers [].
+    [Theory(DisplayName = "T-1232 / rules-ck-28: a bare missing key under a snapshot row reads the declared field, not the row")]
+    [MemberData(nameof(BareRowCases))]
+    public void T1232_Bare_missing_key_under_row_reads_the_field(string id, string json) => AssertKeyFenceCase(id, json);
+
     private static void AssertKeyFenceCase(string id, string json)
     {
         var test = JsonNode.Parse(json)!;
@@ -146,7 +154,9 @@ public sealed class BorrowerEnvironmentTests
             Assert.Equal(test["group"]!.GetValue<string>() == "dynamic" ? null : expected, environment.Refusal([JsonNode.Parse(expression)]));
             Assert.Equal(test["group"]!.GetValue<string>() == "dynamic" ? null : expected, BorrowerEnvironmentAdmission.CheckCompiledGuard(compiled, declaration, phase));
         }
-        var context = RuleContextSnapshot.FromJsonText(new JsonObject { ["root"] = test["bag"]!.DeepClone() }.ToJsonString());
+        var envelope = new JsonObject { ["root"] = test["bag"]!.DeepClone() };
+        if (test["row"] is { } row) envelope["row"] = row.DeepClone();
+        var context = RuleContextSnapshot.FromJsonText(envelope.ToJsonString());
         var result = new GuardEvaluator(new FixedClock(Clock)).EvaluateValue(definition, context, RuleEvalScope.Root, environment.For(EvaluationPhase.Run));
         Assert.Equal(expected, result.Error?.Code);
         var guard = new GuardEvaluator(new FixedClock(Clock)).EvaluateGuard(definition, context, RuleEvalScope.Root, environment.For(EvaluationPhase.Run));

@@ -97,7 +97,9 @@ internal sealed class SnapshotResolver(
         }
         var name = path.StartsWith("field.", StringComparison.Ordinal) ? path["field.".Length..] : path;
         if (path.StartsWith("field.", StringComparison.Ordinal) && name.Contains('.')) return RefValue.Resolved(null);
-        if (!path.StartsWith("field.", StringComparison.Ordinal) && row is not null && row.TryGetValue(name, out var local))
+        // A bare name is a field: lowered vars always carry a prefix, so only a missing /
+        // missing_some key arrives bare, and the fence admitted it as field (T-1232).
+        if (!path.StartsWith("field.", StringComparison.Ordinal) && name.Contains('.') && row is not null && row.TryGetValue(name, out var local))
             return PendingSentinel.Is(local) ? RefValue.Pending : RefValue.Resolved(local);
         return root.TryGetValue(name, out var value)
             ? (PendingSentinel.Is(value) ? RefValue.Pending : RefValue.Resolved(value))

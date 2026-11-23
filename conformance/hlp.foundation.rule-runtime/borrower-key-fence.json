@@ -255,6 +255,43 @@
         "plain": "PUBLIC-CONTROL"
       },
       "refusal": "rule.environment.variable_not_admitted"
+    },
+    {
+      "id": "missing-bare-row",
+      "group": "row",
+      "oracle": "T-1232 What to fix bullet 1: a bare missing key means field; acceptance 1 empty-field answer [\"x\"]",
+      "expression": {
+        "missing": [
+          "x"
+        ]
+      },
+      "bag": {},
+      "row": {
+        "x": "ROW-CANARY"
+      },
+      "value": [
+        "x"
+      ]
+    },
+    {
+      "id": "missing_some-bare-row",
+      "group": "row",
+      "oracle": "T-1232 What to fix bullet 1: a bare missing key means field; acceptance 1 empty-field answer [\"x\"]",
+      "expression": {
+        "missing_some": [
+          1,
+          [
+            "x"
+          ]
+        ]
+      },
+      "bag": {},
+      "row": {
+        "x": "ROW-CANARY"
+      },
+      "value": [
+        "x"
+      ]
     }
   ]
 }
