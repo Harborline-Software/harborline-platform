@@ -25,6 +25,7 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read
+      actions: read
     env:
       APPROVED_COMMIT: ${{ inputs.commit }}
       REPOSITORY: Harborline-Software/harborline-platform
@@ -41,10 +42,29 @@ jobs:
           # Dispatch provenance names GITHUB_SHA; refuse a different checkout source.
           test "$APPROVED_COMMIT" = "$GITHUB_SHA"
           git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+      - name: Bootstrap current external release verifier
+        id: release-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          gh api "repos/$REPOSITORY/actions/variables/RELEASE_GATE_POLICY" > "$RUNNER_TEMP/release-policy-variable.json"
+          verifier_sha=$(jq -er 'select(.name == "RELEASE_GATE_POLICY") | .value | fromjson | .verifierRevision | select(type == "string" and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/release-policy-variable.json")
+          git fetch --no-tags origin "$verifier_sha"
+          test "$verifier_sha" != "$APPROVED_COMMIT"
+          git merge-base --is-ancestor "$verifier_sha" "$APPROVED_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
+          test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
+          node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
@@ -87,6 +107,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
       id-token: write
       attestations: write
     env:
@@ -101,6 +122,25 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+      - name: Bootstrap current external release verifier
+        id: release-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          gh api "repos/$REPOSITORY/actions/variables/RELEASE_GATE_POLICY" > "$RUNNER_TEMP/release-policy-variable.json"
+          verifier_sha=$(jq -er 'select(.name == "RELEASE_GATE_POLICY") | .value | fromjson | .verifierRevision | select(type == "string" and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/release-policy-variable.json")
+          git fetch --no-tags origin "$verifier_sha"
+          test "$verifier_sha" != "$APPROVED_COMMIT"
+          git merge-base --is-ancestor "$verifier_sha" "$APPROVED_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
+          test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
+          node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}

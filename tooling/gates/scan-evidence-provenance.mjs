@@ -38,7 +38,7 @@ import {isDeepStrictEqual} from 'node:util'
 import {reconcileReceiptShards} from '../collect-gallery-shards.mjs'
 import {expectedChecks, reconcileChecks} from '../gallery-observations.mjs'
 import {requiredStepIds} from '../gate-contract.mjs'
-import {resolve} from 'node:path'
+import {isAbsolute, relative, resolve, sep} from 'node:path'
 
 export const EVIDENCE_PATH = 'docs/evidence/phase-4/gate.json'
 const OBJECT_ID = /^[0-9a-f]{40}$/
@@ -92,7 +92,7 @@ export function checkEvidenceProvenance(root, bytes) {
   return null
 }
 
-if (import.meta.main && !process.argv.includes('--receipt')) {
+if (import.meta.main && !process.argv.includes('--receipt') && !process.argv.includes('--release-policy')) {
   const root = resolve(process.argv[2] ?? '.')
   let bytes
   // No recorded evidence is nothing to bind. Its absence is validate-repository.mjs's business.
@@ -317,6 +317,109 @@ export function releaseRunPrerequisites({head, queueId, actionsAppId, readApi = 
   return {queue, sbom}
 }
 
+// Certificate fields here must come from gh's authenticated verification result, never the
+// predicate. The policy revision is supplied by the separately selected external verifier.
+export function verifyReleaseInvocation({root, approvedCommit, testedCommit, testedTree,
+  acceptedSignerRevision, actionsAppId, queue, sbom, producer, certificate, readApi = api}) {
+  const require = (condition, reason) => {
+    if (!condition) throw new Error(`release invocation: ${reason}`)
+  }
+  require([approvedCommit, testedCommit, testedTree, acceptedSignerRevision, producer?.revision]
+    .every(value => OBJECT_ID.test(value ?? '')), 'missing full Git identity')
+  require(testedCommit === approvedCommit, 'tested commit differs from release commit')
+  let tree
+  try { tree = git(root, 'rev-parse', `${approvedCommit}^{tree}`) } catch { throw new Error('release invocation: approved tree unavailable') }
+  require(testedTree === tree, 'tested tree differs from approved tree')
+  require(producer.revision === acceptedSignerRevision, 'producer revision differs from current policy')
+  require(acceptedSignerRevision !== approvedCommit
+    && succeeds(root, 'merge-base', '--is-ancestor', acceptedSignerRevision, approvedCommit),
+  'producer revision is not a strict ancestor of release')
+  require(Number.isSafeInteger(producer.id) && producer.id > 0
+    && Number.isSafeInteger(producer.attempt) && producer.attempt > 0, 'invalid producer invocation')
+  require(certificate?.buildSignerURI === SIGNER_URI && certificate.buildSignerDigest === acceptedSignerRevision,
+    'certificate signer differs from current policy')
+  require(certificate.sourceRepositoryURI === `https://github.com/${RECEIPT_REPOSITORY}`
+    && certificate.sourceRepositoryRef === 'refs/heads/main'
+    && certificate.sourceRepositoryDigest === acceptedSignerRevision, 'certificate source differs')
+  require(certificate.buildTrigger === 'workflow_run' && certificate.runnerEnvironment === 'github-hosted',
+    'certificate trigger or runner differs')
+  require(certificate.runInvocationURI === `https://github.com/${RECEIPT_REPOSITORY}/actions/runs/${producer.id}/attempts/${producer.attempt}`,
+    'certificate invocation differs')
+  let prerequisites
+  try { prerequisites = releaseRunPrerequisites({head: approvedCommit, queueId: queue?.id, actionsAppId, readApi}) }
+  catch { throw new Error('release invocation: live queue or SBOM prerequisites refused') }
+  require(isDeepStrictEqual(prerequisites.queue, queue) && isDeepStrictEqual(prerequisites.sbom, sbom),
+    'signed queue or SBOM attempt is not latest')
+  const read = suffix => {
+    try { return readApi(`repos/${RECEIPT_REPOSITORY}/${suffix}`) }
+    catch { throw new Error('release invocation: live producer API unavailable') }
+  }
+  const latest = read(`actions/runs/${producer.id}`)
+  require(latest?.id === producer.id && latest.run_attempt === producer.attempt
+    && latest.event === 'workflow_run' && latest.path === '.github/workflows/verify-gallery-receipt.yml'
+    && latest.head_sha === acceptedSignerRevision && latest.repository?.full_name === RECEIPT_REPOSITORY
+    && latest.status === 'completed' && latest.conclusion === 'success', 'latest producer source or result differs')
+  const attempt = read(`actions/runs/${producer.id}/attempts/${producer.attempt}`)
+  require(['id', 'run_attempt', 'event', 'path', 'head_sha', 'status', 'conclusion']
+    .every(field => attempt?.[field] === latest[field])
+    && attempt.repository?.full_name === RECEIPT_REPOSITORY, 'producer attempt differs')
+  return {...prerequisites, producer: {id: producer.id, attempt: producer.attempt}}
+}
+
+// Always fetch current repository configuration. A released file, artifact, predicate or dispatch
+// input cannot supply this snapshot or choose the verifier/source pin.
+export function loadReleaseGatePolicy({root, approvedCommit, readApi = api}) {
+  const require = (condition, reason) => {
+    if (!condition) throw new Error(`release policy: ${reason}`)
+  }
+  let response, policy
+  try {
+    response = readApi(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`)
+    require(response?.name === 'RELEASE_GATE_POLICY' && typeof response.value === 'string', 'missing owner variable')
+    policy = JSON.parse(response.value)
+  } catch { throw new Error('release policy: current owner configuration unavailable or malformed') }
+  require(policy?.schemaVersion === 1 && OBJECT_ID.test(approvedCommit ?? ''), 'invalid policy schema or release identity')
+  require([policy.verifierRevision, policy.signerRevision, policy.apiRevision].every(value => OBJECT_ID.test(value ?? '')),
+    'full immutable verifier, signer and API revisions required')
+  require(Array.isArray(policy.revokedSignerRevisions)
+    && policy.revokedSignerRevisions.every(value => OBJECT_ID.test(value ?? ''))
+    && new Set(policy.revokedSignerRevisions).size === policy.revokedSignerRevisions.length, 'revocation list required')
+  require(!policy.revokedSignerRevisions.includes(policy.signerRevision), 'signer is revoked')
+  for (const field of ['verifierRevision', 'signerRevision']) {
+    require(policy[field] !== approvedCommit && succeeds(root, 'merge-base', '--is-ancestor', policy[field], approvedCommit),
+      `${field} must be a resolvable strict ancestor of release`)
+  }
+  require([policy.actionsAppId, policy.galleryAppId, policy.reviewGateAppId]
+    .every(value => Number.isSafeInteger(value) && value > 0), 'native App identities required')
+  require(policy.galleryAppId !== policy.actionsAppId && policy.reviewGateAppId !== policy.actionsAppId,
+    'dedicated check publishers cannot use the Actions identity')
+  const bytes = Buffer.from(response.value, 'utf8')
+  return {policy, bytes, sha256: sha256(bytes)}
+}
+
+if (import.meta.main && process.argv.includes('--release-policy')) {
+  try {
+    const [subject, approvedCommit, snapshot] = process.argv.slice(process.argv.indexOf('--release-policy') + 1)
+    if (!subject || !approvedCommit || !snapshot) throw new Error('missing policy arguments')
+    const root = resolve(subject), executableRoot = resolve(import.meta.dirname, '../..')
+    const loaded = loadReleaseGatePolicy({root, approvedCommit})
+    requireThat(git(executableRoot, 'rev-parse', 'HEAD') === loaded.policy.verifierRevision
+      && git(executableRoot, 'status', '--porcelain') === '', 'external verifier checkout differs from current policy')
+    const destination = resolve(snapshot)
+    for (const directory of [root, executableRoot]) {
+      const name = relative(directory, destination)
+      requireThat(name === '..' || name.startsWith(`..${sep}`) || isAbsolute(name), 'policy snapshot must stay outside executable and released trees')
+    }
+    writeFileSync(destination, loaded.bytes)
+    if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT,
+      `policy-sha256=${loaded.sha256}\nverifier-revision=${loaded.policy.verifierRevision}\n`, {flag: 'a'})
+    process.stdout.write(`${JSON.stringify({policySha256: loaded.sha256, verifierRevision: loaded.policy.verifierRevision})}\n`)
+  } catch {
+    process.stderr.write('release policy refused: current configuration or trusted verifier binding could not be established\n')
+    process.exitCode = 1
+  }
+}
+
 function writeApi(method, path, body) {
   return JSON.parse(execFileSync('gh', ['api', '--method', method, path, '--input', '-'],
     {encoding: 'utf8', input: JSON.stringify(body), stdio: ['pipe', 'pipe', 'pipe']}))
@@ -495,7 +598,8 @@ if (import.meta.main && process.argv.includes('--receipt')) {
         const releaseEligible = OBJECT_ID.test(process.env.RELEASE_APPROVED_COMMIT ?? '')
           && process.env.RELEASE_APPROVED_COMMIT === expected.head
         if (releaseEligible) {
-          const policy = JSON.parse(api(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`).value)
+          const {policy} = loadReleaseGatePolicy({root, approvedCommit: expected.head})
+          requireThat(policy.signerRevision === revision, 'producer does not match current release signer policy')
           await waitForReleaseRunPrerequisites({head: expected.head, queueId: expected.id, actionsAppId: policy.actionsAppId})
         }
         writeFileSync(process.env.GITHUB_OUTPUT,

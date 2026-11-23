@@ -131,8 +131,12 @@ test('release workflow constrains producer/ref, defaults to dry-run, and verifie
   assert.match(workflow, /cmp "\$RUNNER_TEMP\/release\/\$asset"/)
   const staging = workflow.split('\n  stage:\n')[1].split('\n  publish:\n')[0]
   const publication = workflow.split('\n  publish:\n')[1]
-  assert.doesNotMatch(staging, /(?:id-token|attestations|contents): write|gh release|gh attestation|uses: actions\/attest@|GH_TOKEN:/)
+  assert.doesNotMatch(staging, /(?:id-token|attestations|contents): write|gh release|gh attestation|uses: actions\/attest@/)
   assert.match(staging, /permissions:\n      contents: read/)
+  assert.match(staging, /actions: read/)
+  const readTokens = [...staging.matchAll(/GH_TOKEN:\s*(.+)/g)].map(match => match[1])
+  assert.ok(readTokens.length > 0)
+  for (const token of readTokens) assert.equal(token, '${{ github.token }}')
   assert.match(publication, /needs: stage/)
   assert.match(publication, /if: inputs.publish == true && github.ref == 'refs\/heads\/main'/)
   assert.match(publication, /platform-release-staging-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/)

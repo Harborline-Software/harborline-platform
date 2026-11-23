@@ -1,9 +1,11 @@
 // Oracles: T-1138 release.shared-signer-policy; ADR-0198 decision 5.
 import assert from 'node:assert/strict'
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
-import {spawnSync} from 'node:child_process'
+import {dirname, join, relative, resolve} from 'node:path'
+import {pathToFileURL} from 'node:url'
+import {execFileSync, spawnSync} from 'node:child_process'
+import {createHash} from 'node:crypto'
 import test from 'node:test'
 import * as evidence from '../gates/scan-evidence-provenance.mjs'
 
@@ -84,9 +86,8 @@ test('release.main-required-computations: actual fresh scanner refuses GPL despi
   })
 
 // Independent REST documents: T-1138 run/attempt literals and ADR-0198 decision 2.
-function prerequisites() {
+function prerequisites(head = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') {
   const repository = {full_name: 'Harborline-Software/harborline-platform'}
-  const head = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
   const queue = {id: 9001, run_attempt: 2, event: 'merge_group', status: 'completed', conclusion: 'success',
     head_sha: head, path: '.github/workflows/verify.yml', name: 'verify', repository, head_repository: repository, check_suite_id: 701}
   const sbom = {...queue, id: 9003, run_attempt: 1, check_suite_id: 702, name: 'license-sbom', path: '.github/workflows/license-sbom.yml'}
@@ -116,8 +117,218 @@ function prerequisites() {
     assert.equal(typeof evidence.releaseRunPrerequisites, 'function', 'release run prerequisite verifier required')
     return evidence.releaseRunPrerequisites({head, queueId: 9001, actionsAppId: 15368, readApi})
   }
-  return {head, queue, sbom, jobs, sbomJobs, checks, documents, verify}
+  return {head, queue, sbom, jobs, sbomJobs, checks, documents, readApi, verify}
 }
+
+function invocation(t, {verifierFixture = false} = {}) {
+  const root = mkdtempSync(join(tmpdir(), 'release-invocation-'))
+  t.after(() => rmSync(root, {recursive: true, force: true}))
+  const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8',
+    env: {...process.env, GIT_AUTHOR_NAME: 'Release Fixture', GIT_COMMITTER_NAME: 'Release Fixture',
+      GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_EMAIL: 'fixture@example.invalid'},
+    stdio: ['ignore', 'pipe', 'pipe']}).trim()
+  git('init', '-b', 'main')
+  if (verifierFixture) {
+    const repository = resolve(import.meta.dirname, '../..'), copied = new Set()
+    const copy = name => {
+      if (copied.has(name)) return
+      copied.add(name)
+      const source = resolve(repository, name), bytes = readFileSync(source)
+      mkdirSync(dirname(join(root, name)), {recursive: true})
+      writeFileSync(join(root, name), bytes)
+      for (const match of bytes.toString().matchAll(/from\s+['"](\.[^'"]+)['"]/g))
+        copy(relative(repository, resolve(dirname(source), match[1])))
+    }
+    copy('tooling/gates/scan-evidence-provenance.mjs')
+  }
+  const commits = []
+  for (const value of ['A', 'B', 'C']) {
+    writeFileSync(join(root, 'product.txt'), value)
+    if (verifierFixture && value === 'B') {
+      writeFileSync(join(root, 'tooling/gates/scan-evidence-provenance.mjs'),
+        'import {writeFileSync} from "node:fs"; writeFileSync(process.env.CANDIDATE_MARKER, "executed"); console.log("ADMIT");\n')
+      writeFileSync(join(root, 'release-gate-policy.json'), '{"acceptAll":true}')
+    }
+    git('add', '.'); git('commit', '-m', value)
+    commits.push(git('rev-parse', 'HEAD'))
+  }
+  const [A, B, C] = commits
+  const unrelated = git('commit-tree', git('rev-parse', `${A}^{tree}`), '-m', 'unrelated')
+  const f = prerequisites(B)
+  const producerRun = {id: 9002, run_attempt: 1, event: 'workflow_run', status: 'completed', conclusion: 'success',
+    head_sha: A, path: '.github/workflows/verify-gallery-receipt.yml', repository: {full_name: 'Harborline-Software/harborline-platform'}}
+  f.documents['actions/runs/9002'] = producerRun
+  f.documents['actions/runs/9002/attempts/1'] = producerRun
+  const certificate = {
+    buildSignerURI: 'https://github.com/Harborline-Software/harborline-platform/.github/workflows/sign-gallery-receipt.yml@refs/heads/main',
+    buildSignerDigest: A, buildTrigger: 'workflow_run', runnerEnvironment: 'github-hosted',
+    sourceRepositoryURI: 'https://github.com/Harborline-Software/harborline-platform',
+    sourceRepositoryRef: 'refs/heads/main', sourceRepositoryDigest: A,
+    runInvocationURI: 'https://github.com/Harborline-Software/harborline-platform/actions/runs/9002/attempts/1',
+  }
+  const input = {root, approvedCommit: B, testedCommit: B, testedTree: git('rev-parse', `${B}^{tree}`),
+    acceptedSignerRevision: A, actionsAppId: 15368, queue: {id: 9001, attempt: 2},
+    sbom: {id: 9003, attempt: 1}, producer: {id: 9002, attempt: 1, revision: A}, certificate, readApi: f.readApi}
+  const source = sha => {
+    input.acceptedSignerRevision = sha; input.producer.revision = sha
+    certificate.buildSignerDigest = sha; certificate.sourceRepositoryDigest = sha; producerRun.head_sha = sha
+  }
+  const verify = () => {
+    assert.equal(typeof evidence.verifyReleaseInvocation, 'function', 'independent release invocation verifier required')
+    return evidence.verifyReleaseInvocation(input)
+  }
+  return {...f, root, A, B, C, unrelated, input, producerRun, certificate, source, verify}
+}
+
+function externalPolicy(f) {
+  const policy = {schemaVersion: 1, verifierRevision: f.A, signerRevision: f.A, apiRevision: f.A,
+    revokedSignerRevisions: [], actionsAppId: 15368, galleryAppId: 333, reviewGateAppId: 111}
+  const response = {name: 'RELEASE_GATE_POLICY', value: JSON.stringify(policy)}
+  f.documents['actions/variables/RELEASE_GATE_POLICY'] = response
+  return {policy, response, load: () => {
+    assert.equal(typeof evidence.loadReleaseGatePolicy, 'function', 'external policy loader required')
+    return evidence.loadReleaseGatePolicy({root: f.root, approvedCommit: f.B, readApi: f.readApi})
+  }}
+}
+
+test('release.verifier-policy-outside-release: release bootstraps only the owner-pinned external executable closure', t => {
+  const release = workflow('release-platform')
+  const block = release.match(/      - name: Bootstrap current external release verifier\n([\s\S]*?)\n      - /)
+  assert.ok(block, 'external verifier bootstrap step required')
+  const script = block[1].split('        run: |\n')[1].split('\n').map(line => line.replace(/^          /, '')).join('\n')
+  const f = invocation(t, {verifierFixture: true}), p = externalPolicy(f)
+  const released = join(f.root, 'released')
+  execFileSync('git', ['worktree', 'add', '--detach', released, f.B], {cwd: f.root, stdio: 'ignore'})
+  const responsePath = join(f.root, 'owner-variable.json'), hookPath = join(f.root, 'api-hook.mjs')
+  writeFileSync(hookPath, `import cp from 'node:child_process'; import {readFileSync} from 'node:fs'; import {syncBuiltinESMExports} from 'node:module';
+    const actual = cp.execFileSync; cp.execFileSync = (command, args, options) => {
+      if (command !== 'gh') return actual(command, args, options);
+      if (args[0] !== 'api' || args[1] !== 'repos/Harborline-Software/harborline-platform/actions/variables/RELEASE_GATE_POLICY') throw new Error('unexpected API');
+      return readFileSync(process.env.OWNER_VARIABLE, 'utf8'); }; syncBuiltinESMExports();`)
+  const prelude = `git() {
+      if [ "$1" = fetch ]; then command git cat-file -e "$4^{commit}";
+      elif [ "$1" = worktree ] && [ "$2" = add ] && [ "$DIRTY_VERIFIER" = true ]; then command git "$@"; printf 'candidate addition' > "$4/untracked.txt";
+      else command git "$@"; fi; }
+    gh() { cat "$OWNER_VARIABLE"; }
+    node() {
+      if [ "$INSIDE_SNAPSHOT" = true ]; then "$NODE_BINARY" --import "$API_HOOK" "$1" "$2" "$3" "$4" "$GITHUB_WORKSPACE/candidate-policy.json";
+      else "$NODE_BINARY" --import "$API_HOOK" "$@"; fi; }
+    set -euo pipefail
+  `
+  const run = (label, policy, {dirty = false, inside = false, eventHead = f.B} = {}) => {
+    const runner = join(f.root, label), marker = join(runner, 'candidate-executed')
+    mkdirSync(runner)
+    writeFileSync(responsePath, JSON.stringify({name: 'RELEASE_GATE_POLICY', value: JSON.stringify(policy)}))
+    const result = spawnSync('bash', ['-c', prelude + script], {cwd: released, encoding: 'utf8', env: {
+      ...process.env, GITHUB_WORKSPACE: released, RUNNER_TEMP: runner, APPROVED_COMMIT: f.B,
+      GITHUB_SHA: eventHead,
+      REPOSITORY: 'Harborline-Software/harborline-platform', NODE_BINARY: process.execPath,
+      OWNER_VARIABLE: responsePath, API_HOOK: pathToFileURL(hookPath).href,
+      CANDIDATE_MARKER: marker, GITHUB_OUTPUT: join(runner, 'outputs'),
+      DIRTY_VERIFIER: String(dirty), INSIDE_SNAPSHOT: String(inside),
+    }})
+    assert.equal(existsSync(marker), false, 'released-tree accept-all verifier must never execute')
+    return {result, runner}
+  }
+  const valid = run('valid', p.policy)
+  assert.equal(valid.result.status, 0, valid.result.stdout + valid.result.stderr)
+  assert.equal(JSON.parse(readFileSync(join(valid.runner, 'release-policy.json'))).signerRevision, f.A)
+  const revoked = run('revoked', {...p.policy, revokedSignerRevisions: [f.A]})
+  assert.notEqual(revoked.result.status, 0, 'fresh revoked owner policy must refuse')
+  const equal = run('equal', {...p.policy, verifierRevision: f.B})
+  assert.notEqual(equal.result.status, 0, 'verifier at released commit must refuse before loading it')
+  const dirty = run('dirty', p.policy, {dirty: true})
+  assert.notEqual(dirty.result.status, 0, 'external verifier checkout must stay clean')
+  const inside = run('inside', p.policy, {inside: true})
+  assert.notEqual(inside.result.status, 0, 'policy snapshot cannot be stored in the released checkout')
+  const advanced = run('advanced', p.policy, {eventHead: f.C})
+  assert.notEqual(advanced.result.status, 0, 'main-tip dispatch guard must refuse B after event SHA C')
+})
+
+test('release.verifier-policy-outside-release: current owner policy pins exact prior-main verifier/signer/API revisions and its byte digest', t => {
+  const f = invocation(t), p = externalPolicy(f)
+  writeFileSync(join(f.root, 'release-gate-policy.json'), '{"signerRevision":"candidate-selected","acceptAll":true}')
+  const loaded = p.load()
+  assert.deepEqual(loaded.policy, p.policy)
+  assert.equal(loaded.sha256, createHash('sha256').update(p.response.value).digest('hex'))
+  assert.equal(loaded.bytes.toString(), p.response.value)
+})
+
+for (const [label, mutate] of [
+  ['missing policy', (f, p) => { delete f.documents['actions/variables/RELEASE_GATE_POLICY'] }],
+  ['malformed policy', (f, p) => { p.response.value = 'not JSON' }],
+  ['wrong variable', (f, p) => { p.response.name = 'CANDIDATE_POLICY' }],
+  ['unsupported schema', (f, p) => { p.policy.schemaVersion = 2 }],
+  ['verifier at release', (f, p) => { p.policy.verifierRevision = f.B }],
+  ['descendant verifier', (f, p) => { p.policy.verifierRevision = f.C }],
+  ['unresolvable verifier', (f, p) => { p.policy.verifierRevision = 'ffffffffffffffffffffffffffffffffffffffff' }],
+  ['signer at release', (f, p) => { p.policy.signerRevision = f.B }],
+  ['revoked signer', (f, p) => { p.policy.revokedSignerRevisions = [f.A] }],
+  ['missing revocations', (f, p) => { delete p.policy.revokedSignerRevisions }],
+  ['malformed revocations', (f, p) => { p.policy.revokedSignerRevisions = ['main'] }],
+  ['invalid API pin', (f, p) => { p.policy.apiRevision = 'main' }],
+  ['unknown Actions identity', (f, p) => { p.policy.actionsAppId = 0 }],
+  ['unknown gallery identity', (f, p) => { delete p.policy.galleryAppId }],
+  ['unknown review identity', (f, p) => { p.policy.reviewGateAppId = '111' }],
+  ['Actions used as review publisher', (f, p) => { p.policy.reviewGateAppId = 15368 }],
+]) test(`release.verifier-policy-outside-release: ${label} refuses`, t => {
+  const f = invocation(t), p = externalPolicy(f)
+  mutate(f, p)
+  if (label !== 'malformed policy') p.response.value = JSON.stringify(p.policy)
+  assert.throws(p.load, /release policy:/)
+})
+
+test('release.verifier-policy-outside-release: a fresh policy read observes revocation instead of reusing the previous snapshot', t => {
+  const f = invocation(t), p = externalPolicy(f)
+  assert.equal(p.load().policy.signerRevision, f.A)
+  p.response.value = JSON.stringify({...p.policy, revokedSignerRevisions: [f.A]})
+  assert.throws(p.load, /release policy: signer is revoked/)
+})
+
+test('release.gate-evidence-exact-run: A -> B -> C admits source A, tested/released B, queue 9001/2 and producer 9002/1', t => {
+  const f = invocation(t)
+  assert.deepEqual(f.verify(), {queue: {id: 9001, attempt: 2}, sbom: {id: 9003, attempt: 1}, producer: {id: 9002, attempt: 1}})
+})
+
+test('release.gate-evidence-exact-run: source equality, descendant, unrelated and absent Git history refuse', async t => {
+  const f = invocation(t)
+  for (const [label, source] of [['equal', f.B], ['descendant', f.C], ['unrelated', f.unrelated], ['missing', 'ffffffffffffffffffffffffffffffffffffffff']]) {
+    await t.test(label, () => {
+      f.source(source)
+      assert.throws(f.verify, /release invocation:/)
+    })
+  }
+})
+
+for (const [label, mutate] of [
+  ['another signer', f => { f.certificate.buildSignerURI = 'https://github.com/other/repo/.github/workflows/sign.yml@refs/heads/main' }],
+  ['SHA-qualified signer URI', f => { f.certificate.buildSignerURI = f.certificate.buildSignerURI.replace('refs/heads/main', f.A) }],
+  ['wrong signer digest', f => { f.certificate.buildSignerDigest = f.C }],
+  ['producer differs from policy', f => { f.input.producer.revision = f.C }],
+  ['source differs from signer', f => { f.certificate.sourceRepositoryDigest = f.B }],
+  ['wrong source ref', f => { f.certificate.sourceRepositoryRef = 'refs/pull/1/merge' }],
+  ['wrong repository', f => { f.certificate.sourceRepositoryURI = 'https://github.com/other/repo' }],
+  ['self-hosted', f => { f.certificate.runnerEnvironment = 'self-hosted' }],
+  ['missing source facts', f => { delete f.certificate.sourceRepositoryDigest }],
+  ['PR certificate', f => { f.certificate.buildTrigger = 'pull_request' }],
+  ['manual certificate', f => { f.certificate.buildTrigger = 'workflow_dispatch' }],
+  ['release-generated certificate', f => { f.certificate.buildTrigger = 'workflow_dispatch'; f.certificate.runInvocationURI = 'https://github.com/Harborline-Software/harborline-platform/actions/runs/9004/attempts/1' }],
+  ['wrong invocation', f => { f.certificate.runInvocationURI = 'https://github.com/Harborline-Software/harborline-platform/actions/runs/9001/attempts/2' }],
+  ['different tested SHA despite a claimed matching tree', f => { f.input.testedCommit = f.A }],
+  ['wrong tree', f => { f.input.testedTree = 'ffffffffffffffffffffffffffffffffffffffff' }],
+  ['old queue attempt', f => { f.input.queue.attempt = 1 }],
+  ['old SBOM attempt', f => { f.input.sbom.attempt = 2 }],
+  ['new producer attempt', f => { f.documents['actions/runs/9002'] = {...f.producerRun, run_attempt: 2, conclusion: 'failure'} }],
+  ['new successful producer attempt', f => { f.documents['actions/runs/9002'] = {...f.producerRun, run_attempt: 2} }],
+  ['pending producer', f => { f.producerRun.status = 'in_progress'; f.producerRun.conclusion = null }],
+  ['wrong producer source', f => { f.producerRun.head_sha = f.B }],
+  ['wrong producer workflow', f => { f.producerRun.path = '.github/workflows/release-platform.yml' }],
+  ['wrong producer event', f => { f.producerRun.event = 'workflow_dispatch' }],
+]) test(`release.gate-evidence-exact-run: ${label} refuses`, t => {
+  const f = invocation(t)
+  mutate(f)
+  assert.throws(f.verify, /release invocation:/)
+})
 
 test('release.gate-evidence-attested: successful exact-source queue and SBOM prerequisites are recorded separately', () => {
   const f = prerequisites()
