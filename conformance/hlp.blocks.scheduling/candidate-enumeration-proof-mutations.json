@@ -1,0 +1,333 @@
+{
+  "slice": "T-491/candidate-enumeration-proof",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "machine": "PC",
+  "record": {
+    "repository": "Harborline-Software/harborline-control",
+    "revision": "976cb50c7718995b7b386cb1c38672b4da643868",
+    "path": "tickets/T-491-scheduling-authored-and-bound-in-the-domain-builder/slices/candidate-enumeration-proof.md"
+  },
+  "producerSha": "02acac6cba814405ba083b466a6a5fb59575e651",
+  "producerHeadTree": "0d51899ca5542e0180a593dfc84a4d9a37641f91",
+  "testedInputTree": "af6c778e761040f225913cdecede9bebf364a086",
+  "binding": "The claim head plus the staged new test was tested. The tested input tree excludes this subsequently generated receipt. Every kill and restoration has identical source/test/fixture inputs; the final committed candidate must preserve these hashes. Receipt-only changes do not alter proof inputs.",
+  "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\t3-a14658fa-2c4f9e686775d744",
+  "toolchain": {
+    "dotnet": "11.0.100",
+    "node": "v24.14.1"
+  },
+  "commandPreamble": "Set-Location -LiteralPath 'C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\t3-a14658fa-2c4f9e686775d744'",
+  "baseline": {
+    "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\baseline.log",
+    "logSha256": "b82fb926354c9a5693ad59f035120adfd7a71f6adb8261266efb9adc95ab6f47",
+    "exit": 0,
+    "counts": {
+      "failed": 0,
+      "passed": 3,
+      "skipped": 0,
+      "total": 3
+    },
+    "command": {
+      "executable": "C:/Program Files/Git/bin/bash.exe",
+      "args": [
+        "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "pc-491-candidates-b",
+        "--workload",
+        "candidate enumeration baseline",
+        "--candidate",
+        "02acac6cba814405ba083b466a6a5fb59575e651",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+        "-c",
+        "Release",
+        "--filter",
+        "FullyQualifiedName~ScheduleCandidateEnumerationProofTests",
+        "-m:1",
+        "-nr:false"
+      ],
+      "env": {
+        "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+        "MSBUILDDISABLENODEREUSE": "1",
+        "HARBORLINE_TESTED_TREE": null,
+        "HARBORLINE_BASE_HEAD": null
+      }
+    },
+    "workload": "candidate enumeration baseline"
+  },
+  "oracles": [
+    {
+      "test": "FiniteCandidatesPreserveCompleteOrderedInclusiveStarts",
+      "source": "Slice acceptance 1: literal (0,2,[r1,r2]), (0,2,[r1,r3]), (0,2,[r2,r3]), (1,3,[r1,r2]); DES-0022 scheduling-eng-10/bound-3; PlanningModel inclusive window and candidate contracts."
+    },
+    {
+      "test": "FiniteCandidatesRequireWholeDurationSupply",
+      "source": "Slice acceptance 1 and 3: duration 2 at start 1 occupies slots 1 and 2; only r1/r2 have skill and both slots. Literal single tuple (a,1,3,[r1,r2])."
+    },
+    {
+      "test": "FiniteCandidatesExcludeReuseAcrossDistinctDemandsCharacterization",
+      "source": "Slice acceptance 2: literal empty list with d1+d2, then (a,0,1,[r1]) after removing d2. Pinned compiler distinct-resource guard, not an independent design requirement."
+    }
+  ],
+  "mutations": [
+    {
+      "id": "M1",
+      "producerSha": "02acac6cba814405ba083b466a6a5fb59575e651",
+      "producerTree": "af6c778e761040f225913cdecede9bebf364a086",
+      "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs",
+      "span": {
+        "startLine": 66,
+        "before": "start <= window.LatestStartSlot",
+        "after": "start < window.LatestStartSlot"
+      },
+      "inputs": {
+        "restoredTargetSha256": "f919952df0967eb8dec7213e22319cb4740f27f5d1d6cb7a1f0995814464e547",
+        "testFile": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCandidateEnumerationProofTests.cs",
+        "testSha256": "968367414f2f4f34e62df23a4e41296c8c82ffa8cd262713376bff28ea042e34",
+        "fixtureInputs": "All fixtures are local literals in the test file; no external fixture input."
+      },
+      "command": {
+        "executable": "C:/Program Files/Git/bin/bash.exe",
+        "args": [
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-491-candidates-b",
+          "--workload",
+          "candidate enumeration M1",
+          "--candidate",
+          "02acac6cba814405ba083b466a6a5fb59575e651",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ScheduleCandidateEnumerationProofTests",
+          "-m:1",
+          "-nr:false"
+        ],
+        "env": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1",
+          "HARBORLINE_TESTED_TREE": null,
+          "HARBORLINE_BASE_HEAD": null
+        }
+      },
+      "detectingTest": "FiniteCandidatesPreserveCompleteOrderedInclusiveStarts",
+      "detectingAssertion": "Assert.Collection: four literal candidates, including (1,3,[r1,r2])",
+      "mutant": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M1.log",
+        "logSha256": "91fb564079f39315204c39cc0b2b6a8d84f5ef17335e2649bd9df511cd10c96e",
+        "exit": 1,
+        "counts": {
+          "failed": 3,
+          "passed": 0,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restored": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M1-restored.log",
+        "logSha256": "e2b28d4e480e0fb9fd18e347bd38fac9e38cf47ea1884632356eb5a114cb00f5",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 3,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restoredByteIdentical": true
+    },
+    {
+      "id": "M2",
+      "producerSha": "02acac6cba814405ba083b466a6a5fb59575e651",
+      "producerTree": "af6c778e761040f225913cdecede9bebf364a086",
+      "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs",
+      "span": {
+        "startLine": 115,
+        "before": "Enumerable.Range(start, end - start).All(resource.AvailableSlots.Contains)",
+        "after": "Enumerable.Range(start, end - start).Any(resource.AvailableSlots.Contains)"
+      },
+      "inputs": {
+        "restoredTargetSha256": "f919952df0967eb8dec7213e22319cb4740f27f5d1d6cb7a1f0995814464e547",
+        "testFile": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCandidateEnumerationProofTests.cs",
+        "testSha256": "968367414f2f4f34e62df23a4e41296c8c82ffa8cd262713376bff28ea042e34",
+        "fixtureInputs": "All fixtures are local literals in the test file; no external fixture input."
+      },
+      "command": {
+        "executable": "C:/Program Files/Git/bin/bash.exe",
+        "args": [
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-491-candidates-b",
+          "--workload",
+          "candidate enumeration M2",
+          "--candidate",
+          "02acac6cba814405ba083b466a6a5fb59575e651",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ScheduleCandidateEnumerationProofTests",
+          "-m:1",
+          "-nr:false"
+        ],
+        "env": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1",
+          "HARBORLINE_TESTED_TREE": null,
+          "HARBORLINE_BASE_HEAD": null
+        }
+      },
+      "detectingTest": "FiniteCandidatesRequireWholeDurationSupply",
+      "detectingAssertion": "Assert.Collection: start 1 has only (1,3,[r1,r2])",
+      "mutant": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M2.log",
+        "logSha256": "3f1c98ce09289061263bdc0268414f9bedf7729fa7eaa7efb73f84ffb9dfccee",
+        "exit": 1,
+        "counts": {
+          "failed": 2,
+          "passed": 1,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restored": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M2-restored.log",
+        "logSha256": "46bf679585426a91cb40708818718f4808ad4b5ceecf103978b1230d059ddc86",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 3,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restoredByteIdentical": true
+    },
+    {
+      "id": "M3",
+      "producerSha": "02acac6cba814405ba083b466a6a5fb59575e651",
+      "producerTree": "af6c778e761040f225913cdecede9bebf364a086",
+      "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/FiniteCandidateCompiler.cs",
+      "span": {
+        "startLine": 76,
+        "before": "                    if (flattened.Distinct(StringComparer.Ordinal).Count() != flattened.Length)\n                    {\n                        continue;\n                    }\n",
+        "after": ""
+      },
+      "inputs": {
+        "restoredTargetSha256": "f919952df0967eb8dec7213e22319cb4740f27f5d1d6cb7a1f0995814464e547",
+        "testFile": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCandidateEnumerationProofTests.cs",
+        "testSha256": "968367414f2f4f34e62df23a4e41296c8c82ffa8cd262713376bff28ea042e34",
+        "fixtureInputs": "All fixtures are local literals in the test file; no external fixture input."
+      },
+      "command": {
+        "executable": "C:/Program Files/Git/bin/bash.exe",
+        "args": [
+          "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "pc-491-candidates-b",
+          "--workload",
+          "candidate enumeration M3",
+          "--candidate",
+          "02acac6cba814405ba083b466a6a5fb59575e651",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ScheduleCandidateEnumerationProofTests",
+          "-m:1",
+          "-nr:false"
+        ],
+        "env": {
+          "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+          "MSBUILDDISABLENODEREUSE": "1",
+          "HARBORLINE_TESTED_TREE": null,
+          "HARBORLINE_BASE_HEAD": null
+        }
+      },
+      "detectingTest": "FiniteCandidatesExcludeReuseAcrossDistinctDemandsCharacterization",
+      "detectingAssertion": "Assert.Empty: two distinct demands cannot share r1",
+      "mutant": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M3.log",
+        "logSha256": "19df840ca4ebf8f6aeea4042d02a2af1fc63ca815e4eade939183b54f42dbdf3",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 2,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restored": {
+        "log": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-candidates-b\\M3-restored.log",
+        "logSha256": "5adf477f512dacd60cfeb2516b8c53eb5c5d3b74e8e7a15d6765ff7724e73907",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 3,
+          "skipped": 0,
+          "total": 3
+        }
+      },
+      "restoredByteIdentical": true
+    }
+  ],
+  "totals": {
+    "isolatedCompilingMutants": 3,
+    "killed": 3,
+    "survived": 0,
+    "baselineAndRestoredRuns": 4,
+    "greenTests": 12,
+    "greenFailures": 0,
+    "greenSkips": 0,
+    "mutantRuns": 3,
+    "mutantTests": 9,
+    "mutantAssertionFailures": 6,
+    "mutantPassingTests": 3,
+    "mutantSkips": 0
+  },
+  "provenance": {
+    "newCommittedPathsNamedByRecords": [],
+    "temporaryTargetOwner": "docs/provenance/records/hlp.blocks.scheduling.json",
+    "temporaryTargetRestoredByteIdentical": true,
+    "sharedRecordRefreshed": false,
+    "pcOwnershipScan": "rg on all docs/provenance/records content for both new paths and the temporary target; no new-path owners.",
+    "miniCheck": "pending on exact final committed candidate with both new paths visible; expected 0 record(s) read, 0 stale hash(es)"
+  },
+  "acceptance": {
+    "1": "PC proof green",
+    "2": "PC characterization and one-demand control green",
+    "3": "M1/M2/M3 compiling assertion kills",
+    "4": "baseline and each byte-identical restored rebuild green; proof hashes match",
+    "5": "PC focused class green; exact-candidate full platform gate pending Mac mini",
+    "6": "PC ownership scan complete; exact-candidate provenance check pending Mac mini"
+  },
+  "pending": [
+    "Mac mini exact-final-candidate full platform gate, including gallery, using the recorded cleared-environment protocol",
+    "Mac mini exact-final-candidate provenance check after verifying both changed paths are present"
+  ],
+  "acceptanceState": "open; parent acceptance remains open"
+}
