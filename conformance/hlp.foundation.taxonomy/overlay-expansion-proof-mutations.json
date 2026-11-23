@@ -1,0 +1,999 @@
+{
+  "schemaVersion": 1,
+  "slice": "T-493/overlay-expansion-proof",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "writtenOn": "PC",
+  "verifiedAt": "2026-11-22",
+  "control": {
+    "sha": "a25fb174c7f73ccf7963661074e3d2e3a9ade477",
+    "path": "tickets/T-493-taxonomy-authored-and-bound-in-the-domain-builder/slices/overlay-expansion-proof.md"
+  },
+  "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+  "sourceCommitTree": "b94ef13ad2597807f860922e656d82a185ff9cc4",
+  "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+  "treeScope": "The staged test addition plus the unchanged claim tree; this receipt was assembled after the test runs and is not part of those tested trees. Each mutant tree stages exactly its one temporary producer edit. Full phase-4 evidence for the final candidate/tree remains pending on the Mac mini.",
+  "productionSource": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+  "testSource": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+  "oracle": {
+    "source": "Control a25fb174c T-493/overlay-expansion-proof acceptance 1–4; DES-0024 taxonomy-eng-12/taxonomy-run-5, taxonomy-auth-22/taxonomy-auth-10/taxonomy-ck-19 and resolved ruling 2; frozen Taxonomy interface revision 4 at platform d575f4908fbc0562f153f455bd3e4b3eb21dddcb; T-724 ruling 121.",
+    "vendorV1": [
+      "z-root",
+      "a-leaf",
+      "z-addon",
+      "a-addon"
+    ],
+    "vendorV11": [
+      "z-root",
+      "a-leaf",
+      "new-only",
+      "z-addon",
+      "a-addon"
+    ],
+    "unchangedOverlayVendorVersion": "1.0.0",
+    "missingVendor": {
+      "Tenant": "",
+      "DefinitionId": {
+        "Vendor": "vendor",
+        "Domain": "health",
+        "TaxonomyName": "scheme"
+      },
+      "Version": "9.9.9"
+    },
+    "missingOverlay": {
+      "Tenant": "tenant-a",
+      "DefinitionId": {
+        "Vendor": "tenant",
+        "Domain": "health",
+        "TaxonomyName": "scheme-overlay"
+      },
+      "Version": "9.9.9"
+    },
+    "ambiguousVendor": {
+      "VendorDefinitionId": {
+        "Vendor": "vendor",
+        "Domain": "health",
+        "TaxonomyName": "scheme"
+      },
+      "VendorVersion": "1.0.0",
+      "Tenants": [
+        "vendor-other",
+        "vendor-registry"
+      ],
+      "tenantOrder": "set comparison only"
+    },
+    "copiedCode": "z-root",
+    "unknownDesignation": "missing-vendor-code",
+    "correctedDesignation": "z-root"
+  },
+  "preClassRed": "Not applicable: the public producer already exists. No zero-test selection or compiler error is claimed as red evidence. Behavioral red evidence is the eight compiling producer mutants below.",
+  "setup": {
+    "rateLimit": {
+      "coreRemaining": 4647,
+      "graphqlRemaining": 4900
+    },
+    "sdk": "11.0.100",
+    "node": "24.14.1",
+    "claim": "Picker selected this exact slice and claimed it with --claim --attempts 1; draft PR 564.",
+    "provenanceOwnership": {
+      "recordsScanned": 98,
+      "owners": [],
+      "paths": [
+        "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "conformance/hlp.foundation.taxonomy/overlay-expansion-proof-mutations.json",
+        "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs"
+      ]
+    },
+    "restore": {
+      "initialExit": 1,
+      "initialError": "MSBUILD : error MSB1031: Specify the maximum number of CPUs.",
+      "initialNuCodes": [],
+      "quotedRetryExit": 0,
+      "quotedRetryNuCodes": [],
+      "switches": [
+        "'-m:1'",
+        "'-nr:false'"
+      ],
+      "logPaths": [
+        "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\restore.log",
+        "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\restore-quoted.log"
+      ]
+    }
+  },
+  "initialFocusedBaseline": {
+    "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\baseline.log'; exit $LASTEXITCODE",
+    "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+    "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+    "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+    "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+    "exit": 0,
+    "counts": {
+      "failed": 0,
+      "passed": 6,
+      "skipped": 0,
+      "total": 6
+    },
+    "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\baseline.log",
+    "logSha256": "b613a36b1a54222d42d211a83f0c9549d24f9bf5a0aa7fa2a9eb9fde4b5c15e5"
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "name": "Use overlay original vendor version",
+      "before": "entry.Key.Version == vendorVersion",
+      "after": "entry.Key.Version == overlay.Overlay.VendorVersion",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 18,
+        "text": "Assert.Equal([\"z-root\", \"a-leaf\", \"new-only\", \"z-addon\", \"a-addon\"],\n            Assert.IsType<ResolvedTaxonomyOverlayExpansion>(interpreter.ExpandOverlay(Coordinates(), \"1.1.0\")).Codes);"
+      },
+      "oracle": "acceptance 1: complete literal v1.1 sequence",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "25e76398c3b8446c43a51999c6314f6d51ada824",
+        "sourceSha256": "ca00b0f5a486dd087946eaaa18ada6be0808d03f549839c6e4c9a595504f7c9b",
+        "sourceBlob": "d6bdb0a06ca720ac05ee63d48e12e7b8c1abed34"
+      },
+      "baseline": {
+        "label": "M1-baseline",
+        "startedAt": "2026-11-22T08:35:39.316Z",
+        "finishedAt": "2026-11-22T08:35:54.649Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M1-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-baseline.log",
+        "logSha256": "74958273802f7aa028f33296758c71a5d477bca8bb7983f64fa325e4d4b7fa22"
+      },
+      "mutant": {
+        "label": "M1-mutant",
+        "startedAt": "2026-11-22T08:35:54.850Z",
+        "finishedAt": "2026-11-22T08:36:14.797Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "25e76398c3b8446c43a51999c6314f6d51ada824",
+        "sourceSha256": "ca00b0f5a486dd087946eaaa18ada6be0808d03f549839c6e4c9a595504f7c9b",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M1-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 2,
+          "passed": 4,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-mutant.log",
+        "logSha256": "66324bd8cae95ec28bc682178d132554b35a989a46e832206a5a0718ac403974"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "sourceLine": 431,
+      "restored": {
+        "label": "M1-restored",
+        "startedAt": "2026-11-22T08:36:14.862Z",
+        "finishedAt": "2026-11-22T08:36:35.364Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M1-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-restored.log",
+        "logSha256": "01277508dc6d6b10ef0b44662d453f8a36a5f57d18b2cafa02361e1fac28c982",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay uses each explicitly requested vendor release in vendor-first order [2 ms]\r\n  Error Message:\r\n   Assert.Equal() Failure: Collections differ\r\n                                           ↓ (pos 2)\r\nExpected: <generated> [\"z-root\", \"a-leaf\", \"new-only\", \"z-addon\", \"a-addon\"]\r\nActual:   string[]    [\"z-root\", \"a-leaf\", \"z-addon\", \"a-addon\"]\r\n                                           ↑ (pos 2)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 18\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M2",
+      "name": "Reverse vendor and overlay concatenation",
+      "before": "ExpandWholeScheme(vendor).Concat(ExpandWholeScheme(overlay))",
+      "after": "ExpandWholeScheme(overlay).Concat(ExpandWholeScheme(vendor))",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 88,
+        "text": "Assert.Equal([\"z-root\", \"a-leaf\", \"z-addon\", \"a-addon\"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(result).Codes);"
+      },
+      "oracle": "acceptance 1: complete literal v1 sequence",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "d14ba6b3e29bba000da075f3bce549e839ff9fd2",
+        "sourceSha256": "d1156e245f95543f2165b40a428ec1ce96609331a49ded44592924188c000182",
+        "sourceBlob": "65d2ad62317e42e4b2744a9f7760906e63ee9e02"
+      },
+      "baseline": {
+        "label": "M2-baseline",
+        "startedAt": "2026-11-22T08:36:41.746Z",
+        "finishedAt": "2026-11-22T08:36:57.477Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M2-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-baseline.log",
+        "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+      },
+      "mutant": {
+        "label": "M2-mutant",
+        "startedAt": "2026-11-22T08:36:57.643Z",
+        "finishedAt": "2026-11-22T08:37:13.507Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "d14ba6b3e29bba000da075f3bce549e839ff9fd2",
+        "sourceSha256": "d1156e245f95543f2165b40a428ec1ce96609331a49ded44592924188c000182",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M2-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 6,
+          "passed": 0,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-mutant.log",
+        "logSha256": "4f5744e6e729ec7158661c21106ad0d0da4b6939cda0a92504cf79763309106d"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "sourceLine": 443,
+      "restored": {
+        "label": "M2-restored",
+        "startedAt": "2026-11-22T08:37:13.567Z",
+        "finishedAt": "2026-11-22T08:37:28.872Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M2-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-restored.log",
+        "logSha256": "3e3893622a9173fc11aeb890c2c6753eaa377985faf24f9c15da269f1274a78a",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay uses each explicitly requested vendor release in vendor-first order [< 1 ms]\r\n  Error Message:\r\n   Assert.Equal() Failure: Collections differ\r\n                       ↓ (pos 0)\r\nExpected: <generated> [\"z-root\", \"a-leaf\", \"z-addon\", \"a-addon\"]\r\nActual:   string[]    [\"z-addon\", \"a-addon\", \"z-root\", \"a-leaf\"]\r\n                       ↑ (pos 0)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.AssertV1(TaxonomyOverlayExpansionResult result) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 88\r\n   at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 17\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M3",
+      "name": "Omit overlay codes",
+      "before": "ExpandWholeScheme(vendor).Concat(ExpandWholeScheme(overlay))",
+      "after": "ExpandWholeScheme(vendor)",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 88,
+        "text": "Assert.Equal([\"z-root\", \"a-leaf\", \"z-addon\", \"a-addon\"], Assert.IsType<ResolvedTaxonomyOverlayExpansion>(result).Codes);"
+      },
+      "oracle": "acceptance 1: complete literal v1 sequence",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "b06291a6b7255271dde61a6e5006069318d18e82",
+        "sourceSha256": "8d3f798d45d4b47ac7a759de3504bee4c213408f8fc4a564dde30164b6f485c3",
+        "sourceBlob": "f3f9464cf2ca6ec321944d01100559998ec1ea2d"
+      },
+      "baseline": {
+        "label": "M3-baseline",
+        "startedAt": "2026-11-22T08:37:32.182Z",
+        "finishedAt": "2026-11-22T08:37:47.871Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M3-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-baseline.log",
+        "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+      },
+      "mutant": {
+        "label": "M3-mutant",
+        "startedAt": "2026-11-22T08:37:48.037Z",
+        "finishedAt": "2026-11-22T08:38:03.482Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "b06291a6b7255271dde61a6e5006069318d18e82",
+        "sourceSha256": "8d3f798d45d4b47ac7a759de3504bee4c213408f8fc4a564dde30164b6f485c3",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M3-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 6,
+          "passed": 0,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-mutant.log",
+        "logSha256": "f7c49ef4a06c6d8f5e4baad64a3311485929810a933279ec55a1d6067f65bc77"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order",
+      "sourceLine": 443,
+      "restored": {
+        "label": "M3-restored",
+        "startedAt": "2026-11-22T08:38:03.537Z",
+        "finishedAt": "2026-11-22T08:38:18.826Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M3-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-restored.log",
+        "logSha256": "cdb02da9e6c0831acd4c755911aa99e5b45ff635b12e505b8d65a49396f2c0bd",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay uses each explicitly requested vendor release in vendor-first order [< 1 ms]\r\n  Error Message:\r\n   Assert.Equal() Failure: Collections differ\r\n                                           ↓ (pos 2)\r\nExpected: <generated> [\"z-root\", \"a-leaf\", \"z-addon\", \"a-addon\"]\r\nActual:   string[]    [\"z-root\", \"a-leaf\"]\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.AssertV1(TaxonomyOverlayExpansionResult result) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 88\r\n   at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_requested_release_and_order() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 17\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M4",
+      "name": "Missing overlay becomes empty success",
+      "before": "return new TaxonomyOverlayExpansionNotFound(overlayNotFound.Coordinates);",
+      "after": "return new ResolvedTaxonomyOverlayExpansion([]);",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_missing_overlay",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 39,
+        "text": "var refusal = Assert.IsType<TaxonomyOverlayExpansionNotFound>(\n            interpreter.ExpandOverlay(new(\"tenant-a\", new(\"tenant\", \"health\", \"scheme-overlay\"), \"9.9.9\"), \"1.0.0\"));"
+      },
+      "oracle": "acceptance 2: missing overlay is typed refusal",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "e50973cbcf7bff418302978e1f90bdf771fd6fe8",
+        "sourceSha256": "753e030cd2a1d3a5d2581b033af753f05c5fd54a87eb284d8853d297ce6faeca",
+        "sourceBlob": "ccd3ce0e706dc2cacd56e4723517cf9434992719"
+      },
+      "baseline": {
+        "label": "M4-baseline",
+        "startedAt": "2026-11-22T08:38:18.982Z",
+        "finishedAt": "2026-11-22T08:38:35.718Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M4-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-baseline.log",
+        "logSha256": "891980833cd70eff3d69f3d6b0b80bdd0125151ad7043f51ad52bb638ee5fc48"
+      },
+      "mutant": {
+        "label": "M4-mutant",
+        "startedAt": "2026-11-22T08:38:35.897Z",
+        "finishedAt": "2026-11-22T08:38:54.073Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "e50973cbcf7bff418302978e1f90bdf771fd6fe8",
+        "sourceSha256": "753e030cd2a1d3a5d2581b033af753f05c5fd54a87eb284d8853d297ce6faeca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M4-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 5,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-mutant.log",
+        "logSha256": "6ad7303ac362868eaa848ecac12d3e0c24ccd922953f6c10fc7d7893e3f35d83"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_missing_overlay",
+      "sourceLine": 423,
+      "restored": {
+        "label": "M4-restored",
+        "startedAt": "2026-11-22T08:38:54.131Z",
+        "finishedAt": "2026-11-22T08:39:16.564Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M4-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-restored.log",
+        "logSha256": "b79682dd515d23e35130bd9c7cbc867added07aac5ff071d8e1183a925a9bebb",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay missing overlay has literal tenant coordinates then recovers [1 ms]\r\n  Error Message:\r\n   Assert.IsType() Failure: Value is not the exact type\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyOverlayExpansionNotFound)\r\nActual:   typeof(Harborline.Foundation.Taxonomy.ResolvedTaxonomyOverlayExpansion)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_missing_overlay() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 39\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M5",
+      "name": "Missing vendor becomes empty success",
+      "before": "return new TaxonomyOverlayExpansionNotFound(new(\"\", overlay.Overlay.VendorDefinitionId, vendorVersion));",
+      "after": "return new ResolvedTaxonomyOverlayExpansion([]);",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_missing_vendor",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 28,
+        "text": "var refusal = Assert.IsType<TaxonomyOverlayExpansionNotFound>(\n            interpreter.ExpandOverlay(Coordinates(), \"9.9.9\"));"
+      },
+      "oracle": "acceptance 2: missing vendor is typed refusal",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "d909e8ec54c5fd83f7ab1978825f08ee7555730e",
+        "sourceSha256": "b4fde25231f63336ff7b44834a4f19d79a612cbc7ed2989092f23c300d4041d9",
+        "sourceBlob": "cc6466b221ae3734431ff23af067fb1208f17b15"
+      },
+      "baseline": {
+        "label": "M5-baseline",
+        "startedAt": "2026-11-22T08:39:16.741Z",
+        "finishedAt": "2026-11-22T08:39:35.135Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M5-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-baseline.log",
+        "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+      },
+      "mutant": {
+        "label": "M5-mutant",
+        "startedAt": "2026-11-22T08:39:35.332Z",
+        "finishedAt": "2026-11-22T08:39:52.879Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "d909e8ec54c5fd83f7ab1978825f08ee7555730e",
+        "sourceSha256": "b4fde25231f63336ff7b44834a4f19d79a612cbc7ed2989092f23c300d4041d9",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M5-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 5,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-mutant.log",
+        "logSha256": "599aebefceecdbd50b0f55d63a2eaa23627197021facc9b9f5872aa3d2a2b88f"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_missing_vendor",
+      "sourceLine": 432,
+      "restored": {
+        "label": "M5-restored",
+        "startedAt": "2026-11-22T08:39:52.949Z",
+        "finishedAt": "2026-11-22T08:40:11.471Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M5-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-restored.log",
+        "logSha256": "6a3c738dc8b1c605dc1a354b2c5ee7644049d329757e4206680efe1efbb433f8",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay missing vendor has literal empty-tenant coordinates then recovers [7 ms]\r\n  Error Message:\r\n   Assert.IsType() Failure: Value is not the exact type\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyOverlayExpansionNotFound)\r\nActual:   typeof(Harborline.Foundation.Taxonomy.ResolvedTaxonomyOverlayExpansion)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_missing_vendor() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M6",
+      "name": "Choose first ambiguous registration",
+      "before": "if (vendorMatches.Length > 1) return new TaxonomyOverlayExpansionAmbiguousVendor(overlay.Overlay.VendorDefinitionId, vendorVersion, vendorMatches.Select(entry => entry.Key.Tenant).ToArray());",
+      "after": "// Mutation: fall through to the first registration.",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_ambiguous_vendor",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 54,
+        "text": "var refusal = Assert.IsType<TaxonomyOverlayExpansionAmbiguousVendor>(interpreter.ExpandOverlay(Coordinates(), \"1.0.0\"));"
+      },
+      "oracle": "acceptance 3: ambiguity is typed refusal",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "6af795f799a48218df1533fe75377931fb781473",
+        "sourceSha256": "84c0de44730ab5f58b903226de7d145d952d9ab312c7d6b65e07e713264afa46",
+        "sourceBlob": "426b2b7ef8c1f13aee003b2ab91a034977c54577"
+      },
+      "baseline": {
+        "label": "M6-baseline",
+        "startedAt": "2026-11-22T08:40:11.656Z",
+        "finishedAt": "2026-11-22T08:40:29.671Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M6-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-baseline.log",
+        "logSha256": "acd2115bfe12a7cf078544c81e12bc06919cf999a5561f0824752c6d23b97187"
+      },
+      "mutant": {
+        "label": "M6-mutant",
+        "startedAt": "2026-11-22T08:40:29.835Z",
+        "finishedAt": "2026-11-22T08:40:51.256Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "6af795f799a48218df1533fe75377931fb781473",
+        "sourceSha256": "84c0de44730ab5f58b903226de7d145d952d9ab312c7d6b65e07e713264afa46",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M6-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 5,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-mutant.log",
+        "logSha256": "0ac9dd5bc7a90ea232645c986b94647caf0fe95184a892c9cb2a7783ac536d34"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_ambiguous_vendor",
+      "sourceLine": 433,
+      "restored": {
+        "label": "M6-restored",
+        "startedAt": "2026-11-22T08:40:51.322Z",
+        "finishedAt": "2026-11-22T08:41:14.849Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M6-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-restored.log",
+        "logSha256": "699c66bacc786514b49c2660f69a8758e9a028b6158aecb0f72eb1aec9a4afe6",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 overlay refuses both vendor registrations without preferring a tenant [1 ms]\r\n  Error Message:\r\n   Assert.IsType() Failure: Value is not the exact type\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyOverlayExpansionAmbiguousVendor)\r\nActual:   typeof(Harborline.Foundation.Taxonomy.ResolvedTaxonomyOverlayExpansion)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_ambiguous_vendor() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 54\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M7",
+      "name": "Bypass copied-code refusal",
+      "before": "if (copiedCode is not null) return new TaxonomyOverlayExpansionCopiesVendorNode(copiedCode);",
+      "after": "// Mutation: do not refuse copiedCode.",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_copied_vendor_code",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 67,
+        "text": "var refusal = Assert.IsType<TaxonomyOverlayExpansionCopiesVendorNode>(\n            Interpreter(copied).ExpandOverlay(Coordinates(), \"1.0.0\"));"
+      },
+      "oracle": "acceptance 4: copied vendor code is typed refusal",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "e4c3a14017a389ae8ce0298f42e78b36281143d0",
+        "sourceSha256": "d66d193a23ee17e76c85e870a6516ef61cb7c8efc1d2c2c31c1eb857d7dd2a24",
+        "sourceBlob": "6b0b7faa080bfbcef97136401d5bdc255e9b7a33"
+      },
+      "baseline": {
+        "label": "M7-baseline",
+        "startedAt": "2026-11-22T08:41:15.078Z",
+        "finishedAt": "2026-11-22T08:41:31.935Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M7-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-baseline.log",
+        "logSha256": "74958273802f7aa028f33296758c71a5d477bca8bb7983f64fa325e4d4b7fa22"
+      },
+      "mutant": {
+        "label": "M7-mutant",
+        "startedAt": "2026-11-22T08:41:32.139Z",
+        "finishedAt": "2026-11-22T08:41:53.744Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "e4c3a14017a389ae8ce0298f42e78b36281143d0",
+        "sourceSha256": "d66d193a23ee17e76c85e870a6516ef61cb7c8efc1d2c2c31c1eb857d7dd2a24",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M7-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 5,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-mutant.log",
+        "logSha256": "1c99be8b878e0c226efd85ca97c3bf3e113b658970fa49cbe3b004b8bac98b8a"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_copied_vendor_code",
+      "sourceLine": 438,
+      "restored": {
+        "label": "M7-restored",
+        "startedAt": "2026-11-22T08:41:53.803Z",
+        "finishedAt": "2026-11-22T08:42:11.931Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M7-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-restored.log",
+        "logSha256": "3f94bc392fe8a3fcfd262882acb6ac838f072c5d8d3d29c3d7c14cc7b09b1682",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 taxonomy-auth-22 taxonomy-ck-19 overlay refuses copied vendor code then recovers [1 ms]\r\n  Error Message:\r\n   Assert.IsType() Failure: Value is not the exact type\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyOverlayExpansionCopiesVendorNode)\r\nActual:   typeof(Harborline.Foundation.Taxonomy.ResolvedTaxonomyOverlayExpansion)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_copied_vendor_code() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 67\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    },
+    {
+      "id": "M8",
+      "name": "Bypass unknown-designation refusal",
+      "before": "if (unknownDesignation is not null) return new TaxonomyOverlayExpansionUnknownDesignation(unknownDesignation);",
+      "after": "// Mutation: do not refuse unknownDesignation.",
+      "method": "taxonomy_eng_12_taxonomy_run_5_overlay_unknown_designation",
+      "assertion": {
+        "path": "projections/dotnet/foundation/hlp.foundation.taxonomy.tests/TaxonomyOverlayExpansionProofTests.cs",
+        "startLine": 79,
+        "text": "var refusal = Assert.IsType<TaxonomyOverlayExpansionUnknownDesignation>(\n            Interpreter(overlay).ExpandOverlay(Coordinates(), \"1.0.0\"));"
+      },
+      "oracle": "acceptance 4: unknown designation is typed refusal",
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyInterpreter.cs",
+      "beforeEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb"
+      },
+      "afterEdit": {
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "tree": "e87c806cd29c768758c7157676442390ff1f7859",
+        "sourceSha256": "511d052c82e875e648374252d249d93d483caf08dea87103e1f7db5c70cf73dc",
+        "sourceBlob": "e575bcb3d8b4e7bc2d74d36e73684eaf5973d46d"
+      },
+      "baseline": {
+        "label": "M8-baseline",
+        "startedAt": "2026-11-22T08:42:12.086Z",
+        "finishedAt": "2026-11-22T08:42:28.368Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M8-baseline' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-baseline.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-baseline.log",
+        "logSha256": "acd2115bfe12a7cf078544c81e12bc06919cf999a5561f0824752c6d23b97187"
+      },
+      "mutant": {
+        "label": "M8-mutant",
+        "startedAt": "2026-11-22T08:42:28.605Z",
+        "finishedAt": "2026-11-22T08:42:50.961Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "e87c806cd29c768758c7157676442390ff1f7859",
+        "sourceSha256": "511d052c82e875e648374252d249d93d483caf08dea87103e1f7db5c70cf73dc",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M8-mutant' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-mutant.log'; exit $LASTEXITCODE",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 5,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-mutant.log",
+        "logSha256": "89af9280e93cba4a4e0d8a40cd06199f4f3fcbc5104c5edc9c7d8a7243e4389f"
+      },
+      "detectingTest": "Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_unknown_designation",
+      "sourceLine": 441,
+      "restored": {
+        "label": "M8-restored",
+        "startedAt": "2026-11-22T08:42:51.017Z",
+        "finishedAt": "2026-11-22T08:43:09.347Z",
+        "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+        "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+        "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+        "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+        "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M8-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-restored.log'; exit $LASTEXITCODE",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 6,
+          "skipped": 0,
+          "total": 6
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-restored.log",
+        "logSha256": "6a0485c814a015e5ff00e1eb823c15bac08de2024a32d60d8e5dfce56e9cb43b",
+        "byteForByte": true
+      },
+      "result": "killed by relevant assertion in new class",
+      "failureEvidence": "Failed taxonomy-eng-12 taxonomy-run-5 taxonomy-auth-10 overlay refuses unknown designation then recovers [1 ms]\r\n  Error Message:\r\n   Assert.IsType() Failure: Value is not the exact type\r\nExpected: typeof(Harborline.Foundation.Taxonomy.TaxonomyOverlayExpansionUnknownDesignation)\r\nActual:   typeof(Harborline.Foundation.Taxonomy.ResolvedTaxonomyOverlayExpansion)\r\n  Stack Trace:\r\n     at Harborline.Foundation.Taxonomy.Tests.TaxonomyOverlayExpansionProofTests.taxonomy_eng_12_taxonomy_run_5_overlay_unknown_designation() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-493-overlay-exp-235ceacce875c93a\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyOverlayExpansionProofTests.cs:line 79\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+    }
+  ],
+  "finalRestored": {
+    "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+    "sourceBlob": "0512b9659ae473b4d35cb3abda64b55e6da7d0bb",
+    "byteForByte": true,
+    "focused": {
+      "label": "M8-restored",
+      "startedAt": "2026-11-22T08:42:51.017Z",
+      "finishedAt": "2026-11-22T08:43:09.347Z",
+      "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+      "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+      "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+      "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+      "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay M8-restored' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~TaxonomyOverlayExpansionProofTests '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-restored.log'; exit $LASTEXITCODE",
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 6,
+        "skipped": 0,
+        "total": 6
+      },
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-restored.log",
+      "logSha256": "6a0485c814a015e5ff00e1eb823c15bac08de2024a32d60d8e5dfce56e9cb43b",
+      "byteForByte": true
+    },
+    "wholeProject": {
+      "label": "whole-project",
+      "startedAt": "2026-11-22T08:43:14.349Z",
+      "finishedAt": "2026-11-22T08:43:34.853Z",
+      "sourceSha": "286cb65b8fc4cbb5a3be5277689824b94a0907b0",
+      "testedTree": "fda64490cfe131c57ae91378814a0683671014a2",
+      "sourceSha256": "543400649088e3db0421f4dbb31d95112798b49af5f7d02144be0460b42270ca",
+      "testSha256": "0d9c567b87279d51e9fe1cebf6075b094a3ce0eaed87613b67934e57706897c1",
+      "command": "$env:DOTNET_CLI_USE_MSBUILD_SERVER='0'; $env:MSBUILDDISABLENODEREUSE='1'; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-493-overlay --workload 'T-493 overlay whole-project' --candidate 286cb65b8fc4cbb5a3be5277689824b94a0907b0 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore '-m:1' '-nr:false' *> 'C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\whole-project.log'; exit $LASTEXITCODE",
+      "exit": 0,
+      "counts": {
+        "failed": 0,
+        "passed": 141,
+        "skipped": 0,
+        "total": 141
+      },
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\whole-project.log",
+      "logSha256": "092b588e5a98007d68b202e801791bb73f82efd09450d19b40f6b0ee86502757"
+    }
+  },
+  "fullPhase4": {
+    "state": "pending",
+    "host": "Mac mini",
+    "dependency": "platform PR 559",
+    "receipt": null
+  },
+  "logManifest": [
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-baseline.log",
+      "logSha256": "74958273802f7aa028f33296758c71a5d477bca8bb7983f64fa325e4d4b7fa22"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-mutant.log",
+      "logSha256": "66324bd8cae95ec28bc682178d132554b35a989a46e832206a5a0718ac403974"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M1-restored.log",
+      "logSha256": "01277508dc6d6b10ef0b44662d453f8a36a5f57d18b2cafa02361e1fac28c982"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-baseline.log",
+      "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-mutant.log",
+      "logSha256": "4f5744e6e729ec7158661c21106ad0d0da4b6939cda0a92504cf79763309106d"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M2-restored.log",
+      "logSha256": "3e3893622a9173fc11aeb890c2c6753eaa377985faf24f9c15da269f1274a78a"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-baseline.log",
+      "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-mutant.log",
+      "logSha256": "f7c49ef4a06c6d8f5e4baad64a3311485929810a933279ec55a1d6067f65bc77"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M3-restored.log",
+      "logSha256": "cdb02da9e6c0831acd4c755911aa99e5b45ff635b12e505b8d65a49396f2c0bd"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-baseline.log",
+      "logSha256": "891980833cd70eff3d69f3d6b0b80bdd0125151ad7043f51ad52bb638ee5fc48"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-mutant.log",
+      "logSha256": "6ad7303ac362868eaa848ecac12d3e0c24ccd922953f6c10fc7d7893e3f35d83"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M4-restored.log",
+      "logSha256": "b79682dd515d23e35130bd9c7cbc867added07aac5ff071d8e1183a925a9bebb"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-baseline.log",
+      "logSha256": "50e5b1eb8224247e0475de6baa3d1062d0905f2ee15046a260cafad775bcfbbe"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-mutant.log",
+      "logSha256": "599aebefceecdbd50b0f55d63a2eaa23627197021facc9b9f5872aa3d2a2b88f"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M5-restored.log",
+      "logSha256": "6a3c738dc8b1c605dc1a354b2c5ee7644049d329757e4206680efe1efbb433f8"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-baseline.log",
+      "logSha256": "acd2115bfe12a7cf078544c81e12bc06919cf999a5561f0824752c6d23b97187"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-mutant.log",
+      "logSha256": "0ac9dd5bc7a90ea232645c986b94647caf0fe95184a892c9cb2a7783ac536d34"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M6-restored.log",
+      "logSha256": "699c66bacc786514b49c2660f69a8758e9a028b6158aecb0f72eb1aec9a4afe6"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-baseline.log",
+      "logSha256": "74958273802f7aa028f33296758c71a5d477bca8bb7983f64fa325e4d4b7fa22"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-mutant.log",
+      "logSha256": "1c99be8b878e0c226efd85ca97c3bf3e113b658970fa49cbe3b004b8bac98b8a"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M7-restored.log",
+      "logSha256": "3f94bc392fe8a3fcfd262882acb6ac838f072c5d8d3d29c3d7c14cc7b09b1682"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-baseline.log",
+      "logSha256": "acd2115bfe12a7cf078544c81e12bc06919cf999a5561f0824752c6d23b97187"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-mutant.log",
+      "logSha256": "89af9280e93cba4a4e0d8a40cd06199f4f3fcbc5104c5edc9c7d8a7243e4389f"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\M8-restored.log",
+      "logSha256": "6a0485c814a015e5ff00e1eb823c15bac08de2024a32d60d8e5dfce56e9cb43b"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\baseline.log",
+      "logSha256": "b613a36b1a54222d42d211a83f0c9549d24f9bf5a0aa7fa2a9eb9fde4b5c15e5"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\provenance.log",
+      "logSha256": "b70b36c66ff37aff4627d7eb432099767d51e572751a2aaa63661c326f4e2bac"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\restore-quoted.log",
+      "logSha256": "53c6650c7bc221f40c384ad38a1bcb3cc524f38cbba5b3374a766b5f0834c014"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\restore.log",
+      "logSha256": "abb643ed169427b61e1658298209399f09f969219606b7dbbf021eebbadfeebe"
+    },
+    {
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t493-overlay\\whole-project.log",
+      "logSha256": "092b588e5a98007d68b202e801791bb73f82efd09450d19b40f6b0ee86502757"
+    }
+  ],
+  "provenanceCheck": {
+    "command": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+    "exit": 0,
+    "output": "0 record(s) read, 0 stale hash(es)",
+    "logSha256": "b70b36c66ff37aff4627d7eb432099767d51e572751a2aaa63661c326f4e2bac",
+    "meaning": "Ownership check only; zero selected records is not a module hash proof."
+  }
+}
