@@ -102,12 +102,22 @@ public sealed class ScheduleDefinitionTests
     }
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-auth-2: a generator outside the four, none named, or two at once refuses")]
-    [InlineData("""{"kind":"weekly","rrule":"x"}""")]
+    [InlineData("""{"kind":"weekly","rrule":"x"}""", true)]
     [InlineData("""{"rrule":"x"}""")]
+    [InlineData("""{"kind":17}""")]
     [InlineData("""{"kind":"fixed_calendar","rrule":"x","offset":"P1D"}""")]
     [InlineData("""[{"kind":"fixed_calendar","rrule":"x"},{"kind":"completion_offset","offset":"P1D"}]""")]
-    public async Task OnlyOneOfTheFourGeneratorsIsAdmitted(string basis)
-        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")], await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}""")));
+    public async Task OnlyOneOfTheFourGeneratorsIsAdmitted(string basis, bool unsupported = false)
+    {
+        // Oracle: T-491/generator-refusal-detail weekly row and preserved malformed-shape contract.
+        var expected = unsupported
+            ? new DefinitionRefusal("scheduling.definition.basis_unsupported", "/basis/kind")
+            {
+                Detail = System.Text.Json.Nodes.JsonNode.Parse("""{"observed":"weekly","required":["completion_offset","event_anchored_chain","fixed_calendar","threshold"]}""")!.AsObject(),
+            }
+            : new DefinitionRefusal("scheduling.definition.body_invalid", "");
+        Assert.Equal(expected, Assert.Single(await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}"""))));
+    }
 
     [Theory(DisplayName = "scheduling-ck-4: a generator missing what it needs refuses at its member")]
     [InlineData("""{"kind":"fixed_calendar"}""", "scheduling.definition.basis_invalid", "/basis/rrule")]

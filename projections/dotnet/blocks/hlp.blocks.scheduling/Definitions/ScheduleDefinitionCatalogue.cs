@@ -46,6 +46,8 @@ public static class ScheduleDefinitionCodes
     public const string WindowInvalid = "scheduling.definition.window_invalid";
     /// <summary>A generator is missing a member or breaks its own rules.</summary>
     public const string BasisInvalid = "scheduling.definition.basis_invalid";
+    /// <summary>The authored generator is outside the four declared generators.</summary>
+    public const string BasisUnsupported = "scheduling.definition.basis_unsupported";
     /// <summary>A duration is not a non-negative ISO 8601 duration.</summary>
     public const string DurationInvalid = "scheduling.definition.duration_invalid";
     /// <summary>The escalation does not name who it goes to.</summary>
@@ -235,6 +237,17 @@ public sealed class ScheduleDefinitionCatalogue
         else if (body.ContainsKey("solver") && body["solver"] is not null)
             refusals.Add(new("scheduling.definition.solver_invalid", "/solver"));
         if (refusals.Count > 0) return refusals;
+        if (body["basis"] is JsonObject basis && basis["kind"] is JsonValue kind
+            && kind.TryGetValue<string>(out var generator)
+            && generator is not ("completion_offset" or "event_anchored_chain" or "fixed_calendar" or "threshold"))
+            return [new(ScheduleDefinitionCodes.BasisUnsupported, "/basis/kind")
+            {
+                Detail = new()
+                {
+                    ["observed"] = generator,
+                    ["required"] = new JsonArray("completion_offset", "event_anchored_chain", "fixed_calendar", "threshold"),
+                },
+            }];
         ScheduleDefinition definition;
         try
         {
