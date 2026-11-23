@@ -3,6 +3,9 @@
 // public contract preserved so [TypeForwardedTo] in that assembly resolves them by exact type name and every
 // existing compiled consumer keeps resolving the same runtime type without a source change. This file is the
 // only place these four types are defined; do not add a second copy under Harborline.Foundation.Definitions.
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>The admission boundary presented to a member's validator.</summary>
@@ -22,7 +25,21 @@ public enum DefinitionAdmissionPhase
 /// A stable, localizable refusal at an RFC 6901 pointer. <paramref name="Target"/> names a fetchable definition the
 /// refusal concerns, and is present only when revealing it is safe and authorized; otherwise it is omitted.
 /// </summary>
-public sealed record DefinitionRefusal(string Code, string Pointer, string? Target = null);
+public sealed record DefinitionRefusal(string Code, string Pointer, string? Target = null)
+{
+    /// <summary>Optional machine-readable explanation values (DES-0014 C3).</summary>
+    [JsonPropertyName("detail")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonObject? Detail { get; init; }
+
+    /// <summary>Compares detail entries structurally, independent of object member order.</summary>
+    public bool Equals(DefinitionRefusal? other)
+        => other is not null && Code == other.Code && Pointer == other.Pointer && Target == other.Target
+            && JsonNode.DeepEquals(Detail, other.Detail);
+
+    /// <summary>Hashes the stable coordinates; different details may share a hash.</summary>
+    public override int GetHashCode() => HashCode.Combine(Code, Pointer, Target);
+}
 
 /// <summary>A pure admission verdict: the stage it ran at and every refusal, empty when admitted.</summary>
 public sealed record DefinitionRefusalReport(DefinitionAdmissionPhase Stage, IReadOnlyList<DefinitionRefusal> Refusals);
