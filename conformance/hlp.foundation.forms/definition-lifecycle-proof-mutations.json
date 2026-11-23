@@ -183,6 +183,52 @@
         "log_sha256": "76e9cff99557ca96bb08445b9a161788a2f0c988a57ff7d8f90841bb80dad296"
       },
       "restored": "Original bytes restored after run; final restored class is 17/17 green."
+    },
+    {
+      "id": "refused-publish-timestamp",
+      "file": "projections/dotnet/foundation/hlp.foundation.forms/InMemoryFormDefinitionStore.cs",
+      "candidate": "c8887934bb98dacfcf85f5904ae099828c92d58b",
+      "sourceSha256": "97f6387411d6b8f9fd0d87e219b53f5d974c79d2237804acb9b7e65c22d9f7f8",
+      "testSha256": "06505315f39f3034f8148751593a8bce9bb3b6735d1e7c3c0968a5d152f6403f",
+      "sourceGitBlob": "36141d4ff35c282599bd1d4c5927daeac4705236",
+      "testGitBlob": "ba70dd40d65dbec4c6d1d1354262648eb4f764cc",
+      "replacement": "In the illegal-source branch before the throw: if (target == FormDefinitionStatus.Published) _store = MutateStore(snapshot, existing with { UpdatedAt = _time.GetUtcNow() });",
+      "command": "dotnet test projections/dotnet/foundation/hlp.foundation.forms.tests/Harborline.Foundation.Forms.Tests.csproj -c Release --no-restore --filter FullyQualifiedName~FormDefinitionKeystoneTests -m:1 -nr:false",
+      "oracle": "Fixture Now plus seven minutes, per slice acceptance 2.",
+      "originalBaseline": {
+        "exit": 0,
+        "passed": 17,
+        "failed": 0,
+        "logSha256": "28b306df200db1f32ae072e902585bc4a574f804b5f2ab145b4ce98248a919be"
+      },
+      "oldTestsMutant": {
+        "exit": 0,
+        "passed": 17,
+        "failed": 0,
+        "logSha256": "ee4569c6f3f603b2022f7afc519b34e5c5cd8bfe4f639a0eb80d4e12047905af"
+      },
+      "baseline": {
+        "exit": 0,
+        "passed": 17,
+        "failed": 0,
+        "logSha256": "5c8b76f1f986f53a102d632325da70464f7a6fda42897c704ffb39201a0e3d68"
+      },
+      "mutant": {
+        "exit": 1,
+        "passed": 13,
+        "failed": 4,
+        "logSha256": "d925f2b96d6dfbbf9dd50cd567d2ab67b90a5a21c4ec8ad145a3edeab9716d62",
+        "detectingAssertions": [
+          "DeprecateAsync_transitions_Published_and_refuses_ordinary_republication: unchanged.UpdatedAt",
+          "WithdrawAsync_then_PublishAsync_is_rejected (Draft, Published, Deprecated): unchanged.UpdatedAt"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 17,
+        "failed": 0,
+        "logSha256": "2e0e50562d16d1f2b79946dc611ad0c3ca6441739e59fa322a71a7a53ee5fe63"
+      }
     }
   ],
   "restored": {

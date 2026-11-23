@@ -165,21 +165,19 @@ public sealed class ScheduleDefinitionCatalogue
     {
         if (definition.Solver is not { } solver) return;
         if (!_backends.TryGetValue(solver.BackendId, out var backend))
-            throw new DefinitionRefusalException(phase, [new("scheduling.definition.backend_unsupported", "/solver/backend_id")]);
-        try { backend.Backend.Validate(definition.ProblemClass, solver.Guarantee, solver.WorkBudget); }
-        catch (UnsupportedProfileException exception)
-        {
-            var reason = exception.Message.Split(':', 2)[0];
-            if (reason is not ("PROBLEM_CLASS_UNSUPPORTED" or "GUARANTEE_UNSUPPORTED" or "WORK_BUDGET_UNSUPPORTED")) throw;
-            var pointer = reason switch
-            {
-                "PROBLEM_CLASS_UNSUPPORTED" => "/solver",
-                "GUARANTEE_UNSUPPORTED" => "/solver/guarantee",
-                "WORK_BUDGET_UNSUPPORTED" => "/solver/work_budget",
-                _ => "/solver/work_budget",
-            };
-            throw new DefinitionRefusalException(phase, [new("scheduling.definition." + reason.ToLowerInvariant(), pointer)]);
-        }
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.backend_unsupported", "/solver/backend_id")
+            { Detail = new() { ["observed"] = solver.BackendId, ["required"] = JsonSerializer.SerializeToNode(_backends.Keys.Order(StringComparer.Ordinal)) } }]);
+        var declaration = backend.Backend;
+        if (!declaration.ProblemClasses.Contains(definition.ProblemClass))
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.problem_class_unsupported", "/solver")
+            { Detail = new() { ["observed"] = definition.ProblemClass.ToString(), ["required"] = JsonSerializer.SerializeToNode(declaration.ProblemClasses.Select(value => value.ToString()).Order(StringComparer.Ordinal)) } }]);
+        if (!declaration.Guarantees.Contains(solver.Guarantee))
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.guarantee_unsupported", "/solver/guarantee")
+            { Detail = new() { ["observed"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(solver.Guarantee.ToString()),
+                ["required"] = JsonSerializer.SerializeToNode(declaration.Guarantees.Select(value => JsonNamingPolicy.SnakeCaseLower.ConvertName(value.ToString())).Order(StringComparer.Ordinal)) } }]);
+        if (solver.WorkBudget < 0 || solver.WorkBudget > declaration.MaximumWorkBudget)
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.work_budget_unsupported", "/solver/work_budget")
+            { Detail = new() { ["observed"] = solver.WorkBudget, ["minimum"] = 0, ["maximum"] = declaration.MaximumWorkBudget } }]);
     }
 
     /// <summary>Copies a published version into a new draft (scheduling-ck-21); publishing it moves the head.</summary>
