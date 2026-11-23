@@ -5,7 +5,7 @@
   "test": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeDryRunRowContinuationProofTests.cs",
   "inputSha256": {
     "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs": "207a843d0c5a436c773be2693ae23ee5fa75ae6e1f5f0febe20c265bfaea2206",
-    "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeDryRunRowContinuationProofTests.cs": "f3bcc4cf5567d11e0f54c21b608e24dec80cb7b36378ec0751b6be7cf9eb7960",
+    "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeDryRunRowContinuationProofTests.cs": "ab8123f7bca585793db84de41b69ff8a60d3852773db0bff7c8f7ac171d38f15",
     "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/DataExchangeInterpreterTests.cs": "3965118ef60c4fbc467428e10c561c20d61d5b3bd7e979aa9be8d31e1d787dc0",
     "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExecutionFakes.cs": "475383ddd9673050d7a48d60c2bacb1929b9065cf79e12d358c15a59c035f0dd"
   },
@@ -20,7 +20,9 @@
     "failed": 0,
     "skipped": 0,
     "total": 4,
-    "logSha256": "7d5a17d0c457e20cacd5deb98c855e4c9590dd0edfc4a2ef1bb5e07181739375"
+    "logSha256": "26971344c7e51c189cdc494e93eb255cb3319106c7b0e6c476dd1cfe07c757b7",
+    "candidate": "2f55456e9f2e6b0ffff0bb77e7eb9d8e6119f68b",
+    "workload": "T-601 continuation baseline normalized"
   },
   "mutations": [
     {
@@ -38,7 +40,8 @@
         "failed": 2,
         "skipped": 0,
         "total": 4,
-        "logSha256": "9018684c264fcec5086010d2eab51411861dddc3752ac01bdfcdac8aa212b2bc"
+        "logSha256": "dd179353375659a04bab301f02a9e13f77ff1af9727f77d1bd0a86be74de9df7",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       },
       "restored": {
         "name": "restore1",
@@ -47,7 +50,8 @@
         "failed": 0,
         "skipped": 0,
         "total": 4,
-        "logSha256": "1faaef9a96de4c89c42276d9a22686c055b08ffafede4144907487f4ce2c61bf"
+        "logSha256": "ace167ad15214a1a75fbfc93e7ad8fc0575d4159730d97badfd5bd3061efefa9",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       }
     },
     {
@@ -65,7 +69,8 @@
         "failed": 3,
         "skipped": 0,
         "total": 4,
-        "logSha256": "57c231962cefe3a8a026e602f9f29cea63341f8276031c24edca48f037d13781"
+        "logSha256": "c5e5f06e73e6b1cafc5f8808ce79ed5f21b1f88e77516db0a32240b8451682a1",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       },
       "restored": {
         "name": "restore2",
@@ -74,7 +79,8 @@
         "failed": 0,
         "skipped": 0,
         "total": 4,
-        "logSha256": "9def5c5faa8bba83879eeb5ee867c40453c771fc58bf5f4ae4af5c9b47f0ceec"
+        "logSha256": "ad24b22a93008e4a879cb1d59dbea2e5f6182339802b4dbc36b773c7a348f4fa",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       }
     },
     {
@@ -92,7 +98,8 @@
         "failed": 2,
         "skipped": 0,
         "total": 4,
-        "logSha256": "ea4c5b4ca10009b5def1c7c0b72b8bbd59dddc46d45b37468df4781ee27879ab"
+        "logSha256": "d25cc226ae49916e1c8395ba7a206e11bc65d49336381322a94d7bc3c48dc555",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       },
       "restored": {
         "name": "restore3",
@@ -101,7 +108,8 @@
         "failed": 0,
         "skipped": 0,
         "total": 4,
-        "logSha256": "9def5c5faa8bba83879eeb5ee867c40453c771fc58bf5f4ae4af5c9b47f0ceec"
+        "logSha256": "9def5c5faa8bba83879eeb5ee867c40453c771fc58bf5f4ae4af5c9b47f0ceec",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       }
     },
     {
@@ -119,7 +127,8 @@
         "failed": 1,
         "skipped": 0,
         "total": 4,
-        "logSha256": "906396e70f26ed3234b222b7263d5d92f42ac2db145061dc02eb0c5082ca1f0b"
+        "logSha256": "0b57f14ce915f012163a2b9940dc69c0c29a3b737054e0adec20e3edcd64e4aa",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       },
       "restored": {
         "name": "restore4",
@@ -128,7 +137,8 @@
         "failed": 0,
         "skipped": 0,
         "total": 4,
-        "logSha256": "90d0d6f70bd555e9083ea31b0bd2fe5995071899c202fc8185517228675f66ab"
+        "logSha256": "3ef9cc771fa79afc355ede0e201ae3979c6f0f305f264f82eb18118d95649b3a",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
       }
     }
   ]
