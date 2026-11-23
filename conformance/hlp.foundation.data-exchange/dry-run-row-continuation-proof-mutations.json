@@ -1,0 +1,145 @@
+{
+  "producerHead": "9fbc30656faf70557e7660a2483afba0a4bf5cd9",
+  "producerTree": "f176767832ad08113bbae0fe3991fcf598a5a84f",
+  "source": "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs",
+  "test": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeDryRunRowContinuationProofTests.cs",
+  "inputSha256": {
+    "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs": "207a843d0c5a436c773be2693ae23ee5fa75ae6e1f5f0febe20c265bfaea2206",
+    "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeDryRunRowContinuationProofTests.cs": "ab8123f7bca585793db84de41b69ff8a60d3852773db0bff7c8f7ac171d38f15",
+    "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/DataExchangeInterpreterTests.cs": "3965118ef60c4fbc467428e10c561c20d61d5b3bd7e979aa9be8d31e1d787dc0",
+    "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExecutionFakes.cs": "475383ddd9673050d7a48d60c2bacb1929b9065cf79e12d358c15a59c035f0dd"
+  },
+  "fixtureInputs": "Rows and mapping are literals in test; helpers from listed fixture files.",
+  "node": "v24.14.1",
+  "dotnet": "11.0.100",
+  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1; host-lane.sh run --holder writer --session pc-601-continuation --workload <run> --candidate 9fbc30656faf70557e7660a2483afba0a4bf5cd9 -- dotnet test projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj -c Release --filter FullyQualifiedName~ExchangeDryRunRowContinuationProofTests -m:1 -nr:false",
+  "baseline": {
+    "name": "baseline",
+    "exit": 0,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "total": 4,
+    "logSha256": "26971344c7e51c189cdc494e93eb255cb3319106c7b0e6c476dd1cfe07c757b7",
+    "candidate": "2f55456e9f2e6b0ffff0bb77e7eb9d8e6119f68b",
+    "workload": "T-601 continuation baseline normalized"
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs",
+      "span": "dry-run loop MappingRowException catch",
+      "before": "evaluations.Add(new(rejected, new(ExchangeEffectStatus.Rejected, exception.Code)));",
+      "after": ";",
+      "detectingTest": "Row_continuation_preserves_census_and_ordered_refusal_evidence",
+      "assertion": "Accounted: expected 3, actual 2",
+      "mutant": {
+        "name": "m1",
+        "exit": 1,
+        "passed": 2,
+        "failed": 2,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "dd179353375659a04bab301f02a9e13f77ff1af9727f77d1bd0a86be74de9df7",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      },
+      "restored": {
+        "name": "restore1",
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "ace167ad15214a1a75fbfc93e7ad8fc0575d4159730d97badfd5bd3061efefa9",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs",
+      "span": "dry-run loop MappingRowException catch",
+      "before": "evaluations.Add(new(rejected, new(ExchangeEffectStatus.Rejected, exception.Code)));",
+      "after": "evaluations.Add(new(rejected, new(ExchangeEffectStatus.Rejected, exception.Code))); break;",
+      "detectingTest": "Row_continuation_keeps_last_row",
+      "assertion": "ordinal 2 / last absent",
+      "mutant": {
+        "name": "m2",
+        "exit": 1,
+        "passed": 1,
+        "failed": 3,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "c5e5f06e73e6b1cafc5f8808ce79ed5f21b1f88e77516db0a32240b8451682a1",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      },
+      "restored": {
+        "name": "restore2",
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "ad24b22a93008e4a879cb1d59dbea2e5f6182339802b4dbc36b773c7a348f4fa",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs",
+      "span": "dry-run loop MappingRowException catch",
+      "before": "evaluations.Add(new(rejected, new(ExchangeEffectStatus.Rejected, exception.Code)));",
+      "after": "evaluations.Add(new(rejected, new(ExchangeEffectStatus.Rejected, \"mapping.required_missing\")));",
+      "detectingTest": "Row_continuation_keeps_exact_refusal_code",
+      "assertion": "expected mapping.datatype_invalid, actual mapping.required_missing",
+      "mutant": {
+        "name": "m3",
+        "exit": 1,
+        "passed": 2,
+        "failed": 2,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "d25cc226ae49916e1c8395ba7a206e11bc65d49336381322a94d7bc3c48dc555",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      },
+      "restored": {
+        "name": "restore3",
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "9def5c5faa8bba83879eeb5ee867c40453c771fc58bf5f4ae4af5c9b47f0ceec",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      }
+    },
+    {
+      "id": "M4",
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/DataExchangeInterpreter.cs",
+      "span": "dry-run loop candidate checkpoint",
+      "before": "candidateCheckpoint = row.BoundaryAfter;",
+      "after": "if (row.SourceOrdinal == 0) candidateCheckpoint = row.BoundaryAfter;",
+      "detectingTest": "Row_continuation_keeps_final_candidate_boundary",
+      "assertion": "expected cursor-c, actual cursor-a",
+      "mutant": {
+        "name": "m4",
+        "exit": 1,
+        "passed": 3,
+        "failed": 1,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "0b57f14ce915f012163a2b9940dc69c0c29a3b737054e0adec20e3edcd64e4aa",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      },
+      "restored": {
+        "name": "restore4",
+        "exit": 0,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "total": 4,
+        "logSha256": "3ef9cc771fa79afc355ede0e201ae3979c6f0f305f264f82eb18118d95649b3a",
+        "candidate": "9fbc30656faf70557e7660a2483afba0a4bf5cd9"
+      }
+    }
+  ]
+}
