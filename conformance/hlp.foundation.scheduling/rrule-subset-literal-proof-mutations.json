@@ -20,7 +20,7 @@
   "mutants": [
     {
       "id": "M1",
-      "line": 50,
+      "line": 49,
       "before": "if (!seen.Add(key))",
       "after": "if (!seen.Add(key) && false)",
       "detectingTest": "RepeatedFrequency",
@@ -46,7 +46,7 @@
     },
     {
       "id": "M2",
-      "line": 91,
+      "line": 89,
       "before": "if (count is not null && until is not null)",
       "after": "if (count is not null && until is not null && false)",
       "detectingTest": "ConflictingBounds",
@@ -72,7 +72,7 @@
     },
     {
       "id": "M3",
-      "line": 95,
+      "line": 93,
       "before": "if (freq == \"WEEKLY\" && byMonthDay.Count > 0)",
       "after": "if (freq == \"WEEKLY\" && byMonthDay.Count > 0 && false)",
       "detectingTest": "WeeklyMonthDay",
