@@ -1,4 +1,7 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
+using Harborline.Blocks.Scheduling.Definitions;
+using Harborline.Blocks.Scheduling.Planning;
 using Bunit;
 using Harborline.UIAdapters.Blazor.Components.SchedulingAuthoring;
 using Xunit;
@@ -105,9 +108,12 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.False(cut.Find("input[type=checkbox]").HasAttribute("checked"));
         Assert.Contains("explicit opt-in", cut.Markup, StringComparison.Ordinal);
         cut.Find("input[type=checkbox]").Change(true); cut.Render(p => p.Add(x => x.Value, actual));
-        cut.Find("[aria-label='Precedence parameters']").Change("{\"before\":\"a\",\"after\":\"b\"}"); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.Find("[aria-label='Precedence parameters']").Change("{\"constraints\":[{\"id\":\"after\",\"beforeActivityId\":\"a\",\"afterActivityId\":\"b\",\"minimumGapSlots\":1}]}"); cut.Render(p => p.Add(x => x.Value, actual));
         cut.Find("[aria-label='Backend parameters']").Change("{\"seed\":7}");
-        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"modules":[{"module":"precedence","parameters":{"before":"a","after":"b"}}],"solver":{"parameters":{"seed":7}}}"""), actual));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"modules":[{"module":"precedence","parameters":{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":1}]}}],"solver":{"parameters":{"seed":7}}}"""), actual));
+        var authored = actual["modules"]![0]!;
+        Assert.True(ConstraintModuleAdmission.IsAdmitted(new ScheduleConstraintModule(
+            authored["module"]!.GetValue<string>(), JsonSerializer.SerializeToElement(authored["parameters"]))));
     }
 
     [Fact(DisplayName = "scheduling-auth-27: every conformance refusal is displayed before publish")]

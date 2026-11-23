@@ -1,0 +1,92 @@
+{
+  "slice": "T-491/schedule-editor",
+  "machine": "PC",
+  "toolchain": "StrykerJS 10.1.1",
+  "tests": {
+    "react": 12,
+    "blazor": 10,
+    "tooling": 17,
+    "sharedBlazorCases": 3,
+    "sharedReactSuiteTests": 12,
+    "typescript": "PASS",
+    "staticGallery": "PASS",
+    "uiSpecAuthority": "PASS",
+    "strykerRegistration": "PASS"
+  },
+  "refusalCorpus": {
+    "rows": 31,
+    "refusals": 28,
+    "generatorCodeAndPointerAsserted": false
+  },
+  "mutation": {
+    "initial": {
+      "score": 56.74,
+      "total": 386,
+      "killed": 213,
+      "survived": 113,
+      "timeout": 6,
+      "noCoverage": 54
+    },
+    "final": {
+      "score": 72.05,
+      "total": 390,
+      "tested": 367,
+      "killed": 281,
+      "survived": 86,
+      "timeout": 0,
+      "noCoverage": 23
+    },
+    "baseline": 72,
+    "break": 72,
+    "sourceRestoration": "tooling/strykerjs.mjs byte-compared both mutable source files after each in-place run; no strays",
+    "restoredNativeTests": {
+      "react": 12,
+      "blazor": 10,
+      "tooling": 17
+    }
+  },
+  "logs": {
+    "stryker-initial.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-initial.log",
+      "sha256": "859bc1d86505677c6be6d9ae92928d25680403a434db558af6908f40e3ada7c8"
+    },
+    "stryker-expanded.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-expanded.log",
+      "sha256": "cbea861c1ccda7a281aa848647fd2022c3c89cab1bdec691c7223242912b6b98"
+    },
+    "stryker-final.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-final.log",
+      "sha256": "a2752355fec60d97b4446f72bbfa6fc35e71b2b4c28c8043b2cf34db86af5c03"
+    },
+    "final-verification.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\final-verification.log",
+      "sha256": "f170cb673c401e4b0c89f9e26bc32a88ba5a2358cae2dbdaba105791d5ddf746"
+    },
+    "provenance-search.txt": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\provenance-search.txt",
+      "sha256": "6e25bf8c32c96425af7e4ec4bd8af25b807e41241fabc88749c24d3b4fe81206"
+    },
+    "provenance-final-search.txt": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\provenance-final-search.txt",
+      "sha256": "b056cac973e1254eb5e25ae27806f9763f35ae00dc7b84d9ff2556ff29dae1da"
+    }
+  },
+  "oracles": [
+    "DES-0022 section 4 and schedule-editor acceptance; independent literal body fixture",
+    "Precedence parameter literal from hlp.blocks.scheduling.tests/ModuleAdmissionTests.cs Module shape fixture, not a production symbol",
+    "Producer refusal corpus; generator code and pointer intentionally not asserted",
+    "WAI-ARIA APG native select and WCAG 2.2 status messages/use of color",
+    "Real catalog count: base inventory 82 plus new module 1; recorded-tree PARTIAL policy from schedule-editor log 2026-11-16"
+  ],
+  "pending": [
+    "Full check, gallery and provenance: pending on the Mac mini",
+    "Browser axe, reflow and visual parity",
+    "Separate local-diff and PR reviews"
+  ],
+  "outOfScope": [
+    "scheduling-auth-17 generator detail; working follow-up T-491/generator-refusal-detail",
+    "Protocol/Constraint editors and app mount",
+    "scheduling-bound-7 resolver wiring carried to workshop-mount because host supplies resolved catalogues",
+    "Availability parameterisation is Booking per Resource; planner read is module-admission"
+  ]
+}

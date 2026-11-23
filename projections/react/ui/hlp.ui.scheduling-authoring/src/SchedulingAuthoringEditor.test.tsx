@@ -87,9 +87,9 @@ describe('Schedule authoring', () => {
     expect(screen.getByRole('checkbox')).not.toBeChecked()
     expect(screen.getByText(/explicit opt-in/)).toBeVisible()
     fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.blur(screen.getByLabelText('Precedence parameters'), { target: { value: '{"before":"a","after":"b"}' } })
+    fireEvent.blur(screen.getByLabelText('Precedence parameters'), { target: { value: '{"constraints":[{"id":"after","beforeActivityId":"a","afterActivityId":"b","minimumGapSlots":1}]}' } })
     fireEvent.blur(screen.getByLabelText('Backend parameters'), { target: { value: '{"seed":7}' } })
-    expect(actual).toEqual({ modules: [{ module: 'precedence', parameters: { before: 'a', after: 'b' } }], solver: { parameters: { seed: 7 } } })
+    expect(actual).toEqual({ modules: [{ module: 'precedence', parameters: { constraints: [{ id: 'after', beforeActivityId: 'a', afterActivityId: 'b', minimumGapSlots: 1 }] } }], solver: { parameters: { seed: 7 } } })
   })
   it('scheduling-auth-27: displays every conformance refusal before publish without reinterpreting it', () => {
     const corpus = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.blocks.scheduling/authoring-refusals.json'), 'utf8'))

@@ -148,6 +148,7 @@
                       LogicalName="app-shell-rev6-state-scenarios.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../../dotnet/blocks/hlp.blocks.scheduling/Harborline.Blocks.Scheduling.csproj" />
     <Compile Include="../hlp.ui.scheduling-authoring.tests/**/*.cs" Link="SchedulingAuthoring/%(Filename)%(Extension)" />
     <Content Include="../../../../conformance/hlp.ui.scheduling-authoring/fixtures.yaml" Link="scheduling-authoring-fixtures/fixtures.yaml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../../conformance/hlp.blocks.scheduling/authoring-refusals.json" Link="scheduling-authoring-fixtures/authoring-refusals.json" CopyToOutputDirectory="PreserveNewest" />

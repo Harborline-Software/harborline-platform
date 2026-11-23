@@ -947,15 +947,17 @@
       "measured": "2026-11-21, DESKTOP-UMT08RN (PC), commit 37ed624282e66c690b02bc668a858e4372d96630, tree 5c169bab6400d9195f99bcc23d7739c624fb04f5; StrykerJS 10.0.0, --concurrency 2, full package through host-lane session pc-536; 503 generated: 410 Killed / 91 Survived / 2 NoCoverage / 0 Timeout / 0 RuntimeError / 0 CompileError; 501 tested, score 81.51%. Final baseline-only head rechecked on the PC; head and result recorded in PR #536."
     },
     "projections/react/ui/hlp.ui.scheduling-authoring": {
-      "baseline": 56,
-      "break": 56,
-      "score": 56.74,
-      "tested": 332,
+      "baseline": 72,
+      "break": 72,
+      "score": 72.05,
+      "tested": 367,
       "observed": [
-        56.74
+        56.74,
+        72.31,
+        72.05
       ],
-      "measured": "2026-11-23 PC initial baseline before explicit create action; 386 mutants: 213 killed, 113 survived, 6 timeout, 54 NoCoverage; native source restoration verified",
-      "report": "projections/react/ui/hlp.ui.scheduling-authoring/reports/mutation/mutation.json"
+      "report": "projections/react/ui/hlp.ui.scheduling-authoring/reports/mutation/mutation.json",
+      "measured": "2026-11-23 PC; StrykerJS 10.1.1 full module, 390 mutants; typed precedence parameters; source restoration verified by tooling/strykerjs.mjs"
     }
   }
 }

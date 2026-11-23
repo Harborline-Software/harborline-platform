@@ -73,7 +73,7 @@
     @if (_parameterError.Length > 0) { <p role="alert">@_parameterError</p> }
     <section aria-labelledby="@(_id + "-refusals")" aria-live="polite" aria-atomic="true"><h2 id="@(_id + "-refusals")">Refusal list</h2>
         @if (Refusals.Count == 0) { <p>No refusals supplied. The server must validate before publish.</p> }
-        else { <ul>@foreach (var refusal in Refusals) { <li><code>@refusal.Code</code> at <code>@refusal.Pointer</code>@if (refusal.Target is not null) { <span> @refusal.Target</span> }@if (refusal.Detail is not null) { <pre>@refusal.Detail.ToJsonString()</pre> }</li> }</ul> }
+        else { <ul>@foreach (var refusal in Refusals) { <li><code>@refusal.Code</code> at <code>@refusal.Pointer</code>@if (refusal.Target is not null) { <span> @refusal.Target</span> }@if (refusal.Detail is not null) { <pre>@refusal.Detail.ToJsonString(IndentedJson)</pre> }</li> }</ul> }
     </section>
 </form>
 
@@ -92,6 +92,7 @@
     [Parameter] public bool ReadOnly { get; set; }
     private readonly string _id = "schedule-" + Guid.NewGuid().ToString("N");
     private string _parameterError = "";
+    private static readonly System.Text.Json.JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
     private JsonObject Basis => Object(Value["basis"]);
     private JsonObject Starts => Object(Value["starts"]);
     private JsonObject Solver => Object(Value["solver"]);
@@ -123,7 +124,7 @@
         builder.CloseElement(); builder.CloseElement();
     };
     private RenderFragment Parameters(string label, JsonNode? value, Func<JsonObject, Task> changed) => builder => {
-        builder.OpenElement(0, "label"); builder.AddContent(1, label); builder.OpenElement(2, "textarea"); builder.AddAttribute(3, "aria-label", label); builder.AddAttribute(4, "value", value?.ToJsonString() ?? "{}"); builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
+        builder.OpenElement(0, "label"); builder.AddContent(1, label); builder.OpenElement(2, "textarea"); builder.AddAttribute(3, "aria-label", label); builder.AddAttribute(4, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
             try { if (JsonNode.Parse(args.Value?.ToString() ?? "") is JsonObject parameters) { _parameterError = ""; await changed(parameters); } else _parameterError = label + " must be a JSON object."; }
             catch (System.Text.Json.JsonException) { _parameterError = label + " must be a JSON object."; }
         })); builder.CloseElement(); builder.CloseElement();
