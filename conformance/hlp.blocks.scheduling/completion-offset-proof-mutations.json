@@ -1,0 +1,623 @@
+{
+  "slice": "T-491/completion-offset-proof",
+  "machine": "PC",
+  "writtenBy": "Codex:gpt-6.1-sol",
+  "producer": {
+    "sha": "5f7bd3668888141c6e2a8412da8486524d8559bb",
+    "tree": "f0e26aa3eeb0d0fe9029d03b3e236f1be53fad9b",
+    "note": "Source checkout at execution; new test file is bound separately by SHA-256. Receipt is not a full-platform gate."
+  },
+  "controlSha": "e65293f4c1e8a2b094ecd2ca65a3bd9ab8026cfe",
+  "sourcePin": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+  "toolchain": {
+    "node": "v24.14.1",
+    "dotnet": "11.0.100",
+    "testFramework": "xUnit via existing project",
+    "runnerPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\run.ps1",
+    "runnerSha256": "d08748396af8692a04a40c67f600f9ae1bc4a5b14c0cdad54215651c95d87156"
+  },
+  "oracleSources": {
+    "latest": "Slice acceptance 1; ADR-0149 decision 4; DES-0022 scheduling-eng-3/run-1; frozen Scheduling actual-time/identity contract. Literal 10:00 + PT2H = 12:00; ordinal tie c-a.",
+    "initial": "Slice acceptance 2; ADR-0149 decision 4; frozen first_due_required refusal and disjoint first/after identity shapes. Literal 04:00 and ids.",
+    "horizon": "Slice acceptance 2; frozen inclusive horizon contract. Literal point horizons 04:00/12:00 and wholly later 21:00–22:00."
+  },
+  "baseline": {
+    "name": "baseline",
+    "command": {
+      "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+      "environment": {
+        "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+        "MSBUILDDISABLENODEREUSE": "1",
+        "HARBORLINE_TESTED_TREE": null,
+        "HARBORLINE_BASE_HEAD": null
+      },
+      "executable": "C:/Program Files/Git/bin/bash.exe",
+      "argv": [
+        "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "pc-491-offset",
+        "--workload",
+        "T-491 completion-offset baseline",
+        "--candidate",
+        "5f7bd3668888141c6e2a8412da8486524d8559bb",
+        "--",
+        "dotnet",
+        "test",
+        "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+        "-c",
+        "Release",
+        "--filter",
+        "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+        "-m:1",
+        "-nr:false",
+        "--logger",
+        "trx;LogFileName=baseline.trx",
+        "--results-directory",
+        "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/baseline"
+      ]
+    },
+    "exitCode": 0,
+    "counts": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\baseline.log",
+    "logSha256": "e8b5d4a0eb401a7c97e4b0f72ced0c41aaa797ee54292e1982c874f947597217",
+    "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\baseline\\baseline.trx",
+    "trxSha256": "4f301ed7957910fd98d372c7a3f1f782049cfca32848c058ebff5d60b37b9d33"
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs",
+      "span": {
+        "startLine": 13,
+        "endLine": 13
+      },
+      "before": ".OrderByDescending(c => c.CompletedAt)",
+      "after": ".OrderBy(c => c.CompletedAt)",
+      "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+      "mutatedSourceSha256": "4afe4a16fec75bf110aee9af4570cfd116feae80ee14a4e7b77b7f18ad2fd4e6",
+      "testSha256": "fb8c73048b2b5622d8bf4d476b4e1aeebcf3d48f10b16bb1b3e1edc8237a2527",
+      "fixtureInputs": "All inputs are literals embedded in the hashed test file; no external fixtures.",
+      "status": "killed",
+      "baselineRun": "baseline",
+      "mutantRun": {
+        "name": "M1",
+        "command": {
+          "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+          "environment": {
+            "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+            "MSBUILDDISABLENODEREUSE": "1",
+            "HARBORLINE_TESTED_TREE": null,
+            "HARBORLINE_BASE_HEAD": null
+          },
+          "executable": "C:/Program Files/Git/bin/bash.exe",
+          "argv": [
+            "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "pc-491-offset",
+            "--workload",
+            "T-491 completion-offset M1",
+            "--candidate",
+            "5f7bd3668888141c6e2a8412da8486524d8559bb",
+            "--",
+            "dotnet",
+            "test",
+            "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+            "-c",
+            "Release",
+            "--filter",
+            "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+            "-m:1",
+            "-nr:false",
+            "--logger",
+            "trx;LogFileName=M1.trx",
+            "--results-directory",
+            "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M1"
+          ]
+        },
+        "exitCode": 1,
+        "counts": {
+          "total": 10,
+          "passed": 4,
+          "failed": 6,
+          "skipped": 0
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M1.log",
+        "logSha256": "7576d3e9468b3881ea1f2d2d1f2077670da72fb5b88d9ec6f8ada1cb5369818a",
+        "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M1\\M1.trx",
+        "trxSha256": "f4b725ebe35488548f2413ddf61ff746974e03f39afa17c1014aaf78a61a1637"
+      },
+      "detectingTest": "Harborline.Blocks.Scheduling.Tests.ScheduleCompletionOffsetProofTests.LatestEligibleActualCompletionIgnoresFirstDueAndEnumerationOrder",
+      "detectingAssertion": {
+        "file": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs",
+        "line": 24,
+        "assertion": "Assert.Equal(Instant(\"2026-07-01T12:00:00Z\"), occurrence.Due)",
+        "expected": "2026-07-01T12:00:00Z",
+        "actual": "2026-07-01T10:00:00Z"
+      },
+      "restoration": {
+        "byteForByte": true,
+        "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+        "run": {
+          "name": "M1-restored",
+          "command": {
+            "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+            "environment": {
+              "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+              "MSBUILDDISABLENODEREUSE": "1",
+              "HARBORLINE_TESTED_TREE": null,
+              "HARBORLINE_BASE_HEAD": null
+            },
+            "executable": "C:/Program Files/Git/bin/bash.exe",
+            "argv": [
+              "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+              "run",
+              "--holder",
+              "writer",
+              "--session",
+              "pc-491-offset",
+              "--workload",
+              "T-491 completion-offset M1-restored",
+              "--candidate",
+              "5f7bd3668888141c6e2a8412da8486524d8559bb",
+              "--",
+              "dotnet",
+              "test",
+              "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+              "-c",
+              "Release",
+              "--filter",
+              "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+              "-m:1",
+              "-nr:false",
+              "--logger",
+              "trx;LogFileName=M1-restored.trx",
+              "--results-directory",
+              "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M1-restored"
+            ]
+          },
+          "exitCode": 0,
+          "counts": {
+            "total": 10,
+            "passed": 10,
+            "failed": 0,
+            "skipped": 0
+          },
+          "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M1-restored.log",
+          "logSha256": "451bcd52e3e4fbf6313897085f88868f7eb1452daab05a3d8405afc4c004dbee",
+          "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M1-restored\\M1-restored.trx",
+          "trxSha256": "2a012b9c9b401303bf7d307cc8696e7a5add5ec672a1a313ea3b09cc051d291e"
+        }
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs",
+      "span": {
+        "startLine": 15,
+        "endLine": 15
+      },
+      "before": ": OccurrenceTime.Add(last.CompletedAt, ((CompletionOffsetBasis)series.Definition.Basis!).Offset, series.Timezone);",
+      "after": ": series.FirstDue ?? OccurrenceTime.Add(last.CompletedAt, ((CompletionOffsetBasis)series.Definition.Basis!).Offset, series.Timezone);",
+      "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+      "mutatedSourceSha256": "d0e3960a7bfec23f31e7b87618a84de5f50e25a8dceffd29d971f54374764536",
+      "testSha256": "fb8c73048b2b5622d8bf4d476b4e1aeebcf3d48f10b16bb1b3e1edc8237a2527",
+      "fixtureInputs": "All inputs are literals embedded in the hashed test file; no external fixtures.",
+      "status": "killed",
+      "baselineRun": "baseline",
+      "mutantRun": {
+        "name": "M2",
+        "command": {
+          "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+          "environment": {
+            "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+            "MSBUILDDISABLENODEREUSE": "1",
+            "HARBORLINE_TESTED_TREE": null,
+            "HARBORLINE_BASE_HEAD": null
+          },
+          "executable": "C:/Program Files/Git/bin/bash.exe",
+          "argv": [
+            "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "pc-491-offset",
+            "--workload",
+            "T-491 completion-offset M2",
+            "--candidate",
+            "5f7bd3668888141c6e2a8412da8486524d8559bb",
+            "--",
+            "dotnet",
+            "test",
+            "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+            "-c",
+            "Release",
+            "--filter",
+            "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+            "-m:1",
+            "-nr:false",
+            "--logger",
+            "trx;LogFileName=M2.trx",
+            "--results-directory",
+            "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M2"
+          ]
+        },
+        "exitCode": 1,
+        "counts": {
+          "total": 10,
+          "passed": 4,
+          "failed": 6,
+          "skipped": 0
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M2.log",
+        "logSha256": "e158983f82ae1b2932638c5220bbc66f98ac6e63d0d24422196d780e4a77a472",
+        "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M2\\M2.trx",
+        "trxSha256": "dbd5666bae8bfdf0ad270c3fe6d24f26b115243f99a8c0ec42aecd96cd6764fc"
+      },
+      "detectingTest": "Harborline.Blocks.Scheduling.Tests.ScheduleCompletionOffsetProofTests.LatestEligibleActualCompletionIgnoresFirstDueAndEnumerationOrder",
+      "detectingAssertion": {
+        "file": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs",
+        "line": 24,
+        "assertion": "Assert.Equal(Instant(\"2026-07-01T12:00:00Z\"), occurrence.Due)",
+        "expected": "2026-07-01T12:00:00Z",
+        "actual": "2026-07-01T04:00:00Z (or 06:00 with the alternate FirstDue)"
+      },
+      "restoration": {
+        "byteForByte": true,
+        "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+        "run": {
+          "name": "M2-restored",
+          "command": {
+            "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+            "environment": {
+              "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+              "MSBUILDDISABLENODEREUSE": "1",
+              "HARBORLINE_TESTED_TREE": null,
+              "HARBORLINE_BASE_HEAD": null
+            },
+            "executable": "C:/Program Files/Git/bin/bash.exe",
+            "argv": [
+              "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+              "run",
+              "--holder",
+              "writer",
+              "--session",
+              "pc-491-offset",
+              "--workload",
+              "T-491 completion-offset M2-restored",
+              "--candidate",
+              "5f7bd3668888141c6e2a8412da8486524d8559bb",
+              "--",
+              "dotnet",
+              "test",
+              "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+              "-c",
+              "Release",
+              "--filter",
+              "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+              "-m:1",
+              "-nr:false",
+              "--logger",
+              "trx;LogFileName=M2-restored.trx",
+              "--results-directory",
+              "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M2-restored"
+            ]
+          },
+          "exitCode": 0,
+          "counts": {
+            "total": 10,
+            "passed": 10,
+            "failed": 0,
+            "skipped": 0
+          },
+          "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M2-restored.log",
+          "logSha256": "fe3cd97fd173e36ed2039049bb93b743d85e3e4bb39e102f6f3cd601086ff767",
+          "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M2-restored\\M2-restored.trx",
+          "trxSha256": "84853eedd72e3ebe3e0c827f31915ebe2731231d4101dce7949ab162d10a0f33"
+        }
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs",
+      "span": {
+        "startLine": 12,
+        "endLine": 12
+      },
+      "before": "c.SeriesId == series.SeriesId && c.CompletedAt <= kernelInstant",
+      "after": "c.CompletedAt <= kernelInstant",
+      "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+      "mutatedSourceSha256": "6cd1e20c672cd1a50b4851099add356c270fffb349a80a92fe9918f33692e2e1",
+      "testSha256": "fb8c73048b2b5622d8bf4d476b4e1aeebcf3d48f10b16bb1b3e1edc8237a2527",
+      "fixtureInputs": "All inputs are literals embedded in the hashed test file; no external fixtures.",
+      "status": "killed",
+      "baselineRun": "baseline",
+      "mutantRun": {
+        "name": "M3",
+        "command": {
+          "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+          "environment": {
+            "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+            "MSBUILDDISABLENODEREUSE": "1",
+            "HARBORLINE_TESTED_TREE": null,
+            "HARBORLINE_BASE_HEAD": null
+          },
+          "executable": "C:/Program Files/Git/bin/bash.exe",
+          "argv": [
+            "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "pc-491-offset",
+            "--workload",
+            "T-491 completion-offset M3",
+            "--candidate",
+            "5f7bd3668888141c6e2a8412da8486524d8559bb",
+            "--",
+            "dotnet",
+            "test",
+            "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+            "-c",
+            "Release",
+            "--filter",
+            "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+            "-m:1",
+            "-nr:false",
+            "--logger",
+            "trx;LogFileName=M3.trx",
+            "--results-directory",
+            "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M3"
+          ]
+        },
+        "exitCode": 1,
+        "counts": {
+          "total": 10,
+          "passed": 3,
+          "failed": 7,
+          "skipped": 0
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M3.log",
+        "logSha256": "39273cc75175f1f072cdf2feb3c64ae0336fe876513bfe6eb4783015cea3a541",
+        "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M3\\M3.trx",
+        "trxSha256": "7b2d4a21a740e7d37afc2c3adf8ea24efe68a809edd106187f7df91f854efbe5"
+      },
+      "detectingTest": "Harborline.Blocks.Scheduling.Tests.ScheduleCompletionOffsetProofTests.LatestEligibleActualCompletionIgnoresFirstDueAndEnumerationOrder",
+      "detectingAssertion": {
+        "file": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs",
+        "line": 24,
+        "assertion": "Assert.Equal(Instant(\"2026-07-01T12:00:00Z\"), occurrence.Due)",
+        "expected": "2026-07-01T12:00:00Z",
+        "actual": "2026-07-01T16:00:00Z"
+      },
+      "restoration": {
+        "byteForByte": true,
+        "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+        "run": {
+          "name": "M3-restored",
+          "command": {
+            "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+            "environment": {
+              "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+              "MSBUILDDISABLENODEREUSE": "1",
+              "HARBORLINE_TESTED_TREE": null,
+              "HARBORLINE_BASE_HEAD": null
+            },
+            "executable": "C:/Program Files/Git/bin/bash.exe",
+            "argv": [
+              "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+              "run",
+              "--holder",
+              "writer",
+              "--session",
+              "pc-491-offset",
+              "--workload",
+              "T-491 completion-offset M3-restored",
+              "--candidate",
+              "5f7bd3668888141c6e2a8412da8486524d8559bb",
+              "--",
+              "dotnet",
+              "test",
+              "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+              "-c",
+              "Release",
+              "--filter",
+              "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+              "-m:1",
+              "-nr:false",
+              "--logger",
+              "trx;LogFileName=M3-restored.trx",
+              "--results-directory",
+              "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M3-restored"
+            ]
+          },
+          "exitCode": 0,
+          "counts": {
+            "total": 10,
+            "passed": 10,
+            "failed": 0,
+            "skipped": 0
+          },
+          "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M3-restored.log",
+          "logSha256": "6ea5bebfb899ccd01bdcc83180af526d7b01746739849950487aba1a81b16a4a",
+          "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M3-restored\\M3-restored.trx",
+          "trxSha256": "a81136c85d8b9bd45c834b224f7302d8e2bcf77c16e8056b7770779bee9c7e94"
+        }
+      }
+    },
+    {
+      "id": "M4",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/CompletionOffsetDueOccurrenceSource.cs",
+      "span": {
+        "startLine": 12,
+        "endLine": 12
+      },
+      "before": "c.SeriesId == series.SeriesId && c.CompletedAt <= kernelInstant",
+      "after": "c.SeriesId == series.SeriesId",
+      "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+      "mutatedSourceSha256": "a39a2acb9cb90adda89b2750e5908f6b3a3cb9f7bec74fab62c2f7434867984e",
+      "testSha256": "fb8c73048b2b5622d8bf4d476b4e1aeebcf3d48f10b16bb1b3e1edc8237a2527",
+      "fixtureInputs": "All inputs are literals embedded in the hashed test file; no external fixtures.",
+      "status": "killed",
+      "baselineRun": "baseline",
+      "mutantRun": {
+        "name": "M4",
+        "command": {
+          "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+          "environment": {
+            "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+            "MSBUILDDISABLENODEREUSE": "1",
+            "HARBORLINE_TESTED_TREE": null,
+            "HARBORLINE_BASE_HEAD": null
+          },
+          "executable": "C:/Program Files/Git/bin/bash.exe",
+          "argv": [
+            "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "pc-491-offset",
+            "--workload",
+            "T-491 completion-offset M4",
+            "--candidate",
+            "5f7bd3668888141c6e2a8412da8486524d8559bb",
+            "--",
+            "dotnet",
+            "test",
+            "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+            "-c",
+            "Release",
+            "--filter",
+            "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+            "-m:1",
+            "-nr:false",
+            "--logger",
+            "trx;LogFileName=M4.trx",
+            "--results-directory",
+            "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M4"
+          ]
+        },
+        "exitCode": 1,
+        "counts": {
+          "total": 10,
+          "passed": 3,
+          "failed": 7,
+          "skipped": 0
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M4.log",
+        "logSha256": "67668b501630b13b29a7050a4f8f207909fc59d36bbb516757a5a2491c2c7a21",
+        "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M4\\M4.trx",
+        "trxSha256": "3424e2c5693eead4bcd2245139b4c8ad87a18b40e3b2fb4b5672f8c57e4b2256"
+      },
+      "detectingTest": "Harborline.Blocks.Scheduling.Tests.ScheduleCompletionOffsetProofTests.LatestEligibleActualCompletionIgnoresFirstDueAndEnumerationOrder",
+      "detectingAssertion": {
+        "file": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs",
+        "line": 24,
+        "assertion": "Assert.Equal(Instant(\"2026-07-01T12:00:00Z\"), occurrence.Due)",
+        "expected": "2026-07-01T12:00:00Z",
+        "actual": "2026-07-01T20:00:00Z"
+      },
+      "restoration": {
+        "byteForByte": true,
+        "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+        "run": {
+          "name": "M4-restored",
+          "command": {
+            "cwd": "C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-completion--53252cd4c06286ec",
+            "environment": {
+              "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+              "MSBUILDDISABLENODEREUSE": "1",
+              "HARBORLINE_TESTED_TREE": null,
+              "HARBORLINE_BASE_HEAD": null
+            },
+            "executable": "C:/Program Files/Git/bin/bash.exe",
+            "argv": [
+              "C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+              "run",
+              "--holder",
+              "writer",
+              "--session",
+              "pc-491-offset",
+              "--workload",
+              "T-491 completion-offset M4-restored",
+              "--candidate",
+              "5f7bd3668888141c6e2a8412da8486524d8559bb",
+              "--",
+              "dotnet",
+              "test",
+              "projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj",
+              "-c",
+              "Release",
+              "--filter",
+              "FullyQualifiedName~ScheduleCompletionOffsetProofTests",
+              "-m:1",
+              "-nr:false",
+              "--logger",
+              "trx;LogFileName=M4-restored.trx",
+              "--results-directory",
+              "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset/M4-restored"
+            ]
+          },
+          "exitCode": 0,
+          "counts": {
+            "total": 10,
+            "passed": 10,
+            "failed": 0,
+            "skipped": 0
+          },
+          "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M4-restored.log",
+          "logSha256": "c0b42b1a0eae1a9958c9d954d6f9949d10ec09042d354d612d1cbe0d13564378",
+          "trxPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\M4-restored\\M4-restored.trx",
+          "trxSha256": "3c29f9aa64f2c15c86f5f053ecb6240e16f11197476bfbd9faaafc300696743a"
+        }
+      }
+    }
+  ],
+  "finalInputComparison": {
+    "sourceSha256": "f13fa26939a3cd480d339285cef8e80c2b2296e7c2af4ceca26a84d0996233c2",
+    "testFile": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs",
+    "testSha256": "fb8c73048b2b5622d8bf4d476b4e1aeebcf3d48f10b16bb1b3e1edc8237a2527",
+    "externalFixtures": [],
+    "matchesAllKillInputs": true,
+    "requirement": "Compare these hashes to the final committed candidate before mini full gate/delivery. Changed inputs require affected mutation/restoration reruns."
+  },
+  "provenance": {
+    "node": "v24.14.1",
+    "committedPathsHaveHashOwner": false,
+    "temporaryTargetOwner": "docs/provenance/records/hlp.blocks.scheduling.json",
+    "temporaryTargetRestored": true,
+    "sharedRecordChanged": false,
+    "check": {
+      "command": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+      "execution": "writer host lane, pc-491-offset",
+      "exitCode": 0,
+      "summary": "0 record(s) read, 0 stale hash(es)",
+      "recordsRead": 0,
+      "staleHashes": 0,
+      "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-offset\\provenance.log",
+      "logSha256": "64e7f0a94102df166103fc8ad757a59a5ab54884c832923337a875cc07eecd4f",
+      "changedPaths": [
+        "conformance/hlp.blocks.scheduling/completion-offset-proof-mutations.json",
+        "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleCompletionOffsetProofTests.cs"
+      ],
+      "meaning": "Zero selection is an ownership check only. Neither new committed path has a hash owner; restored target retains its existing owner hash."
+    }
+  },
+  "fullPlatformGate": {
+    "status": "pending",
+    "machine": "Mac mini",
+    "requirement": "Exact final committed candidate/tree under Control terminal-census-proof Mac mini full gate protocol; acceptance 5 and parent acceptance remain open."
+  }
+}
