@@ -5,7 +5,7 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public class ScheduleDurationAdmissionProofTests
 {
-    [Theory]
+    [Theory(DisplayName = "scheduling-ck-25 duration-admission: literal ticks")]
     [InlineData("P1W", 6048000000000L)]
     [InlineData("P2W", 12096000000000L)]
     [InlineData("-P1W", -6048000000000L)]
@@ -14,7 +14,7 @@ public class ScheduleDurationAdmissionProofTests
     public void scheduling_ck_25_duration_admission_ticks(string value, long ticks)
         => Assert.Equal(ticks, ScheduleDefinitionAdmission.SignedDuration(value)?.Ticks);
 
-    [Theory]
+    [Theory(DisplayName = "scheduling-ck-25 duration-admission: invalid spellings return null")]
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" P1D")]
@@ -24,14 +24,14 @@ public class ScheduleDurationAdmissionProofTests
     public void scheduling_ck_25_duration_admission_rejects_invalid_spelling(string? value)
         => Assert.Null(ScheduleDefinitionAdmission.SignedDuration(value));
 
-    [Theory]
+    [Theory(DisplayName = "scheduling-ck-25 duration-admission: non-negative offsets admit")]
     [InlineData("PT0S")]
     [InlineData("P1W")]
     [InlineData("PT1S")]
     public void scheduling_ck_25_duration_admission_accepts_nonnegative_offset(string offset)
         => Assert.Empty(Refusals(offset));
 
-    [Fact]
+    [Fact(DisplayName = "scheduling-ck-25 duration-admission: a negative offset refuses and the corrected offset admits")]
     public void scheduling_ck_25_duration_admission_refuses_negative_offset_and_accepts_correction()
     {
         var refusal = Assert.Single(Refusals("-PT1S"));
