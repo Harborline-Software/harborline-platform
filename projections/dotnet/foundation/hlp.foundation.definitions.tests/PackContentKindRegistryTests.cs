@@ -48,6 +48,13 @@ public sealed class PackContentKindRegistryTests
         Assert.Equal(new PackContentKindEntry(name, value, pillar, PackContentKindStatus.Shipped), PackContentKindRegistry.Kind(name));
     }
 
+    [Fact(DisplayName = "T-738/platform-generated-pack-identities A7 Assistance 20 stays reserved and exclusive")]
+    public void Assistance_reserved_value_is_never_reassigned()
+    {
+        Assert.Equal(new PackContentKindEntry("AssistanceDefinition", 20, "Other", PackContentKindStatus.Reserved),
+            Assert.Single(PackContentKindRegistry.Kinds, kind => kind.Value == 20));
+    }
+
     [Fact]
     public void The_registry_ships_exactly_the_api_kinds_and_reserves_the_rest()
     {
@@ -104,7 +111,7 @@ public sealed class PackContentKindRegistryTests
         Assert.True(
             PackContentKindRegistry.VerifyCheckedInExport(),
             "_shared/content-kinds/content-kinds.json is stale; regenerate it with "
-            + "dotnet run --project tooling/content-kind-export -- _shared/content-kinds/content-kinds.json");
+            + "dotnet run --project tooling/content-kind-export -- --root .; check with dotnet run --project tooling/content-kind-export -- --root . --check");
         Assert.Equal(PackContentKindRegistry.Export(), PackContentKindRegistry.LoadCheckedInExport());
     }
 

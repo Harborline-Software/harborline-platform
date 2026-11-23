@@ -6,13 +6,8 @@ using Harborline.Foundation.Definitions;
 namespace Harborline.Blocks.Reports.Definitions;
 
 /// <summary>Reports' additive pack wire identity; the catalogue namespace is the host's concern.</summary>
-public static class ReportPackIdentity
+public static partial class ReportPackIdentity
 {
-    /// <summary>
-    /// Content kind 9, <c>ReportDefinition</c>: the api's <c>PackContentKind.ReportDefinition</c>, as
-    /// <see cref="PackContentKindRegistry"/> records it (T-738). DES-0020 line 79's 8 is superseded.
-    /// </summary>
-    public const int ContentKind = 9;
 }
 
 /// <summary>Stable refusal codes for report definition admission.</summary>

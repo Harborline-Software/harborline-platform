@@ -35,6 +35,7 @@ const blazorTestProject = 'projections/blazor/ui/hlp.ui.button.tests/Harborline.
 // else. An optional fourth element is the suite's vstest filter.
 const EXCLUDE_PERF_BUDGET = 'Category!=PerfBudget'
 const DOTNET_SUITES = [
+  ['contentKindExport', 'content-kind-export-native', 'tooling/content-kind-export.tests/ContentKindExport.Tests.csproj'],
   ['blazor', 'blazor-native', blazorTestProject, EXCLUDE_PERF_BUDGET],
   ['contracts', 'contracts-identities-native', "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj"],
   ['tenancy', 'foundation-tenancy-native', "projections/dotnet/foundation/hlp.foundation.tenancy.tests/Harborline.Foundation.MultiTenancy.Tests.csproj"],
