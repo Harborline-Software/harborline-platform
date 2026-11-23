@@ -627,6 +627,44 @@ test('the real attempt applies completed retention without changing canonical or
   unchangedHistory(f)
 })
 
+function refusalEnvironment(parent) {
+  const env = {...parent, GITHUB_ACTIONS: 'false', GIT_ALLOW_PROTOCOL: 'file'}
+  delete env.HARBORLINE_BASE_HEAD
+  delete env.HARBORLINE_TESTED_TREE
+  delete env.HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE
+  delete env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM
+  return env
+}
+
+test('real gate refusal environment isolates receipt and lock inputs without changing its parent', () => {
+  const parent = {
+    HARBORLINE_BASE_HEAD: 'parent-base',
+    HARBORLINE_TESTED_TREE: 'parent-tree',
+    HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE: 'parent-pause',
+    HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM: 'parent-eperm',
+    PREFLIGHT_ENV_CONTROL: 'preserved',
+    GITHUB_ACTIONS: 'true',
+    GIT_ALLOW_PROTOCOL: 'https',
+  }
+  const env = refusalEnvironment(parent)
+  assert.equal(Object.hasOwn(env, 'HARBORLINE_BASE_HEAD'), false)
+  assert.equal(Object.hasOwn(env, 'HARBORLINE_TESTED_TREE'), false)
+  assert.equal(Object.hasOwn(env, 'HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE'), false)
+  assert.equal(Object.hasOwn(env, 'HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM'), false)
+  assert.equal(env.PREFLIGHT_ENV_CONTROL, 'preserved')
+  assert.equal(env.GITHUB_ACTIONS, 'false')
+  assert.equal(env.GIT_ALLOW_PROTOCOL, 'file')
+  assert.deepEqual(parent, {
+    HARBORLINE_BASE_HEAD: 'parent-base',
+    HARBORLINE_TESTED_TREE: 'parent-tree',
+    HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE: 'parent-pause',
+    HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM: 'parent-eperm',
+    PREFLIGHT_ENV_CONTROL: 'preserved',
+    GITHUB_ACTIONS: 'true',
+    GIT_ALLOW_PROTOCOL: 'https',
+  })
+})
+
 test('real gate preflight refusal keeps observations off the receipt report channel', t => {
   const f = graph(t)
   const remote = path.join(f.root, '.git/local-forge.git')
@@ -646,7 +684,7 @@ test('real gate preflight refusal keeps observations off the receipt report chan
   writeFileSync(f.record, '{broken review JSON\n')
   const result = spawnSync(process.execPath, [path.join(f.root, 'tooling/run-phase-4-gate.mjs')], {
     cwd: f.root, encoding: 'utf8', timeout: 10000,
-    env: {...process.env, GITHUB_ACTIONS: 'false', GIT_ALLOW_PROTOCOL: 'file'},
+    env: refusalEnvironment(process.env),
   })
   assert.equal(result.status, 1)
   assert.equal(result.signal, null)

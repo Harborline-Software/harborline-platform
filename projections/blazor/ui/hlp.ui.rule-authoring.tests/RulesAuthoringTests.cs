@@ -62,7 +62,9 @@ public sealed class RulesAuthoringTests : BunitContext
         var cut = Render<HarborlineRulesAuthoringEditor>(p => p.Add(x => x.Value, rule).Add(x => x.Catalogue, new RulesRuleCatalogue([rule])).Add(x => x.CatalogueChanged, value => changed = value));
         cut.FindButton("Promote Check").Click();
         Assert.Null(changed);
-        Assert.Contains("rule.promote.missing_call", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+        var refusal = Assert.Single(cut.FindAll("[aria-label='Refusals'] li"));
+        Assert.Equal("rule.promote.missing_call", refusal.GetAttribute("data-code"));
+        Assert.Equal("/draft", refusal.GetAttribute("data-pointer"));
     }
 
     [Fact(DisplayName = "rules-auth-18: retains the promoted reference as an option")]
@@ -189,7 +191,9 @@ public sealed class RulesAuthoringTests : BunitContext
         cut.FindButton("Promote Amount check").Click();
         Assert.Null(changed);
         Assert.Equal("Edited", cut.Find("input[aria-label='Rule name']").GetAttribute("value"));
-        Assert.Contains("rule.promote.unsaved_edits", cut.Find("[aria-label='Refusals']").TextContent, StringComparison.Ordinal);
+        var refusal = Assert.Single(cut.FindAll("[aria-label='Refusals'] li"));
+        Assert.Equal("rule.promote.unsaved_edits", refusal.GetAttribute("data-code"));
+        Assert.Equal("/draft", refusal.GetAttribute("data-pointer"));
     }
 
     [Fact(DisplayName = "rules-auth-19: navigates producer lineage and names unreferenced calculation")]
