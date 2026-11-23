@@ -123,6 +123,7 @@ public sealed class FormDefinitionKeystoneTests
         Assert.Equal(Now.AddMinutes(7), deprecated.UpdatedAt);
         var stored = await registry.GetAsync(TenantA, schema.Id, schema.Version);
         Assert.Equal(FormDefinitionStatus.Deprecated, stored.Status);
+        clock.Advance(TimeSpan.FromMinutes(1));
 
         var error = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
             () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
@@ -132,6 +133,7 @@ public sealed class FormDefinitionKeystoneTests
         Assert.Equal(new SemanticVersion(1, 0, 0), error.Version);
         var unchanged = await registry.GetAsync(TenantA, schema.Id, schema.Version);
         Assert.Equal(FormDefinitionStatus.Deprecated, unchanged.Status);
+        Assert.Equal(Now.AddMinutes(7), unchanged.UpdatedAt);
         Assert.Equal(stored, unchanged);
     }
 
@@ -152,6 +154,7 @@ public sealed class FormDefinitionKeystoneTests
         Assert.Equal(Now.AddMinutes(7), withdrawn.UpdatedAt);
         var stored = await registry.GetAsync(TenantA, schema.Id, schema.Version);
         Assert.Equal(FormDefinitionStatus.Withdrawn, stored.Status);
+        clock.Advance(TimeSpan.FromMinutes(1));
 
         var error = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
             () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
@@ -161,6 +164,7 @@ public sealed class FormDefinitionKeystoneTests
         Assert.Equal(new SemanticVersion(1, 0, 0), error.Version);
         var unchanged = await registry.GetAsync(TenantA, schema.Id, schema.Version);
         Assert.Equal(FormDefinitionStatus.Withdrawn, unchanged.Status);
+        Assert.Equal(Now.AddMinutes(7), unchanged.UpdatedAt);
         Assert.Equal(stored, unchanged);
     }
 
