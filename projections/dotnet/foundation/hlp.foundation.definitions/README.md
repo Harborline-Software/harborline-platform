@@ -18,3 +18,7 @@ assembly and packed at the same path for the api to consume. Regenerate it with
 `VerifyCheckedInExport` fails the tests when it is stale. `PackContentKindDriftArchitectureTests` fails
 when any platform `*PackIdentity` constant, or any `PackContentKind`/`PackPillar` enum, disagrees with
 the registry.
+
+## Solver refusal detail (T-491)
+
+DefinitionRefusal keeps its three-argument constructor and Deconstruct. Its optional init-only Detail is a JSON object, serialized as detail and omitted when null (DES-0014 C3). Equality compares detail values structurally, ignoring object member order and preserving array order; Target still names only a safely exposed fetchable definition.

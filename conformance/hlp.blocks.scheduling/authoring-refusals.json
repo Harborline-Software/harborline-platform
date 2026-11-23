@@ -9,25 +9,25 @@
     {
       "id": "solver-unregistered", "item": "scheduling-ck-26",
       "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"missing","parameters":{},"guarantee":"feasible_proof","work_budget":10}},
-      "refusals": [{"code":"scheduling.definition.backend_unsupported","pointer":"/solver/backend_id"}],
+      "refusals": [{"code":"scheduling.definition.backend_unsupported","pointer":"/solver/backend_id","detail":{"observed":"missing","required":["prototype.exhaustive-proof.v2"]}}],
       "missing": "The backend missing is not registered", "required": "A registered solver backend"
     },
     {
       "id": "solver-problem-class", "item": "scheduling-ck-26",
       "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Workforce","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":10}},
-      "refusals": [{"code":"scheduling.definition.problem_class_unsupported","pointer":"/solver"}],
+      "refusals": [{"code":"scheduling.definition.problem_class_unsupported","pointer":"/solver","detail":{"observed":"Workforce","required":["JobShop","Project"]}}],
       "missing": "The backend does not support Workforce", "required": "A backend supporting the authored problem class"
     },
     {
       "id": "solver-guarantee", "item": "scheduling-ck-26",
       "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"optimal_proof","work_budget":10}},
-      "refusals": [{"code":"scheduling.definition.guarantee_unsupported","pointer":"/solver/guarantee"}],
+      "refusals": [{"code":"scheduling.definition.guarantee_unsupported","pointer":"/solver/guarantee","detail":{"observed":"optimal_proof","required":["feasible_proof"]}}],
       "missing": "The backend does not offer optimal proof", "required": "A guarantee offered by the backend, feasible proof"
     },
     {
       "id": "solver-work-budget", "item": "scheduling-ck-26",
       "definition": {"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":-1}},
-      "refusals": [{"code":"scheduling.definition.work_budget_unsupported","pointer":"/solver/work_budget"}],
+      "refusals": [{"code":"scheduling.definition.work_budget_unsupported","pointer":"/solver/work_budget","detail":{"observed":-1,"minimum":0,"maximum":2147483647}}],
       "missing": "Work budget -1 is outside the backend range", "required": "A work budget from 0 through 2147483647"
     },
     {

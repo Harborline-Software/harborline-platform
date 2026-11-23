@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.execution-runtime",
-  "interfaceRevision": 4,
+  "interfaceRevision": 5,
   "status": "frozen",
-  "purpose": "Own the execution runtime substrate (DES-0056, T-528): run-kind registration, run identity and lifecycle, named retry profiles, dead-letter, tenant-scoped run and effect receipt storage, T-1028's independently checked compensation association, and the tenant-scoped execution receipt and trace port (revision 4).",
+  "purpose": "Own the execution runtime substrate (DES-0056, T-528): run-kind registration, run identity and lifecycle, named retry profiles, dead-letter, tenant-scoped run and effect receipt storage, T-1028's independently checked compensation association, the tenant-scoped execution receipt and trace port, and full-jitter retry timing with server-told waits (revision 5).",
   "dependencies": [
     {
       "moduleId": "hlp.contracts.identities",
@@ -16,7 +16,10 @@
       "RunKindRegistry.Register(kind, owningEngine, handler = null) -> registers a kind and optional async handler receiving the claimed run, timer step id (null for retries), and cancellation token; existing callers remain valid",
       "RunLifecycle.StartAsync(StartRun) -> a pending run under a fresh RunId of the request's kind; an unregistered kind, a retry profile outside the capability's allowed set, and a caused_by naming no run the tenant holds all refuse",
       "RunLifecycle.BeginAttemptAsync / SucceedAsync / FailAttemptAsync / CancelAsync -> the next status under the closed transition table; an illegal move refuses execution.transition_illegal, and an awaiting-retry run begun before it is due refuses execution.retry_not_due",
-      "RunLifecycle.FailAttemptAsync -> awaiting-retry with the profile's capped doubling delay while the failure is retryable and attempts remain; otherwise dead-lettered with reason retries-exhausted or not-retryable",
+      "RunLifecycle.FailAttemptAsync -> awaiting-retry while the failure is retryable and attempts remain: draw once with NextDouble(), multiply the profile's capped doubling delay in ticks and round down; wait the longer of jitter and RetryAfter, capped at MaxDelay; otherwise dead-lettered with reason retries-exhausted or not-retryable without drawing or recording a server wait",
+      "RunLifecycle(registry, store, clock, random) -> inject System.Random for full jitter; the existing three-argument constructor uses Random.Shared",
+      "RetryAfter(TimeSpan delta) / RetryAfter(DateTimeOffset date) -> immutable Delta/Date forms matching RetryConditionHeaderValue; a negative delta throws ArgumentOutOfRangeException, a default value means zero wait; engines parse headers, and instant waits resolve against failure time (past or equal means zero)",
+      "RunFailure(Code, Retryable, RetryAfter = null) / RunAttempt(Number, StartedUtc, EndedUtc, Failure, ServerToldWait = null) -> optional last members preserve existing construction; a retry records the uncapped server wait only when strictly longer than jitter, otherwise null, including dead letters",
       "RunLifecycle.DeadLetteredAsync(tenant) -> every dead-lettered run of every kind, read without touching any engine's store",
       "RetryProfileName.Parse(name) -> a substrate-defined profile name; anything else, including a raw attempt count or backoff parameter, refuses execution.retry_profile_unknown",
       "CapabilityRetryPolicy(default, allowed).Resolve(selected) -> the substrate profile, refusing execution.retry_profile_not_allowed outside the allowed set",
@@ -33,13 +36,14 @@
       "IExecutionReceiptStore.PutReceiptAsync / GetReceiptAsync(tenant, runId) -> tenant-scoped receipt storage keyed by the kind-qualified run identity, one current receipt per run; a put replaces the tenant's earlier receipt for that run, refusing execution.access_decision_changed when the replacement adds, removes or changes the Access decision link and execution.transition_illegal when its status is neither the stored status nor a legal move from it under the run transition table; a read returns the receipt or null",
       "IExecutionReceiptStore.AppendTraceStepAsync(tenant, runId, traceStep) / GetTraceAsync(tenant, runId) -> tenant-scoped append-only trace; an exact repeat of a step already stored at its ordinal is a no-op, otherwise an append whose ordinal is not exactly one past the last stored step (1 for the first) refuses execution.trace_step_out_of_order and stores nothing; every read and append refuses a default or system sentinel tenant as an argument error; a read returns the steps in ordinal order or empty; InMemoryExecutionReceiptStore is the reference implementation"
     ],
-    "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration is not claimed. Revision 4 (T-528/execution-receipt-and-trace) adds the execution receipt and trace kinds and the tenant-scoped port a durable adapter implements; the durable adapter and restart proof (T-528/durable-run-store), the authorized observe read (T-528/observe-read) and engine emitting (exchange-run-adoption, workflow-run-adoption) remain later slices."
+    "context": "Each engine registers its run kind and keeps its engine state in its own store (owner ruling 2026-09-29). The substrate also holds one non-secret effect receipt per logical effect. T-1028's owner-approved backlink is producer-attested linkage, not proof of external compensation correctness. T-488 must later stamp the backlink and call the pair checker after both receipts are durable, including recovery after a crash between recording and checking; recovery/audit may repeat it. That engine integration is not claimed. Revision 4 (T-528/execution-receipt-and-trace) adds the execution receipt and trace kinds and the tenant-scoped port a durable adapter implements; the durable adapter and restart proof (T-528/durable-run-store), the authorized observe read (T-528/observe-read) and engine emitting (exchange-run-adoption, workflow-run-adoption) remain later slices. Revision 5 (T-528/retry-jitter-and-server-told-delay) adds one injected full-jitter draw for each retryable failure with attempts remaining, rounded down to ticks from zero up to the capped doubling delay. Retry-After accepts a non-negative duration or an HTTP-date resolved against failure time (past dates mean zero). A strictly longer server wait is retained uncapped on the failed attempt; the next wait is the longer of jitter and server wait, capped by the profile maximum. Dead letters neither draw jitter nor record a server wait. The existing constructor uses Random.Shared; the retry profile table and DelayAfter are unchanged."
   },
   "invariants": [
     "A RunId carries its RunKind, so runs of two kinds never share an identity even when their opaque values coincide; caused_by correlates runs and never merges them.",
     "The run status vocabulary is closed: pending, running, awaiting-retry, succeeded, dead-lettered, cancelled; succeeded, dead-lettered and cancelled are terminal.",
     "Every status change goes through the one transition table; there is no setter for status outside RunLifecycle.",
     "Retry profiles are defined once by the substrate (immediate-or-fail, external-api-standard, durable-delivery, manual-reconciliation); RetryProfile has no public constructor, so no engine or author can declare attempt counts or backoff.",
+    "The two backoff profiles use full jitter from an injected Random; Retry-After can only lengthen the jittered wait, never beyond MaxDelay. Instant forms resolve at failure time. Only a strictly longer server wait is recorded on the failed attempt, uncapped; dead letters draw nothing and record no server wait (execution-runtime-ck-9, ck-10).",
     "Exhausting a profile, or a failure the engine classifies as not retryable, dead-letters the run; there is no other failed terminal status.",
     "Every read and write is tenant-scoped; a caused_by must name a run the same tenant holds.",
     "One logical effect has one tenant-scoped receipt; effect statuses are exactly succeeded, failed, ambiguous, compensated and compensation-failed. Ambiguous evidence requires reconciliation and refuses a forward compensation link.",
@@ -123,6 +127,19 @@
         "Two_tenants_same_run",
         "Racing_appends",
         "Refused_first_append_leaves_nothing"
+      ]
+    },
+    "retryTiming": {
+      "source": "projections/dotnet/foundation/hlp.foundation.execution-runtime.tests/RetryTimingTests.cs",
+      "oracle": "Control 542d063d8eaabb148e0e58c5fea0c717e2553c6d T-528/retry-jitter-and-server-told-delay acceptance literals; DES-0056 execution-runtime-ck-9/ck-10 and section 9; ADR-0118 decision 8; RFC 9110 section 10.2.3. Seeded expectations use a separate Random(528) and literal capped-delay sequences, never production constants or output.",
+      "cases": [
+        "Fixed_jitter",
+        "Seeded_jitter",
+        "Zero_jitter",
+        "Dead_letters_do_not_draw",
+        "Server_wait_and_cap",
+        "Server_wait_never_shortens",
+        "Negative_duration_refused"
       ]
     }
   },

@@ -219,6 +219,69 @@ public sealed class ViewQueryRuntimeTests
         Assert.Equal(["resolve", "open", "kind", "record-type"], calls);
     }
 
+    // Oracle: Control 89fc5b2d2, T-486/required-shape-role-proof acceptance 1–2;
+    // DES-0017 views-eng-5/views-auth-15 and T-1177's read-time backstop.
+    [Theory(DisplayName = "views-eng-5 views-auth-15: required table Title refuses before Access, rows and measures")]
+    [InlineData(null, "view_definition.shape_role_field_missing")]
+    [InlineData("", "view_definition.shape_role_field_missing")]
+    [InlineData(" ", "view_definition.shape_role_field_missing")]
+    [InlineData("missing_title", "view_definition.shape_role_field_missing")]
+    [InlineData("priority", "view_definition.shape_role_field_incompatible")]
+    public async Task RequiredTableTitleRefusesBeforeDownstreamPorts(string? titleField, string expectedCode)
+    {
+        var calls = new List<string>();
+        var (runtime, request, measures) = await RequiredTableTitleSetup(calls, titleField);
+
+        var error = await Assert.ThrowsAsync<ViewQueryException>(async () => await runtime.ExecuteAsync(request));
+
+        Assert.Equal(expectedCode, error.Code);
+        Assert.Equal("The view binding is incompatible with its record type.", error.Message);
+        Assert.Equal(["resolve", "open", "record-type"], calls);
+        Assert.Equal(0, measures.EvaluationCount);
+    }
+
+    [Fact(DisplayName = "views-eng-5 views-auth-15 views-eng-9: valid table Title reaches rows and returns the measure sentinel")]
+    public async Task RequiredTableTitleValidBindingReturnsPortData()
+    {
+        var calls = new List<string>();
+        var (runtime, request, measures) = await RequiredTableTitleSetup(calls, "title");
+
+        var result = await runtime.ExecuteAsync(request);
+
+        Assert.Equal(["resolve", "open", "record-type", "access", "rows", "measure"], calls);
+        Assert.Equal(1, measures.EvaluationCount);
+        Assert.Empty(result.Rows);
+        Assert.Equal(0, result.Total);
+        Assert.Equal(new ViewMeasureResult("work.open-count", 731), result.Measure);
+    }
+
+    private static async Task<(ViewQueryRuntime Runtime, ViewQueryRequest Request, RecordingMeasures Measures)>
+        RequiredTableTitleSetup(List<string> calls, string? titleField)
+    {
+        var kinds = ViewKindRegistry.Platform;
+        var table = Assert.IsType<ViewKindDescriptor>(await kinds.ResolveAsync("layout.table"));
+        Assert.Equal([ViewShapeRole.Title], table.RequiredRoles);
+        var roles = new Dictionary<ViewShapeRole, string>();
+        if (titleField is not null)
+        {
+            roles.Add(ViewShapeRole.Title, titleField);
+        }
+        var request = Request() with { Binding = new("layout.table", roles) };
+        var definition = Definition(new("work.open-count", new Dictionary<string, string> { ["format"] = "integer" }));
+        var measures = new RecordingMeasures(calls, new("work.open-count", 731));
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, definition),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            kinds,
+            new RecordingRecordTypes(calls),
+            new RecordingAccessFilter(calls),
+            new RecordingRows(calls),
+            measures,
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch),
+            environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
+        return (runtime, request, measures);
+    }
+
     [Fact(DisplayName = "open authority and Access filtering precede every row read")]
     public async Task OpenAuthorityAndAccessFilteringPrecedeEveryRowRead()
     {
@@ -273,6 +336,92 @@ public sealed class ViewQueryRuntimeTests
 
         Assert.Equal(2, result.Total);
         Assert.Collection(result.Rows, row => Assert.Equal("three", row.Id));
+    }
+
+    // Oracle: control 200e119e, T-486/full-set-measure-proof acceptance 1's literal
+    // five-row matrix and DES-0017 §5: CurrentRows is the full set, Rows only the page.
+    private static InMemoryViewRowSource FullSetRows() => new([
+        Row("one", "A", "party:operator-1", "open"),
+        Row("hidden", "B", "party:someone-else", "open"),
+        Row("three", "C", "party:operator-1", "open"),
+        Row("closed", "D", "party:operator-1", "closed"),
+        Row("five", "E", "party:operator-1", "open"),
+    ]);
+
+    [Theory(DisplayName = "views-eng-6 views-eng-7 views-eng-9: full filtered CurrentRows precede totals, groups and every page")]
+    [InlineData(0, new string[] { "one" })]
+    [InlineData(1, new string[] { "three" })]
+    [InlineData(3, new string[] { })]
+    public async Task FullFilteredSetAtRowSourceAcrossPageBoundaries(int offset, string[] expectedPage)
+    {
+        var plan = new ViewQueryPlan(
+            "tenant-a", "work-item",
+            new Dictionary<string, ViewRecordFieldKind>
+            {
+                ["title"] = ViewRecordFieldKind.Text,
+                ["assignee"] = ViewRecordFieldKind.Text,
+                ["state"] = ViewRecordFieldKind.Text,
+            },
+            [new("title", 240)],
+            [new(ViewPredicateSource.Access, ViewFilter.Equal("assignee", "party:operator-1")),
+             new(ViewPredicateSource.Authored, ViewFilter.Equal("state", "open"))],
+            [new("title", ViewSortDirection.Ascending)], "state", null, new(offset, 1),
+            DateTimeOffset.Parse("2026-11-21T15:00:00Z"),
+            ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
+
+        var page = await FullSetRows().QueryAsync(plan);
+
+        Assert.Equal(["one", "three", "five"], page.CurrentRows.Select(row => row.Id));
+        Assert.Equal(expectedPage, page.Rows.Select(row => row.Id));
+        Assert.Equal(3, page.Total);
+        Assert.Equal([new ViewGroup("open", 3)], page.Groups);
+    }
+
+    [Theory(DisplayName = "views-eng-6 views-eng-7 views-eng-9 views-run-2: catalogue receives the full set and its sentinel survives every page")]
+    [InlineData(0, new string[] { "one" }, true)]
+    [InlineData(1, new string[] { "three" }, true)]
+    [InlineData(3, new string[] { }, true)]
+    [InlineData(0, new string[] { "one" }, false)]
+    [InlineData(1, new string[] { "three" }, false)]
+    [InlineData(3, new string[] { }, false)]
+    public async Task FullFilteredSetAtMeasurePortAcrossPageBoundaries(int offset, string[] expectedPage, bool bound)
+    {
+        var calls = new List<string>();
+        // 731 is an independent port sentinel, deliberately unrelated to rows.Count or Total.
+        var measures = new RecordingMeasures(calls, new("work.open-count", 731));
+        var definition = Definition(bound ? new(
+            "work.open-count", new Dictionary<string, string> { ["format"] = "integer" }) : null);
+        definition = definition with { Parameters = definition.Parameters with { GroupBy = "state" } };
+        var runtime = new ViewQueryRuntime(
+            new RecordingDefinitions(calls, definition),
+            new RecordingOpenGate(calls, new ViewAuthority(CanOpen: true, Actions: [])),
+            new RecordingKinds(calls, IsRegistered: true),
+            new RecordingRecordTypes(calls), new RecordingAccessFilter(calls),
+            FullSetRows(), measures,
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-11-21T15:00:00Z")),
+            environment: ViewsExpressionEnvironment.Admitted.For(Harborline.Foundation.RuleEngine.Environments.EvaluationPhase.Run));
+
+        var result = await runtime.ExecuteAsync(Request() with { Page = new(offset, 1) });
+
+        if (bound)
+        {
+            Assert.Equal(["one", "three", "five"], measures.RowIds);
+            Assert.Equal(1, measures.EvaluationCount);
+            Assert.Equal(("tenant-a", "party:operator-1"), measures.Identity);
+            Assert.Equal(DateTimeOffset.Parse("2026-11-21T15:00:00Z"), measures.EvaluatedAt);
+            Assert.Equal("work.open-count", measures.Binding!.Name);
+            Assert.Equal([new KeyValuePair<string, string>("format", "integer")], measures.Binding.Parameters);
+            Assert.Equal(new ViewMeasureResult("work.open-count", 731), result.Measure);
+        }
+        else
+        {
+            Assert.Equal(0, measures.EvaluationCount);
+            Assert.DoesNotContain("measure", calls);
+            Assert.Null(result.Measure);
+        }
+        Assert.Equal(expectedPage, result.Rows.Select(row => row.Id));
+        Assert.Equal(3, result.Total);
+        Assert.Equal([new ViewGroup("open", 3)], result.Groups);
     }
 
     [Fact(DisplayName = "text identifiers remain ordinally distinct in the Access predicate")]
@@ -706,8 +855,14 @@ public sealed class ViewQueryRuntimeTests
         }
     }
 
-    private sealed class RecordingMeasures(List<string> calls) : IViewMeasureCatalog
+    private sealed class RecordingMeasures(List<string> calls, ViewMeasureResult? response = null) : IViewMeasureCatalog
     {
+        public int EvaluationCount { get; private set; }
+
+        public DateTimeOffset EvaluatedAt { get; private set; }
+
+        public ViewMeasureBinding? Binding { get; private set; }
+
         public IReadOnlyList<string> RowIds { get; private set; } = [];
 
         public (string Tenant, string Principal) Identity { get; private set; }
@@ -726,9 +881,12 @@ public sealed class ViewQueryRuntimeTests
             CancellationToken cancellationToken = default)
         {
             calls.Add("measure");
+            EvaluationCount++;
+            EvaluatedAt = evaluatedAt;
+            Binding = binding;
             RowIds = rows.Select(row => row.Id).ToArray();
             Identity = (tenant, principal);
-            return ValueTask.FromResult(new ViewMeasureResult(binding.Name, rows.Count));
+            return ValueTask.FromResult(response ?? new ViewMeasureResult(binding.Name, rows.Count));
         }
     }
 

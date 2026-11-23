@@ -76,6 +76,16 @@ public sealed class FormDefinitionKeystoneTests
     }
 
     [Fact]
+    [Trait("Control", "forms-ck-6")]
+    public void State_vocabulary_is_exactly_Draft_Published_Deprecated_Withdrawn()
+    {
+        Assert.Equal(
+            new[] { "Deprecated", "Draft", "Published", "Withdrawn" },
+            Enum.GetNames<FormDefinitionStatus>().Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    [Trait("Control", "forms-ck-6")]
     public async Task PublishAsync_transitions_Draft_to_Published_and_stamps_UpdatedAt()
     {
         var clock = new FixedClock(Now);
@@ -89,37 +99,94 @@ public sealed class FormDefinitionKeystoneTests
         Assert.Equal(FormDefinitionStatus.Published, published.Status);
         Assert.Equal(Now.AddMinutes(7), published.UpdatedAt);
         Assert.Equal(draft.CreatedAt, published.CreatedAt);
+        Assert.Equal(FormDefinitionStatus.Published, (await registry.GetAsync(TenantA, draft.Id, draft.Version)).Status);
+
+        clock.Advance(TimeSpan.FromMinutes(3));
+        var repeated = await registry.PublishAsync(TenantA, draft.Id, draft.Version);
+        Assert.Equal(Now.AddMinutes(7), repeated.UpdatedAt);
+        Assert.Equal(published, repeated);
+        Assert.Equal(published, await registry.GetAsync(TenantA, draft.Id, draft.Version));
     }
 
     [Fact]
-    public async Task WithdrawAsync_then_PublishAsync_is_rejected()
+    [Trait("Control", "forms-ck-6")]
+    public async Task DeprecateAsync_transitions_Published_and_refuses_ordinary_republication()
     {
-        using var registry = FormGateRegisters.Store(new FixedClock(Now));
+        var clock = new FixedClock(Now);
+        using var registry = FormGateRegisters.Store(clock);
         var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: FormDefinitionStatus.Published);
         await registry.RegisterAsync(schema);
-        await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
 
-        var refusal = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
+        clock.Advance(TimeSpan.FromMinutes(7));
+        var deprecated = await registry.DeprecateAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Deprecated, deprecated.Status);
+        Assert.Equal(Now.AddMinutes(7), deprecated.UpdatedAt);
+        var stored = await registry.GetAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Deprecated, stored.Status);
+        clock.Advance(TimeSpan.FromMinutes(1));
+
+        var error = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
             () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
-        Assert.Equal("form.lifecycle.transition_illegal", refusal.Code);
-        Assert.Equal(schema.Id, refusal.SchemaId);
-        Assert.Equal(new SemanticVersion(1, 0, 0), refusal.Version);
-        Assert.IsAssignableFrom<InvalidOperationException>(refusal);
+        Assert.IsAssignableFrom<InvalidOperationException>(error);
+        Assert.Equal("form.lifecycle.transition_illegal", error.Code);
+        Assert.Equal(new FormDefinitionId("property"), error.SchemaId);
+        Assert.Equal(new SemanticVersion(1, 0, 0), error.Version);
+        var unchanged = await registry.GetAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Deprecated, unchanged.Status);
+        Assert.Equal(Now.AddMinutes(7), unchanged.UpdatedAt);
+        Assert.Equal(stored, unchanged);
+    }
+
+    [Theory]
+    [InlineData(FormDefinitionStatus.Draft)]
+    [InlineData(FormDefinitionStatus.Published)]
+    [InlineData(FormDefinitionStatus.Deprecated)]
+    [Trait("Control", "forms-ck-6")]
+    public async Task WithdrawAsync_then_PublishAsync_is_rejected(FormDefinitionStatus source)
+    {
+        var clock = new FixedClock(Now);
+        using var registry = FormGateRegisters.Store(clock);
+        var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA, status: source);
+        await registry.RegisterAsync(schema);
+        clock.Advance(TimeSpan.FromMinutes(7));
+        var withdrawn = await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, withdrawn.Status);
+        Assert.Equal(Now.AddMinutes(7), withdrawn.UpdatedAt);
+        var stored = await registry.GetAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, stored.Status);
+        clock.Advance(TimeSpan.FromMinutes(1));
+
+        var error = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
+            () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
+        Assert.IsAssignableFrom<InvalidOperationException>(error);
+        Assert.Equal("form.lifecycle.transition_illegal", error.Code);
+        Assert.Equal(new FormDefinitionId("property"), error.SchemaId);
+        Assert.Equal(new SemanticVersion(1, 0, 0), error.Version);
+        var unchanged = await registry.GetAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, unchanged.Status);
+        Assert.Equal(Now.AddMinutes(7), unchanged.UpdatedAt);
+        Assert.Equal(stored, unchanged);
     }
 
     [Fact]
+    [Trait("Control", "forms-ck-6")]
     public async Task Withdrawn_System_projection_can_be_explicitly_restored()
     {
         using var registry = FormGateRegisters.Store(new FixedClock(Now));
-        var schema = NewSchema(
-            "pack-form", new SemanticVersion(1, 0, 0), TenantA,
+        var schema = NewSchema("property", new SemanticVersion(1, 0, 0), TenantA,
             status: FormDefinitionStatus.Published);
         await registry.RegisterAsync(schema);
         await registry.WithdrawAsync(TenantA, schema.Id, schema.Version);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, (await registry.GetAsync(TenantA, schema.Id, schema.Version)).Status);
+
+        var error = await Assert.ThrowsAsync<FormDefinitionLifecycleException>(
+            () => registry.PublishAsync(TenantA, schema.Id, schema.Version).AsTask());
+        Assert.Equal("form.lifecycle.transition_illegal", error.Code);
+        Assert.Equal(FormDefinitionStatus.Withdrawn, (await registry.GetAsync(TenantA, schema.Id, schema.Version)).Status);
 
         var restored = await registry.RestorePackProjectionAsync(TenantA, schema.Id, schema.Version);
-
         Assert.Equal(FormDefinitionStatus.Published, restored.Status);
+        Assert.Equal(FormDefinitionStatus.Published, (await registry.GetAsync(TenantA, schema.Id, schema.Version)).Status);
     }
 
     [Fact]
