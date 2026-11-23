@@ -58,7 +58,7 @@ public sealed class BorrowerEnvironmentTests
             yield return [operation, action, computed, declared, dataDerived, incremental];
     }
 
-    [Theory]
+    [Theory(DisplayName = "T-1232 acceptance 2 / rules-ck-28 / rules-eng-26: full and incremental graph paths fence a resolved key before any computed demand or raw target read")]
     [MemberData(nameof(GraphFenceCases))]
     public void T1232_A2_Graph_fence_precedes_target_access(string operation, RuleActionKind action, bool computed, bool declared, bool dataDerived, bool incremental)
     {
@@ -99,7 +99,7 @@ public sealed class BorrowerEnvironmentTests
         }
     }
 
-    [Theory]
+    [Theory(DisplayName = "T-1232 acceptance 2 / rules-ck-28 / rules-eng-26: the resolved-key fence refuses before the counting underlying resolver reads")]
     [MemberData(nameof(DynamicMissingCases))]
     public void T1232_A2_Resolved_fence_counts_underlying_reads(string id, string json)
     {

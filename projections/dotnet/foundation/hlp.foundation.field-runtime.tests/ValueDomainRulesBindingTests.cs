@@ -11,7 +11,7 @@ namespace Harborline.Foundation.FieldRuntime.Tests;
 /// <summary>T-590 slice 4: value-domain resolvers are bound behind the pickers and filter through Rules.</summary>
 public sealed class ValueDomainRulesBindingTests
 {
-    [Fact]
+    [Fact(DisplayName = "T-1232 acceptance 4 / rules-eng-26 / field-runtime-ck-6: the actual Value Domains declaration refuses missing row.x and admits a plain subject field")]
     public void T1232_A4_Value_domain_missing_keys_use_the_actual_narrow_declaration()
     {
         var guard = new GuardEvaluator(TimeProvider.System);

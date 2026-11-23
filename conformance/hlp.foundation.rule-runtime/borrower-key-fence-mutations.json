@@ -591,6 +591,103 @@
         "passed": 120,
         "failed": 0,
         "total": 120
+      },
+      "rerun": {
+        "recordedAt": "2026-11-23",
+        "reason": "Review round 2: rerun against the final committed producer bytes and the review-round test bytes (DisplayName ids added; no test body changed). The producer was restored byte-for-byte to runSourceSha256 before the restored run.",
+        "runSourceSha256": {
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+          "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804"
+        },
+        "mutantSourceSha256": "4abf562475f73d9b62c779d5d0807e32776d949df327d6d31be14b2dc8cfa2c5",
+        "killingTest": "T1232_A3_Flat_bag_field_aliases(field-alias)",
+        "assertion": "expected null, actual SECRET-CANARY: with the guard line deleted, field.candidate.secret reads the flat-bag root key \"SECRET-CANARY\" (fixture value null), so the first failing assertion is the flat-group guard check at BorrowerEnvironmentTests.cs:356, Assert.Equal(id != \"field-alias\", guard.Ok), reported as \"Expected: False, Actual: True\" (the same failure message as the recorded resume4 red run). Only this one test fails; the FieldRuntime tests stay green.",
+        "baseline": {
+          "label": "rr2-baseline",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-baseline",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-baseline.log",
+          "logSha256": "46f24d48c0a4821b7fd32b5b169ec91ee2af30855d3334cdbbbedf9038678b41",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "red": {
+          "label": "rr2-flat-red",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-flat-red",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 1,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-flat-red.log",
+          "logSha256": "07952b3dd43fd85fa2ee2b38690ce55a4c3eef725d2727e73fefeff3384d3481",
+          "passed": 203,
+          "failed": 1,
+          "total": 204
+        },
+        "restored": {
+          "label": "rr2-flat-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-flat-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-flat-restored.log",
+          "logSha256": "946d3a97903deeba9dcfeb635375e1693dcef006832b9141f8b3bde35a03cb7c",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "failingTests": {
+          "BorrowerEnvironmentTests.T1232_A3_Flat_bag_field_aliases": 1
+        },
+        "note": "The recorded sourceSha256 and mutantSourceSha256 above predate bd2dfb22 and 0c0bc9de and are kept as history; this block binds the mutant to the committed producer bytes."
       }
     },
     {
@@ -1243,7 +1340,11 @@
         "passed": 122,
         "failed": 0,
         "total": 122
-      }
+      },
+      "status": "superseded",
+      "supersededBy": "restore-row-first-lookup",
+      "supersededAt": "2026-11-23",
+      "reason": "Commit 0c0bc9decd38e24798079a97ae048d725ee6cc22 removed this before span from RuleContextSnapshot.cs: SnapshotResolver.ResolveVar now reads the row bag only for an explicit row. path, so no bare-key row fallback remains to mutate. The recorded runs and kill stand as history at their runSourceSha256 bytes; restore-row-first-lookup is the current mutant for this obligation."
     },
     {
       "tier": "dotnet",
@@ -1430,6 +1531,103 @@
           "failed": 0,
           "total": 204
         }
+      },
+      "rerun2": {
+        "recordedAt": "2026-11-23",
+        "reason": "Review round 2: rerun against the final committed producer bytes and the review-round test bytes (DisplayName ids added; no test body changed). The producer was restored byte-for-byte to runSourceSha256 before the restored run.",
+        "runSourceSha256": {
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+          "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804"
+        },
+        "mutantSourceSha256": "4892e6861ef94b7c79eb1003b7aac8b33a7009ee6d523476446ccf544249ee88",
+        "killingTest": "T1232_A10_Dotted_context_paths_never_read_the_row_bag (the 33 rows) plus the original T1232_Non_row_paths_never_read_the_row_bag rows",
+        "assertion": "Same assertions as the earlier rerun of this mutant.",
+        "baseline": {
+          "label": "rr2-pending-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-pending-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-pending-restored.log",
+          "logSha256": "5a96fc3d6413abb52748936a5ade4413fade0bb81bc0233fd1d4603e12b68c04",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "red": {
+          "label": "rr2-rowbag-red",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-rowbag-red",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 1,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-rowbag-red.log",
+          "logSha256": "4b3b74ec15cdfe0a745e4db6637a32e56780717d1aeb280178b38ccd4cd4c563",
+          "passed": 165,
+          "failed": 39,
+          "total": 204
+        },
+        "restored": {
+          "label": "rr2-rowbag-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-rowbag-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-rowbag-restored.log",
+          "logSha256": "889335171590913d2e5115d86ac323fdb47a67982bde723cdbbd11db9ae4aff8",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "failingTests": {
+          "BorrowerEnvironmentTests.T1232_Non_row_paths_never_read_the_row_bag": 6,
+          "BorrowerEnvironmentTests.T1232_A10_Dotted_context_paths_never_read_the_row_bag": 33
+        }
       }
     },
     {
@@ -1528,6 +1726,107 @@
         "passed": 204,
         "failed": 0,
         "total": 204
+      },
+      "rerun": {
+        "recordedAt": "2026-11-23",
+        "reason": "Review round 2: rerun against the final committed producer bytes and the review-round test bytes (DisplayName ids added; no test body changed). The producer was restored byte-for-byte to runSourceSha256 before the restored run.",
+        "runSourceSha256": {
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+          "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804"
+        },
+        "mutantSourceSha256": "4cb7ec0646aa58f73be48d24518b4404f6950cfae3de1922411210daf51667d1",
+        "killingTest": "T1232_A10_Dotted_context_paths_never_read_the_row_bag (all 33 rows); T1232_A10_Snapshot_resolver_reads_bare_keys_from_the_root (all 5 rows); T1232_A10_Bare_keys_through_the_guard_read_the_root (all 5 rows); also T1232_A9_Bare_keys_read_the_field_place_under_a_row_bag (10 of 12 rows), T1232_Non_row_paths_never_read_the_row_bag and T1232_Bare_missing_key_under_row_reads_the_field",
+        "assertion": "Same assertions as the recorded run of this mutant (acceptance 10 (a)).",
+        "baseline": {
+          "label": "rr2-flat-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-flat-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-flat-restored.log",
+          "logSha256": "946d3a97903deeba9dcfeb635375e1693dcef006832b9141f8b3bde35a03cb7c",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "red": {
+          "label": "rr2-prefix-red",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-prefix-red",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 1,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-prefix-red.log",
+          "logSha256": "9789c4f337b22e2f479297a4fd00f3752d3a7bd40acea4ca14cf73fd78dc6765",
+          "passed": 142,
+          "failed": 62,
+          "total": 204
+        },
+        "restored": {
+          "label": "rr2-prefix-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-prefix-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-prefix-restored.log",
+          "logSha256": "81bb4a158aae6f373d281854d9ce464d4cfeb64c300353865544dd027b926ef4",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "failingTests": {
+          "BorrowerEnvironmentTests.T1232_Non_row_paths_never_read_the_row_bag": 7,
+          "BorrowerEnvironmentTests.T1232_A9_Bare_keys_read_the_field_place_under_a_row_bag": 10,
+          "BorrowerEnvironmentTests.T1232_A10_Dotted_context_paths_never_read_the_row_bag": 33,
+          "BorrowerEnvironmentTests.T1232_A10_Bare_keys_through_the_guard_read_the_root": 5,
+          "BorrowerEnvironmentTests.T1232_Bare_missing_key_under_row_reads_the_field": 2,
+          "BorrowerEnvironmentTests.T1232_A10_Snapshot_resolver_reads_bare_keys_from_the_root": 5
+        }
       }
     },
     {
@@ -1626,6 +1925,104 @@
         "passed": 204,
         "failed": 0,
         "total": 204
+      },
+      "rerun": {
+        "recordedAt": "2026-11-23",
+        "reason": "Review round 2: rerun against the final committed producer bytes and the review-round test bytes (DisplayName ids added; no test body changed). The producer was restored byte-for-byte to runSourceSha256 before the restored run.",
+        "runSourceSha256": {
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+          "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+          "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804"
+        },
+        "mutantSourceSha256": "5dad0e930c79eaa464eabfa0ab4d02a0ae17a03763015d517981e966f798bcb5",
+        "killingTest": "T1232_A10_Dotted_context_paths_never_read_the_row_bag (the 12 pending-row rows); also T1232_A10_Snapshot_resolver_reads_bare_keys_from_the_root (2 bare pending rows) and T1232_A10_Bare_keys_through_the_guard_read_the_root (2 bare pending rows)",
+        "assertion": "Same assertions as the recorded run of this mutant (acceptance 10 (b)).",
+        "baseline": {
+          "label": "rr2-prefix-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-prefix-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-prefix-restored.log",
+          "logSha256": "81bb4a158aae6f373d281854d9ce464d4cfeb64c300353865544dd027b926ef4",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "red": {
+          "label": "rr2-pending-red",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-pending-red",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 1,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-pending-red.log",
+          "logSha256": "26771eee39c1aa6d4748ef5586e82fca0be9594da1930d8eb4dc8523e2bb4cb5",
+          "passed": 188,
+          "failed": 16,
+          "total": 204
+        },
+        "restored": {
+          "label": "rr2-pending-restored",
+          "command": [
+            "bash",
+            "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+            "run",
+            "--holder",
+            "writer",
+            "--session",
+            "mini-1232-borrower",
+            "--workload",
+            "rr2-pending-restored",
+            "--candidate",
+            "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+            "--",
+            "bash",
+            "-c",
+            "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+          ],
+          "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+          "exitCode": 0,
+          "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-pending-restored.log",
+          "logSha256": "5a96fc3d6413abb52748936a5ade4413fade0bb81bc0233fd1d4603e12b68c04",
+          "passed": 204,
+          "failed": 0,
+          "total": 204
+        },
+        "failingTests": {
+          "BorrowerEnvironmentTests.T1232_A10_Dotted_context_paths_never_read_the_row_bag": 12,
+          "BorrowerEnvironmentTests.T1232_A10_Bare_keys_through_the_guard_read_the_root": 2,
+          "BorrowerEnvironmentTests.T1232_A10_Snapshot_resolver_reads_bare_keys_from_the_root": 2
+        }
       }
     },
     {
@@ -2428,6 +2825,98 @@
       "failed": 0,
       "total": 966,
       "note": "TypeScript build plus the full vitest suite, in a scratch worktree at the candidate with the follow-up test file copied in; the TS snapshot is flat, so these acceptance 9 legs are green controls with no row-fallback mutant to kill"
+    },
+    {
+      "label": "rr2-full",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-borrower",
+        "--workload",
+        "rr2-full",
+        "--candidate",
+        "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+      ],
+      "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+      "exitCode": 0,
+      "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-full.log",
+      "logSha256": "98f73a5fdfbc299df2f609d3fa83b25d4a0467a93753cd95928b43124790efca",
+      "passed": 1331,
+      "failed": 0,
+      "total": 1331,
+      "note": "Complete .NET Rules and FieldRuntime suites at the review-round test bytes.",
+      "runSourceSha256": {
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+        "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804"
+      }
+    },
+    {
+      "label": "rr2-ts",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-borrower",
+        "--workload",
+        "rr2-ts",
+        "--candidate",
+        "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+        "--",
+        "bash",
+        "-c",
+        "cd projections/typescript/foundation/hlp.foundation.rule-runtime && npm run build && npm test"
+      ],
+      "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+      "exitCode": 0,
+      "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-ts.log",
+      "logSha256": "82209fe21b2cbb9204c9d74abb9b6d303662d14413c74ad447cc2c8a3f695849",
+      "passed": 966,
+      "failed": 0,
+      "total": 966,
+      "note": "TypeScript build plus the full vitest suite, in a clean scratch worktree at the candidate with the review-round test file copied in (supersedes fu-ts, which ran on earlier test bytes).",
+      "testSha256": {
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/__tests__/borrower-environment.test.ts": "2dde4620c6973a744f1d32b76339e91cbc05be3744d054bc926a97c6f0ed5b20"
+      }
+    },
+    {
+      "label": "rr2-ts-lint",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-borrower",
+        "--workload",
+        "rr2-ts-lint",
+        "--candidate",
+        "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+        "--",
+        "bash",
+        "-c",
+        "cd projections/typescript/foundation/hlp.foundation.rule-runtime && npm run lint"
+      ],
+      "candidate": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+      "exitCode": 0,
+      "logPath": "/private/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rr2-ts-lint.log",
+      "logSha256": "b6dbb7be5c74e3c67e33145a33a74a0555e92e5560b111e416e3ac1669214b2f",
+      "note": "TypeScript lint in the same scratch worktree with the review-round test file.",
+      "testSha256": {
+        "projections/typescript/foundation/hlp.foundation.rule-runtime/src/__tests__/borrower-environment.test.ts": "2dde4620c6973a744f1d32b76339e91cbc05be3744d054bc926a97c6f0ed5b20"
+      }
     }
   ],
   "amendedAt": {
@@ -2436,6 +2925,32 @@
     "acceptance": [
       9,
       10
+    ]
+  },
+  "finalSourceSha256": {
+    "conformance/hlp.foundation.rule-runtime/borrower-key-fence.json": "e4003b1f84a41a9d8bebda990e592998f81a9f425ed327eb149a1a7564f85f83",
+    "projections/dotnet/foundation/hlp.foundation.field-runtime.tests/ValueDomainRulesBindingTests.cs": "21630a270d1465c2fbff62e1e326297ce9cccab3b3843a8d14af20a56da75804",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "2213b9959365c3aa737fecabaff3b14b83b13364511b13289e55e0bb08c850c9",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Environments/BorrowerEnvironment.cs": "375c68032259a51d2684ee40aeb05ea5196fe4eee6289391509b3927d43bdaef",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Evaluators.cs": "b0c289400e666d76d59fca6757229c29dccc366d4f3362a061c0f19c981cdf38",
+    "projections/dotnet/foundation/hlp.foundation.rule-runtime/Graph/FormRuleGraph.cs": "38f6d20dd0b838ddab63b41c6cf494dc9e51fb50f89e171d625ab8f18d6f60bb",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/__tests__/borrower-environment.test.ts": "2dde4620c6973a744f1d32b76339e91cbc05be3744d054bc926a97c6f0ed5b20",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/environment.ts": "c2d2fe1e1ac9fb5d8ac1523248eea1f6c2a4abb484a2842e85a8fc6fcaffc101",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/graph.ts": "188ae52cd89358246f777e4316f2b35a6ebd6084df40b10ba79e696116ac13fa",
+    "projections/typescript/foundation/hlp.foundation.rule-runtime/src/guard.ts": "a7c65339775c2f2161570cbe623e3dbc3b3aada4273aa864a8090056151aa2f1"
+  },
+  "finalSourceSha256Note": "SHA-256 of each named source and test file in the commit that adds this map (review round 2, 2026-11-23). The top-level sourceSha256 map stays historical per sourceIdentityNote.",
+  "reviewRound2": {
+    "date": "2026-11-23",
+    "reviewedHead": "9f9ebd99cf9de50e786c3772549999e67470bcc0",
+    "controlRecordSha": "013a3e2a0433bb3067a9ef33bee2aa9a4aa35829",
+    "changes": [
+      "flat-alias (.NET) rerun bound to the committed producer",
+      "bare-row-read marked superseded (0c0bc9de)",
+      "finalSourceSha256 map added",
+      "TS verification rebound to the final test bytes (rr2-ts)",
+      "DisplayName ids on the acceptance 2 and 4 tests; ids in the two TS acceptance 2 titles"
     ]
   }
 }

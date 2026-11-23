@@ -59,7 +59,7 @@ describe('T-1232 borrower key fence', () => {
     (['Compute', 'Validate', 'Required'] as const).flatMap(action => [false, true].flatMap(computed =>
       [false, true].flatMap(declared => [false, true].map(dataDerived => ({ operation, action, computed, declared, dataDerived }))))))
   const phasedGraphCases = graphCases.flatMap(test => [false, true].map(incremental => ({ ...test, incremental })))
-  it.each(phasedGraphCases)('acceptance 2 graph access ordering: $operation $action computed=$computed declared=$declared data=$dataDerived incremental=$incremental', ({ operation, action, computed, declared, dataDerived, incremental }) => {
+  it.each(phasedGraphCases)('acceptance 2 / rules-ck-28 / rules-eng-26: graph access ordering, $operation $action computed=$computed declared=$declared data=$dataDerived incremental=$incremental', ({ operation, action, computed, declared, dataDerived, incremental }) => {
     const keys: Json = dataDerived ? { var: 'field.keys' } : operation === 'missing' ? { cat: ['row.', 'x'] } : { if: [true, ['row.x'], []] }
     const missing: Json = operation === 'missing' ? { missing: [keys] } : { missing_some: [1, keys] }
     const definitions: RuleDefinition[] = [{ ...rule('probe', 'items/out', { if: [{ var: 'field.trigger' }, missing, []] }, action), scope: 'Row' }]
@@ -97,7 +97,7 @@ describe('T-1232 borrower key fence', () => {
     } finally { observed.mockRestore() }
   })
 
-  it.each(keyFence.cases.filter(c => c.group === 'dynamic'))('acceptance 2 counting underlying resolver: $id', test => {
+  it.each(keyFence.cases.filter(c => c.group === 'dynamic'))('acceptance 2 / rules-ck-28 / rules-eng-26: counting underlying resolver, $id', test => {
     const inner = { resolveVar: vi.fn((path: string) => refResolved(test.bag[path] ?? null)), resolveAgg: unavailableAggregate }
     const admission = admitEnvironment(declaration({ variables: { field: 't' } })).forPhase('Run')
     const context = { resolver: fenceResolver(admission, inner), now: clock(), budget: new EvalBudget(DEFAULT_LIMITS) }
