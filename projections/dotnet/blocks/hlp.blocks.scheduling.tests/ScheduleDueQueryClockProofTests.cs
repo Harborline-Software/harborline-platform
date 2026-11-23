@@ -77,6 +77,7 @@ public sealed class ScheduleDueQueryClockProofTests
         Assert.Throws<ArgumentException>(() => service.Query(request with { From = I("2026-07-02T00:00:00Z"), To = I("2026-07-01T00:00:00Z") }));
         Assert.Equal(0, clock.Reads);
         var invalid = Request(Definition(new CompletionOffsetBasis("PT1H")) with { DueDate = "2026-07-01T12:00:00Z" });
+        invalid = invalid with { Series = invalid.Series with { FirstDue = I("2026-07-01T12:00:00Z") } };
         Assert.Equal("scheduling.definition.due_date_invalid", Assert.Throws<OccurrenceRefusalException>(() => service.Query(invalid)).Code);
         Assert.Equal(0, clock.Reads);
 
@@ -84,7 +85,7 @@ public sealed class ScheduleDueQueryClockProofTests
         Assert.Equal("series/lone", Assert.Single(service.Query(correctedRange)).OccurrenceId);
         Assert.Equal(1, clock.Reads);
 
-        var correctedDueDate = invalid with { Series = invalid.Series with { Definition = invalid.Series.Definition with { DueDate = null }, FirstDue = I("2026-07-01T12:00:00Z") } };
+        var correctedDueDate = invalid with { Series = invalid.Series with { Definition = invalid.Series.Definition with { DueDate = null } } };
         Assert.Equal("series/completion/first", Assert.Single(service.Query(correctedDueDate)).OccurrenceId);
         Assert.Equal(2, clock.Reads);
     }

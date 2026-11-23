@@ -1,19 +1,19 @@
 {
-  "producerHead": "c4fb85c874bf56da692813b0bf03b230f694ae4e",
-  "producerTree": "cb93c2d5903ba5a43eb8966809450b23767d53d7",
+  "producerHead": "220486e1e4eb9c79a36f3adc47df52b173c0ca09",
+  "producerTree": "b769660a7df2da5d4b2f4a265a138d3d6dc368fd",
   "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/RruleDueQueueQueryService.cs",
   "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
   "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDueQueryClockProofTests.cs",
-  "testSha256": "5b169d6ba63b9ebf70c96f6967d9e24d65bd28206358727d6abea58057018c86",
+  "testSha256": "5894bb8d5dc8991264d92e13dd8ec07f31290f067adf5a67343bb1aaf88fce06",
   "fixtureInputs": "inline in test file",
   "toolchain": "dotnet 11.0.100; DOTNET_CLI_USE_MSBUILD_SERVER=0; MSBUILDDISABLENODEREUSE=1; host-lane writer pc-491-clock",
-  "command": "dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleDueQueryClockProofTests -m:1 -nr:false",
+  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session pc-491-clock --workload <run> --candidate 220486e1e4eb9c79a36f3adc47df52b173c0ca09 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleDueQueryClockProofTests -m:1 -nr:false",
   "baseline": {
     "exit": 0,
     "passed": 4,
     "failed": 0,
     "skipped": 0,
-    "logSha256": "c2f17b1701546f8e752f5cabd27ca006a92aa7985f776ba96e1a854cd2b24de2"
+    "logSha256": "c133b4f4854517ebb0d94842e62317e4f59fd4dd34e128ab2942cb32f1208b1b"
   },
   "mutations": [
     {
@@ -26,15 +26,16 @@
       "passed": 0,
       "skipped": 0,
       "detectingAssertion": "QueryReadsOnceAndRefreshes line 32: Assert.Equal(1, clock.Reads), expected 1 actual 2",
-      "logSha256": "20cd7c8bbeaa83df68489c5ca0cfb11d2a99bb837697f86ad1e5524155baad84",
+      "logSha256": "29dfeb110c39f61be6a2945f494bcfd68f45debae3102f7d7f6994cef09822b3",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "8c9b9c45a2e7d634fb39ebb980227129543bfa70bffd81e1c202ef633450cf1b"
-      }
+        "logSha256": "cfafa898c5f6f684d5498e60c92bf710ea1c294d3505eb4280e96f926357eb4e"
+      },
+      "line": 29
     },
     {
       "id": "M2",
@@ -46,15 +47,16 @@
       "passed": 2,
       "skipped": 0,
       "detectingAssertion": "SecondQueryUsesFreshInstant line 49: Assert.Equal(OccurrenceClassification.Late, second.Classification), expected Late actual Pending",
-      "logSha256": "b601e5801a3c8e0f94e8bd3cf44336046d1b9b70ddc426bb38acaf157056806b",
+      "logSha256": "ded27178b4090baed8c9e7107ff420471db5ad537b709677b9afbfe90bcde2ee",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "a15ea5a551b3a8d29080e2f92ded49e7b50ef2631a14521345208bb6b28130ed"
-      }
+        "logSha256": "675db8c709059b9a66a0df8866c1b8edc73e059263cbc8501acd6f0d6f0403c1"
+      },
+      "line": 39
     },
     {
       "id": "M3",
@@ -66,15 +68,16 @@
       "passed": 2,
       "skipped": 0,
       "detectingAssertion": "CompletionDispatchSucceeds line 64: Assert.Null(exception), actual scheduling.definition.due_date_invalid",
-      "logSha256": "53450d3244cfa95651bda80c68c356c5fe4df47e053b3488859c199660130d9b",
+      "logSha256": "c4080926ace5a7cd588f501f05489dadca62ed0509cc050872e87159fcecc595",
       "restored": {
         "exit": 0,
         "passed": 4,
         "failed": 0,
         "skipped": 0,
         "targetSha256": "5a6dceac27f2676f9bb44a8eee16e8bfbe1cc39cfa198d426351189567b628ee",
-        "logSha256": "868e0e01a608284f69ac6708fd639c4dddef30b62da45d4e875b9288e6e3c001"
-      }
+        "logSha256": "72eccacbd9b31f774ef45a4d34670cb8787619e8ef465d16df2e7cebfc6ee569"
+      },
+      "line": 34
     }
   ]
 }
