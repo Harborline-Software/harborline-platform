@@ -8,7 +8,8 @@
     "accessibility": {
       "disposition": "required",
       "caseIds": [
-        "scheduling-authoring.quality.labels"
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.refusals"
       ]
     },
     "internationalization": {
