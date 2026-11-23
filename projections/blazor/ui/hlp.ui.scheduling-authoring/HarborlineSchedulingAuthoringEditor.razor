@@ -42,6 +42,7 @@
         }
         <fieldset><legend>Validity window</legend>
             @foreach (var side in new[] { "earliest", "latest" }) { @Input($"Window {side}", Object(Value["window"])[side], next => Nested("window", side, next)) }
+            @if (Value.ContainsKey("window")) { <button type="button" @onclick="RemoveWindow">Remove validity window</button> }
         </fieldset>
         <fieldset><legend>On-time tolerance</legend>
             @foreach (var side in new[] { "early", "late" }) { @Input($"Tolerance {side}", Object(Value["tolerance"])[side], next => Nested("tolerance", side, next)) }
@@ -103,6 +104,7 @@
     private static JsonNode? Number(string value) => decimal.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) ? JsonValue.Create(number) : null;
     private static IReadOnlyList<ScheduleOption> Words(IEnumerable<string> values) => values.Select(value => new ScheduleOption(value, value)).ToArray();
     private Task Set(string member, JsonNode? next) { var body = (JsonObject)Value.DeepClone(); body[member] = next?.DeepClone(); return ValueChanged.InvokeAsync(body); }
+    private Task RemoveWindow() { var body = (JsonObject)Value.DeepClone(); body.Remove("window"); return ValueChanged.InvokeAsync(body); }
     private Task SetOptional(string member, string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove(member); else body[member] = next; return ValueChanged.InvokeAsync(body); }
     private Task Nested(string member, string key, JsonNode? next) { var group = (JsonObject)Object(Value[member]).DeepClone(); group[key] = next?.DeepClone(); return Set(member, group); }
     private Task ChooseBasis(string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove("basis"); else { body["basis"] = new JsonObject { ["kind"] = next }; body.Remove("due_date"); } return ValueChanged.InvokeAsync(body); }

@@ -949,15 +949,16 @@
     "projections/react/ui/hlp.ui.scheduling-authoring": {
       "baseline": 72,
       "break": 72,
-      "score": 72.05,
-      "tested": 367,
+      "score": 72.34,
+      "tested": 396,
       "observed": [
         56.74,
         72.31,
-        72.05
+        72.05,
+        72.34
       ],
       "report": "projections/react/ui/hlp.ui.scheduling-authoring/reports/mutation/mutation.json",
-      "measured": "2026-11-23 PC; StrykerJS 10.1.1 full module, 390 mutants; typed precedence parameters; source restoration verified by tooling/strykerjs.mjs"
+      "measured": "2026-11-23 PC review follow-up; StrykerJS 10.1.1 full module; 423 mutants; raw numeric editing, untouched parameter blur and optional-window regression tests; source restoration verified"
     }
   }
 }

@@ -10,6 +10,17 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "scheduling-auth-2 scheduling-auth-3: review R3 removes the optional window after choosing a chain")]
+    public void RemovesValidityWindowForChain()
+    {
+        JsonObject actual = JsonNode.Parse("""{"name":"Inspection","basis":{"kind":"completion_offset","offset":"P2D"},"window":{"earliest":"PT0S","latest":"P1D"}}""")!.AsObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+        cut.Find("[aria-label='Basis']").Change("event_anchored_chain"); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.FindAll("button").Single(button => button.TextContent == "Remove validity window").Click(); cut.Render(p => p.Add(x => x.Value, actual));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"name":"Inspection","basis":{"kind":"event_anchored_chain"}}"""), actual));
+        Assert.Equal("", cut.Find("[aria-label='Window earliest']").GetAttribute("value"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent == "Remove validity window");
+    }
     [Theory, Trait("ModuleConformance", "hlp.ui.scheduling-authoring")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>

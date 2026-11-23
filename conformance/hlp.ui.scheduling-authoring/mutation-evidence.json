@@ -3,11 +3,11 @@
   "machine": "PC",
   "toolchain": "StrykerJS 10.1.1",
   "tests": {
-    "react": 12,
-    "blazor": 10,
+    "react": 16,
+    "blazor": 11,
     "tooling": 17,
     "sharedBlazorCases": 3,
-    "sharedReactSuiteTests": 12,
+    "sharedReactSuiteTests": 16,
     "typescript": "PASS",
     "staticGallery": "PASS",
     "uiSpecAuthority": "PASS",
@@ -28,20 +28,20 @@
       "noCoverage": 54
     },
     "final": {
-      "score": 72.05,
-      "total": 390,
-      "tested": 367,
-      "killed": 281,
-      "survived": 86,
-      "timeout": 0,
-      "noCoverage": 23
+      "score": 72.34,
+      "total": 423,
+      "tested": 396,
+      "killed": 304,
+      "survived": 90,
+      "timeout": 2,
+      "noCoverage": 27
     },
     "baseline": 72,
     "break": 72,
     "sourceRestoration": "tooling/strykerjs.mjs byte-compared both mutable source files after each in-place run; no strays",
     "restoredNativeTests": {
-      "react": 12,
-      "blazor": 10,
+      "react": 16,
+      "blazor": 11,
       "tooling": 17
     }
   },
@@ -69,6 +69,26 @@
     "provenance-final-search.txt": {
       "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\provenance-final-search.txt",
       "sha256": "b056cac973e1254eb5e25ae27806f9763f35ae00dc7b84d9ff2556ff29dae1da"
+    },
+    "review-react-red.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-react-red.log",
+      "sha256": "50ce3adfb119c59351d6988165de08a223dd5d1cc2c3fcd3821f4b3a8bb4a986"
+    },
+    "review-blazor-red.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-blazor-red.log",
+      "sha256": "5b594996ade9bf232268a24a17dbe1a9b64baea02e20f56be1bdfc584bbee9d5"
+    },
+    "review-green.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-green.log",
+      "sha256": "69dee78cf68bf9640337c06ca1bab4d749419f2b4394dbaf51956751ecfbaeb6"
+    },
+    "review-stryker.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-stryker.log",
+      "sha256": "d40eae889f7075c4f82a6153ab2c95347fcd34b8e305dc6a9c11678faf195e2b"
+    },
+    "review-restored.log": {
+      "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-restored.log",
+      "sha256": "eb31e584d2f3c55cccb6cecfdac07cab2f8a124e54064f3f20cd404361807686"
     }
   },
   "oracles": [
@@ -88,5 +108,83 @@
     "Protocol/Constraint editors and app mount",
     "scheduling-bound-7 resolver wiring carried to workshop-mount because host supplies resolved catalogues",
     "Availability parameterisation is Booking per Resource; planner read is module-admission"
-  ]
+  ],
+  "reviewFollowUp": {
+    "baseHead": "49b6dcd5f97858ae41c1dd98388f813fc61895d6",
+    "previousMutation": {
+      "score": 72.05,
+      "total": 390,
+      "tested": 367,
+      "killed": 281,
+      "survived": 86,
+      "timeout": 0,
+      "noCoverage": 23
+    },
+    "findings": [
+      {
+        "id": "R1",
+        "thread": "PRRT_kwDOURcFUM67Evjg",
+        "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+        "reviewLine": 60,
+        "outcome": "Ignore unchanged parameter blur; preserve absent solver",
+        "red": {
+          "reactFailed": 1
+        },
+        "green": {
+          "reactPassed": 1
+        },
+        "oracle": "Literal no-planner Schedule body and zero change callbacks; DES-0022 scheduling-auth-11"
+      },
+      {
+        "id": "R2",
+        "thread": "PRRT_kwDOURcFUM67Evjm",
+        "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+        "reviewLine": 79,
+        "outcome": "Retain native threshold editing text and commit a finite number on blur",
+        "red": {
+          "reactFailed": 2
+        },
+        "green": {
+          "reactPassed": 2
+        },
+        "oracle": "Literal keyboard strings and numbers 12.5 and -12.5; threshold decimal contract, scheduling-auth-2"
+      },
+      {
+        "id": "R3",
+        "thread": "PRRT_kwDOURcFUM67Evjq",
+        "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+        "reviewLine": 92,
+        "outcome": "Explicit Remove validity window action in both lanes",
+        "red": {
+          "reactFailed": 1,
+          "blazorFailed": 1
+        },
+        "green": {
+          "reactPassed": 1,
+          "blazorPassed": 1
+        },
+        "oracle": "Literal Schedule body containing only name and chosen chain basis after removal; scheduling-auth-2 and scheduling-auth-3"
+      }
+    ],
+    "redSuites": {
+      "react": {
+        "passed": 12,
+        "failed": 4,
+        "exit": 1
+      },
+      "blazor": {
+        "passed": 10,
+        "failed": 1,
+        "exit": 1
+      }
+    },
+    "restoredSuites": {
+      "react": 16,
+      "blazor": 11,
+      "tooling": 17,
+      "sharedBlazorCases": 3
+    },
+    "reviewThreadsResolved": false,
+    "workerDiagnostics": "Stryker recovered a Windows worker exit 3221225477; the completed report and source-restoration checks passed, with two Timeout mutants reported."
+  }
 }

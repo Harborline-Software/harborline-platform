@@ -37,6 +37,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const latest = useRef(value)
   latest.current = value
   const [parameterError, setParameterError] = useState('')
+  const [numberError, setNumberError] = useState('')
   const change = (member: string, next: ScheduleJson | undefined) => {
     const body = { ...latest.current }
     if (next === undefined) delete body[member]
@@ -45,6 +46,13 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   }
   const nested = (member: string, key: string, next: ScheduleJson) => change(member, { ...object(latest.current[member]), [key]: next })
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label>{label}<input aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
+  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label>{label}<input key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
+    const raw = event.currentTarget.value
+    if (raw === text(current)) { setNumberError(''); return }
+    const parsed = raw.trim() === '' ? null : Number(raw)
+    if (parsed !== null && !Number.isFinite(parsed)) { setNumberError(`${label} must be a finite number.`); return }
+    setNumberError(''); update(parsed)
+  }} /></label>
   const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label>{label}<select aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
   const words = (values: readonly string[]): ScheduleOption[] => values.map(word => ({ id: word, label: word }))
   const basis = object(value.basis)
@@ -54,6 +62,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const modules = list(value.modules)
   const updateNode = (index: number, key: string, next: ScheduleJson) => nested('basis', 'nodes', nodes.map((node, position) => position === index ? { ...object(node), [key]: next } : node))
   const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void) => <label>{label}<textarea aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
+    if (event.currentTarget.value === event.currentTarget.defaultValue) { setParameterError(''); return }
     try {
       const parsed: ScheduleJson = JSON.parse(event.currentTarget.value)
       if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) { setParameterError(`${label} must be a JSON object.`); return }
@@ -76,7 +85,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       {!basis.kind && input('Due date', value.due_date, next => change('due_date', next))}
       {basis.kind === 'fixed_calendar' && input('Recurrence rule', basis.rrule, next => nested('basis', 'rrule', next))}
       {basis.kind === 'completion_offset' && input('Completion offset', basis.offset, next => nested('basis', 'offset', next))}
-      {basis.kind === 'threshold' && <>{input('Reading', basis.reading, next => nested('basis', 'reading', next))}{pick('Crossing', text(basis.crossing), words(['above', 'below']), next => nested('basis', 'crossing', next))}{input('Threshold', basis.value, next => nested('basis', 'value', next === '' ? null : Number(next)))}</>}
+      {basis.kind === 'threshold' && <>{input('Reading', basis.reading, next => nested('basis', 'reading', next))}{pick('Crossing', text(basis.crossing), words(['above', 'below']), next => nested('basis', 'crossing', next))}{numberInput('Threshold', basis.value, next => nested('basis', 'value', next))}</>}
       {basis.kind === 'event_anchored_chain' && <fieldset><legend>Event-anchored chain</legend>
         {input('Chain anchor', basis.anchor, next => nested('basis', 'anchor', next))}
         {nodes.map((entry, index) => { const node = object(entry); return <fieldset key={index}><legend>Node {index + 1}</legend>
@@ -89,7 +98,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
         </fieldset> })}
         <button type="button" onClick={() => nested('basis', 'nodes', [...nodes, { node_id: '', after_node_id: null, offset: '', tolerance: { early: '', late: '' } }])}>Add node</button>
       </fieldset>}
-      <fieldset><legend>Validity window</legend>{['earliest', 'latest'].map(side => <span key={side}>{input(`Window ${side}`, object(value.window)[side], next => nested('window', side, next))}</span>)}</fieldset>
+      <fieldset><legend>Validity window</legend>{['earliest', 'latest'].map(side => <span key={side}>{input(`Window ${side}`, object(value.window)[side], next => nested('window', side, next))}</span>)}{Object.hasOwn(value, 'window') && <button type="button" onClick={() => change('window', undefined)}>Remove validity window</button>}</fieldset>
       <fieldset><legend>On-time tolerance</legend>{['early', 'late'].map(side => <span key={side}>{input(`Tolerance ${side}`, object(value.tolerance)[side], next => nested('tolerance', side, next))}</span>)}</fieldset>
       {input('Grace', value.grace, next => change('grace', next || undefined))}
       {pick('Missed behaviour', text(value.missed_behaviour), words(['record_and_replan', 'window_closed']), next => change('missed_behaviour', next || undefined))}
@@ -112,6 +121,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     </fieldset>
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
     {parameterError && <p role="alert">{parameterError}</p>}
+    {numberError && <p role="alert">{numberError}</p>}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
       {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{JSON.stringify(refusal.detail, null, 2)}</pre>}</li>)}</ul>}
     </section>

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useState } from 'react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect } from 'vitest'
 import { SchedulingAuthoringEditor, emptyScheduleDraft, type ScheduleBody } from './index'
 import { readFileSync, existsSync } from 'node:fs'
@@ -10,6 +11,38 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  it('scheduling-auth-11 scheduling-bound-1: review R1 leaves a no-planner body unchanged on parameter blur', async () => {
+    let actual: ScheduleBody = { name: 'Inspection', starts: { kind: 'form', target_id: 'forms.inspection' }, due_date: '2027-01-01T00:00:00Z' }
+    let changes = 0
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { changes++; actual = next; setBody(next) }} /> }
+    render(<Host />)
+    const user = userEvent.setup()
+    screen.getByLabelText('Backend parameters').focus()
+    await user.tab()
+    expect(actual).toEqual({ name: 'Inspection', starts: { kind: 'form', target_id: 'forms.inspection' }, due_date: '2027-01-01T00:00:00Z' })
+    expect(changes).toBe(0)
+  })
+  it.each([['12.5', 12.5], ['-12.5', -12.5]])('scheduling-auth-2: review R2 preserves keyboard threshold text %s', async (typed, expected) => {
+    let actual: ScheduleBody = { basis: { kind: 'threshold', reading: 'meter.hours', crossing: 'above' } }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+    const user = userEvent.setup()
+    const threshold = screen.getByLabelText('Threshold')
+    await user.type(threshold, String(typed))
+    expect(threshold).toHaveValue(typed)
+    await user.tab()
+    expect(actual).toEqual({ basis: { kind: 'threshold', reading: 'meter.hours', crossing: 'above', value: expected } })
+  })
+  it('scheduling-auth-2 scheduling-auth-3: review R3 removes the optional window after choosing a chain', () => {
+    let actual: ScheduleBody = { name: 'Inspection', basis: { kind: 'completion_offset', offset: 'P2D' }, window: { earliest: 'PT0S', latest: 'P1D' } }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+    fireEvent.change(screen.getByLabelText('Basis'), { target: { value: 'event_anchored_chain' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Remove validity window' }))
+    expect(actual).toEqual({ name: 'Inspection', basis: { kind: 'event_anchored_chain' } })
+    expect(screen.getByLabelText('Window earliest')).toHaveValue('')
+    expect(screen.queryByRole('button', { name: 'Remove validity window' })).toBeNull()
+  })
   it('scheduling-auth-1 scheduling-auth-12 scheduling-auth-15 scheduling-eng-19: creates a Schedule from nothing', () => {
     let actual: ScheduleBody = emptyScheduleDraft()
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
@@ -42,7 +75,7 @@ describe('Schedule authoring', () => {
     let actual: ScheduleBody = { basis: { kind: 'threshold' } }
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
     render(<Host />)
-    for (const [label, value] of [['Crossing', 'below'], ['Threshold', '12.5'], ['Missed behaviour', 'record_and_replan'], ['Escalation after', 'PT1H'], ['Escalation to', 'team.operations']]) fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    for (const [label, value] of [['Crossing', 'below'], ['Threshold', '12.5'], ['Missed behaviour', 'record_and_replan'], ['Escalation after', 'PT1H'], ['Escalation to', 'team.operations']]) { fireEvent.change(screen.getByLabelText(label), { target: { value } }); fireEvent.blur(screen.getByLabelText(label)) }
     expect(actual).toEqual({ basis: { kind: 'threshold', crossing: 'below', value: 12.5 }, missed_behaviour: 'record_and_replan', escalation: { after: 'PT1H', to: 'team.operations' } })
   })
   it('scheduling-bound-1 scheduling-bound-2: preserves unavailable references and refuses malformed parameter editing locally', () => {
