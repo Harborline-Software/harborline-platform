@@ -79,6 +79,68 @@ public sealed class ReportDefinitionCatalogueTests
         Assert.Equal(pack, ReportDefinitionCatalogue.Export(await target.ResolveHeadAsync("tenant-r", "report-a")));
     }
 
+    [Fact, Trait("Holds", "reports-ck-12"), Trait("Holds", "reports-ck-1"), Trait("Holds", "reports-ck-2")]
+    public async Task reports_ck_12_ck_1_ck_2_pack_preserves_five_literal_typed_defaults()
+    {
+        // Independent wire/value oracles: T-489/typed-default-pack-proof acceptance 1–2.
+        var definition = Definition() with
+        {
+            Parameters =
+            [
+                new("flag", ReportParameterType.Boolean, new BooleanReportParameterDefault(true)),
+                new("instant", ReportParameterType.DateTime, new DateTimeReportParameterDefault(
+                    new DateTimeOffset(2026, 11, 21, 3, 4, 5, TimeSpan.FromMinutes(330)))),
+                new("count", ReportParameterType.Integer, new IntegerReportParameterDefault(9007199254740993L)),
+                new("ratio", ReportParameterType.Float, new FloatReportParameterDefault(12.5)),
+                new("label", ReportParameterType.String, new StringReportParameterDefault("literal {count}")),
+            ],
+        };
+        var source = new ReportDefinitionCatalogue(Store());
+        await source.SaveDraftAsync(definition, 0, "save");
+        var published = await source.PublishAsync("tenant-r", "report-a", "1.0.0", 1, "publish");
+        var pack = ReportDefinitionCatalogue.Export(published);
+        AssertLiteralDefaultWire(pack);
+
+        var target = new ReportDefinitionCatalogue(Store());
+        await target.ImportDraftAsync(pack, 0, "import");
+        await target.PublishAsync("tenant-r", "report-a", "1.0.0", 1, "publish-import");
+        var head = await target.ResolveHeadAsync("tenant-r", "report-a");
+        Assert.Collection(head.Definition.Parameters!,
+            flag => Assert.True(Assert.IsType<BooleanReportParameterDefault>(flag.Default).Value),
+            instant =>
+            {
+                var value = Assert.IsType<DateTimeReportParameterDefault>(instant.Default).Value;
+                Assert.Equal(new DateTimeOffset(2026, 11, 21, 3, 4, 5, TimeSpan.FromMinutes(330)), value);
+                Assert.Equal(TimeSpan.FromMinutes(330), value.Offset);
+            },
+            count => Assert.Equal(9007199254740993L, Assert.IsType<IntegerReportParameterDefault>(count.Default).Value),
+            ratio => Assert.Equal(12.5, Assert.IsType<FloatReportParameterDefault>(ratio.Default).Value),
+            label => Assert.Equal("literal {count}", Assert.IsType<StringReportParameterDefault>(label.Default).Value));
+        AssertLiteralDefaultWire(ReportDefinitionCatalogue.Export(head));
+    }
+
+    private static void AssertLiteralDefaultWire(ReportDefinitionPackEntry pack)
+    {
+        Assert.Equal(9, pack.ContentKind);
+        using var json = JsonDocument.Parse(pack.BodyJson);
+        var hasParameters = json.RootElement.TryGetProperty("parameters", out var parameters);
+        Assert.Equal(5, hasParameters ? parameters.GetArrayLength() : 0);
+        Assert.Equal(new[] { "flag", "instant", "count", "ratio", "label" },
+            parameters.EnumerateArray().Select(parameter => parameter.GetProperty("name").GetString()));
+        Assert.Equal(new[] { "boolean", "date_time", "integer", "float", "string" },
+            parameters.EnumerateArray().Select(parameter => parameter.GetProperty("type").GetString()));
+        Assert.Equal("boolean", parameters[0].GetProperty("default").GetProperty("kind").GetString());
+        Assert.True(parameters[0].GetProperty("default").GetProperty("value").GetBoolean());
+        Assert.Equal("datetime", parameters[1].GetProperty("default").GetProperty("kind").GetString());
+        Assert.Equal("2026-11-21T03:04:05+05:30", parameters[1].GetProperty("default").GetProperty("value").GetString());
+        Assert.Equal("integer", parameters[2].GetProperty("default").GetProperty("kind").GetString());
+        Assert.Equal(9007199254740993L, parameters[2].GetProperty("default").GetProperty("value").GetInt64());
+        Assert.Equal("float", parameters[3].GetProperty("default").GetProperty("kind").GetString());
+        Assert.Equal(12.5, parameters[3].GetProperty("default").GetProperty("value").GetDouble());
+        Assert.Equal("string", parameters[4].GetProperty("default").GetProperty("kind").GetString());
+        Assert.Equal("literal {count}", parameters[4].GetProperty("default").GetProperty("value").GetString());
+    }
+
     [Fact, Trait("Holds", "reports-eng-1")]
     public async Task reports_eng_1_head_refuses_missing_and_drafts_and_chooses_semver()
     {
