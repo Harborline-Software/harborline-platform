@@ -119,6 +119,41 @@ describe('T-1232 borrower key fence', () => {
   it.each(keyFence.cases.filter((c) => c.group === 'row'))('rules-ck-28: bare missing key reads the declared field: $id (flat snapshot, no row)', (test) => {
     assertKeyFenceCase(test)
   })
+
+  // Oracle: T-1232 acceptance 9 literals (slice record amended at Control 013a3e2a). A bare key
+  // reads the field place: x and "" stay missing, present reads ROOT-VALUE, and a present "" reads
+  // ROOT-EMPTY. A falsy guard is invalid with the rule's own id.
+  const bareSnapshot = '{"present":"ROOT-VALUE"}'
+  const presentEmptySnapshot = '{"":"ROOT-EMPTY"}'
+  const bareInstance = '{"present":"ROOT-VALUE","items":[{"_id":"r1","x":"ROW-SECRET","present":null,"":"ROW-EMPTY-SECRET"}]}'
+  const presentEmptyInstance = '{"":"ROOT-EMPTY","items":[{"_id":"r1","":null}]}'
+  const acceptance9 = [
+    { id: 'a9-missing-x', expression: { missing: ['x'] }, snapshot: bareSnapshot, instance: bareInstance, expected: ['x'], ok: true },
+    { id: 'a9-some-x', expression: { missing_some: [1, ['x']] }, snapshot: bareSnapshot, instance: bareInstance, expected: ['x'], ok: true },
+    { id: 'a9-cat-x', expression: { missing: [{ cat: ['', 'x'] }] }, snapshot: bareSnapshot, instance: bareInstance, expected: ['x'], ok: true },
+    { id: 'a9-some-if-x', expression: { missing_some: [1, { if: [true, ['x'], []] }] }, snapshot: bareSnapshot, instance: bareInstance, expected: ['x'], ok: true },
+    { id: 'a9-var-x', expression: { var: 'x' }, snapshot: bareSnapshot, instance: bareInstance, expected: null, ok: false },
+    { id: 'a9-some-empty', expression: { missing_some: [1, ['']] }, snapshot: bareSnapshot, instance: bareInstance, expected: [''], ok: true },
+    { id: 'a9-some-if-empty', expression: { missing_some: [1, { if: [true, [''], []] }] }, snapshot: bareSnapshot, instance: bareInstance, expected: [''], ok: true },
+    { id: 'a9-missing-present', expression: { missing: ['present'] }, snapshot: bareSnapshot, instance: bareInstance, expected: [], ok: false },
+    { id: 'a9-some-present', expression: { missing_some: [1, ['present']] }, snapshot: bareSnapshot, instance: bareInstance, expected: [], ok: false },
+    { id: 'a9-var-present', expression: { var: 'present' }, snapshot: bareSnapshot, instance: bareInstance, expected: 'ROOT-VALUE', ok: true },
+    { id: 'a9-present-empty-some', expression: { missing_some: [1, ['']] }, snapshot: presentEmptySnapshot, instance: presentEmptyInstance, expected: [], ok: false },
+    { id: 'a9-present-empty-some-if', expression: { missing_some: [1, { if: [true, [''], []] }] }, snapshot: presentEmptySnapshot, instance: presentEmptyInstance, expected: [], ok: false },
+  ]
+  const fieldOnly = () => admitEnvironment(declaration({ variables: { field: 't' }, operations: ['var', 'missing', 'missing_some', 'cat', 'if'] })).forPhase('Run')
+
+  it.each(acceptance9)('acceptance 9 / rules-ck-28: $id reads the field place through the guard and value paths', ({ id, expression, snapshot, expected, ok }) => {
+    const definition = rule(id, 'out', expression)
+    const evaluator = new GuardEvaluator(clock)
+    expect(evaluator.evaluateValue(definition, RuleContextSnapshot.fromJsonText(snapshot), fieldOnly())).toEqual({ state: 'Resolved', value: expected })
+    expect(evaluator.evaluateGuard(definition, RuleContextSnapshot.fromJsonText(snapshot), fieldOnly())).toEqual(ok ? { ok: true } : { ok: false, error: { code: id, params: {} } })
+  })
+
+  it.each(acceptance9)('acceptance 9 / rules-ck-28: $id reads the field place from a Row-scoped graph rule, not the row', ({ expression, instance, expected }) => {
+    const graph = new FormRuleGraph(compile([{ ...rule('probe', 'items/out', expression), scope: 'Row' }]), clock, fieldOnly())
+    expect(graph.evaluateInstance(RuleInstance.fromJsonText(instance)).byRule.get('probe#r1')?.value).toEqual({ state: 'Resolved', value: expected })
+  })
 })
 
 describe('T-590 borrower environment admission (TS reactive tier)', () => {
