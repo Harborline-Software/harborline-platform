@@ -1,0 +1,334 @@
+{
+  "slice": "T-491/threshold-rearm-proof",
+  "producerSha": "f37cea0a1e7f40e4e7f16f7d3930eb4ce585a2b1",
+  "producerTree": "f0e26aa3eeb0d0fe9029d03b3e236f1be53fad9b",
+  "platformBase": "1d83c3e09a63d6e39d20e1eacad810127458cc6d",
+  "controlRevision": "e65293f4c1e8a2b094ecd2ca65a3bd9ab8026cfe",
+  "proofInputs": {
+    "target": {
+      "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+      "sha256": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+    },
+    "test": {
+      "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs",
+      "sha256": "c853bbb711d6214b5553092d3112d21e17661598a7789c47e4ecbaa6b0990928"
+    },
+    "fixtures": [],
+    "fixtureNote": "All inputs are inline literals in the test file; no external fixture is read."
+  },
+  "ownershipScan": {
+    "recordsInspected": 98,
+    "owners": {
+      "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs": [
+        {
+          "record": "hlp.blocks.scheduling.json",
+          "expected": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca",
+          "actual": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+        }
+      ]
+    }
+  },
+  "command": "dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleThresholdRearmProofTests -m:1 -nr:false",
+  "environment": {
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1",
+    "HARBORLINE_TESTED_TREE": "unset",
+    "HARBORLINE_BASE_HEAD": "unset",
+    "node": "v24.14.1"
+  },
+  "hostLane": "bash C:/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session pc-491-threshold --workload <run-name> --candidate f37cea0a1e7f40e4e7f16f7d3930eb4ce585a2b1 -- pwsh -NoProfile -File C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\run.ps1 <run-name>",
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+      "span": {
+        "line": 34,
+        "column": 17,
+        "length": 27
+      },
+      "before": "open is not null || !Past()",
+      "after": "!Past()",
+      "mutantSha256": "b355c599f5837bee51adb3832b7b1d56c427ff2a518c237a291f0aa9c8558a80",
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+          "sha256": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs",
+          "sha256": "c853bbb711d6214b5553092d3112d21e17661598a7789c47e4ecbaa6b0990928"
+        },
+        "fixtures": [],
+        "fixtureNote": "All inputs are inline literals in the test file; no external fixture is read."
+      },
+      "detectingTest": "ThresholdLatchAndImmediateRearmHaveLiteralIdentitiesAndInstants",
+      "assertion": "Assert.Single at 09:00: second reading must not emit",
+      "result": {
+        "name": "M1-mutant",
+        "exit": 1,
+        "counts": {
+          "failed": 2,
+          "passed": 9,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M1-mutant.log",
+        "logSha256": "bac987cbc7296a5c27353395db69e0c5cd01e1a609d78c93a446636c1f0b8a10",
+        "toolchain": "11.0.100"
+      },
+      "restored": {
+        "name": "M1-restored",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 11,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M1-restored.log",
+        "logSha256": "b55cdd734015aa3bc27d99d9e817ef5908ed69150c64fc90c894bdadc49eb634",
+        "toolchain": "11.0.100"
+      },
+      "detectionEvidence": [
+        "   Assert.Single() Failure: The collection contained 2 items",
+        "   Assert.Single() Failure: The collection contained 2 items",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdLatchAndImmediateRearmHaveLiteralIdentitiesAndInstants() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 31"
+      ],
+      "status": "killed"
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+      "span": {
+        "line": 29,
+        "column": 55,
+        "length": 35
+      },
+      "before": " && completion.OccurrenceId == open",
+      "after": "",
+      "mutantSha256": "a9e832b14ed9498cf809556692df645a28ccaa2e49cd8f4238bae2c3bffd432b",
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+          "sha256": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs",
+          "sha256": "c853bbb711d6214b5553092d3112d21e17661598a7789c47e4ecbaa6b0990928"
+        },
+        "fixtures": [],
+        "fixtureNote": "All inputs are inline literals in the test file; no external fixture is read."
+      },
+      "detectingTest": "ThresholdRequiresExactSeriesAndOccurrenceForCompletion",
+      "assertion": "Assert.Single after unmatched completion: no spurious re-arm",
+      "result": {
+        "name": "M2-mutant",
+        "exit": 1,
+        "counts": {
+          "failed": 2,
+          "passed": 9,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M2-mutant.log",
+        "logSha256": "24692da403691c5221b5e778c93d269c446726b1ff0b13e83c3357de54627cd0",
+        "toolchain": "11.0.100"
+      },
+      "restored": {
+        "name": "M2-restored",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 11,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M2-restored.log",
+        "logSha256": "f5daa47e1fdf41f1089493e355c57969cf27dbb1dcdcb84f409df4922cffe55a",
+        "toolchain": "11.0.100"
+      },
+      "detectionEvidence": [
+        "   Assert.Single() Failure: The collection contained 2 items",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdRequiresExactSeriesAndOccurrenceForCompletion() in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 67",
+        "   Assert.Equal() Failure: Collections differ"
+      ],
+      "status": "killed"
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+      "span": {
+        "line": 25,
+        "column": 92,
+        "length": 27
+      },
+      "before": "current.Value > basis.Value",
+      "after": "current.Value >= basis.Value",
+      "mutantSha256": "08d3efb19ddec30fe28291282df1114b4c3f6bb06cc4d9e7683337e7334892cf",
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+          "sha256": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs",
+          "sha256": "c853bbb711d6214b5553092d3112d21e17661598a7789c47e4ecbaa6b0990928"
+        },
+        "fixtures": [],
+        "fixtureNote": "All inputs are inline literals in the test file; no external fixture is read."
+      },
+      "detectingTest": "ThresholdStrictComparisonHasLiteralBoundaryTable",
+      "assertion": "Above 10 equality row: Assert.Empty",
+      "result": {
+        "name": "M3-mutant",
+        "exit": 1,
+        "counts": {
+          "failed": 1,
+          "passed": 10,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M3-mutant.log",
+        "logSha256": "a543caa951e777c2a0dabe8e4a122509a9c55b19957875e8d2a19bc1d901b089",
+        "toolchain": "11.0.100"
+      },
+      "restored": {
+        "name": "M3-restored",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 11,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M3-restored.log",
+        "logSha256": "9df042028aba568c342272ac9a7d591f8ca3a9716a204d8c6bb0e92eb63c8ccc",
+        "toolchain": "11.0.100"
+      },
+      "detectionEvidence": [
+        "   Assert.Empty() Failure: Collection was not empty",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdStrictComparisonHasLiteralBoundaryTable(ThresholdCrossing crossing, Int32 value, Boolean emits) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 89"
+      ],
+      "status": "killed"
+    },
+    {
+      "id": "M4",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+      "span": {
+        "line": 13,
+        "column": 111,
+        "length": 33
+      },
+      "before": " && r.RecordedAt <= kernelInstant",
+      "after": "",
+      "mutantSha256": "5f880a24f23ea42e01c58bef86347060b923f62860a62ae56f4d8ee804789d30",
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/ThresholdDueOccurrenceSource.cs",
+          "sha256": "e4728bed2c882901caaffa4968a2bcd8b3a9e9d7001ee14682eda8a4863096ca"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs",
+          "sha256": "c853bbb711d6214b5553092d3112d21e17661598a7789c47e4ecbaa6b0990928"
+        },
+        "fixtures": [],
+        "fixtureNote": "All inputs are inline literals in the test file; no external fixture is read."
+      },
+      "detectingTest": "ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible",
+      "assertion": "Assert.Throws<OccurrenceRefusalException>: future-only matching reading must refuse",
+      "result": {
+        "name": "M4-mutant",
+        "exit": 1,
+        "counts": {
+          "failed": 3,
+          "passed": 8,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M4-mutant.log",
+        "logSha256": "2caae94dee2c7f3ab03c6ac23fadda8d3aaaee882013697fd6a3744a79e31306",
+        "toolchain": "11.0.100"
+      },
+      "restored": {
+        "name": "M4-restored",
+        "exit": 0,
+        "counts": {
+          "failed": 0,
+          "passed": 11,
+          "skipped": 0,
+          "total": 11
+        },
+        "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\M4-restored.log",
+        "logSha256": "1b046e9e5903c6e3776b47e43e47ea2241b058189bed5e68b68cbcaaadd220c2",
+        "toolchain": "11.0.100"
+      },
+      "detectionEvidence": [
+        "   Assert.Throws() Failure: No exception was thrown",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible(String corrected) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 108",
+        "   Assert.Throws() Failure: No exception was thrown",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible(String corrected) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 108",
+        "   at InvokeStub_ScheduleThresholdRearmProofTests.ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible(Object, Span`1)",
+        "   Assert.Throws() Failure: No exception was thrown",
+        "     at Harborline.Blocks.Scheduling.Tests.ScheduleThresholdRearmProofTests.ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible(String corrected) in C:\\Users\\Chris\\.t3\\worktrees\\harborline-platform\\slice-T-491-threshold-r-1c52b36947efa553\\projections\\dotnet\\blocks\\hlp.blocks.scheduling.tests\\ScheduleThresholdRearmProofTests.cs:line 108",
+        "   at InvokeStub_ScheduleThresholdRearmProofTests.ThresholdIneligibleReadingsRefuseUntilOneInputBecomesEligible(Object, Span`1)"
+      ],
+      "status": "killed"
+    }
+  ],
+  "fullPlatformGate": {
+    "status": "pending",
+    "host": "Mac mini",
+    "requirement": "Run against the final committed candidate/tree; verify all retained proof input hashes before the gate."
+  },
+  "finalInputComparison": {
+    "sourceMatches": true,
+    "testMatches": true,
+    "externalFixtures": 0,
+    "performedBeforeDelivery": true
+  },
+  "proofTestGitBlob": "11568d8eafc0b538e56bf3399ce8eef7041d0ef2",
+  "baseline": {
+    "name": "baseline",
+    "exit": 0,
+    "counts": {
+      "failed": 0,
+      "passed": 11,
+      "skipped": 0,
+      "total": 11
+    },
+    "logPath": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-threshold\\baseline.log",
+    "logSha256": "4b3b7052814108722cb1fa0d4ffe8411af98bf33e3ea3f2e4570ccd6adc5bb63",
+    "toolchain": "11.0.100"
+  },
+  "suiteTotals": {
+    "casesPerRun": 11,
+    "greenRuns": 5,
+    "greenPassed": 55,
+    "greenFailed": 0,
+    "greenSkipped": 0,
+    "mutantRuns": 4,
+    "mutantsKilled": 4,
+    "mutantsSurvived": 0,
+    "mutantCaseFailures": 8,
+    "compileFailures": 0
+  },
+  "oracleSources": {
+    "timeline": "Control threshold-rearm-proof acceptance 1; ADR-0149 decision 5; DES-0022 scheduling-eng-3/run-1",
+    "comparisons": "Control threshold-rearm-proof acceptance 2: Above 10 excludes 10/9, Below 10 excludes 10/11 and includes 9",
+    "eligibility": "Control threshold-rearm-proof acceptance 2; ADR-0117 decisions 1–2; DES-0022 scheduling-eng-14; frozen Scheduling threshold identity and scheduling.occurrence.reading_required refusal"
+  },
+  "pcProvenanceVerification": {
+    "node": "v24.14.1",
+    "changedPaths": [
+      "conformance/hlp.blocks.scheduling/threshold-rearm-proof-mutations.json",
+      "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleThresholdRearmProofTests.cs"
+    ],
+    "changedFromCommand": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+    "exit": 0,
+    "output": "0 record(s) read, 0 stale hash(es)",
+    "restoredOwnerCommand": "node tooling/refresh-provenance-hashes.mjs --module hlp.blocks.scheduling --check",
+    "restoredOwnerExit": 0,
+    "restoredOwnerOutput": "1 record(s) read, 0 stale hash(es)",
+    "note": "Neither committed path has a hash owner. The restored temporary target remains byte-identical, so its record was not refreshed. Mac mini verification remains pending."
+  }
+}
