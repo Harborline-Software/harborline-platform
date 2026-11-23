@@ -18,7 +18,7 @@
     {
       "id": "M1",
       "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
-      "span": "70",
+      "span": "73",
       "before": "if ((int)next != (int)Stage + 1 || !Enum.IsDefined(next))",
       "after": "if (!Enum.IsDefined(next))",
       "detectingTest": "SkipsRefuse",
@@ -41,7 +41,7 @@
     {
       "id": "M2",
       "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
-      "span": "107",
+      "span": "109",
       "before": "next == ConstraintModuleStage.BackendSupported && (backend is null || !backend.Modules.Contains(Kind!.Value))",
       "after": "next == ConstraintModuleStage.BackendSupported && backend is null",
       "detectingTest": "UnsupportedBackendRefuses",
@@ -64,7 +64,7 @@
     {
       "id": "M3",
       "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/ConstraintModuleAdmission.cs",
-      "span": "72-73",
+      "span": "75-76",
       "before": "if (next == ConstraintModuleStage.Certified)\n            throw new UnsupportedProfileException(\"MODULE_CERTIFICATE_UNDEFINED: DES-0022 open ruling 3 defines no certificate.\");",
       "after": "(removed)",
       "detectingTest": "CertificateRefuses",
