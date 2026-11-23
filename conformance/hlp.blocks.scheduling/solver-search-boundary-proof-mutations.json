@@ -1,0 +1,17 @@
+{
+  "producerSha": "4d881305ef8046015ac7ff5fff869c774ec26468",
+  "producerTree": "85db34dee4a5c1bd0726a7c3e30e7884b58f724e",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs",
+  "targetSha256": "7bc69c59cde4b557d26969289e759df4260bfb4b1ec3225d876a2393d347bba9",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleSolverSearchBoundaryProofTests.cs",
+  "testWorkingSha256": "c70a365afa1347604b0a40f03549c327033a8ffee7f686befb60f4871bebc1f2",
+  "fixtureInputs": "literal fixtures in test file",
+  "toolchain": "dotnet SDK 11.0.100; DOTNET_CLI_USE_MSBUILD_SERVER=0; MSBUILDDISABLENODEREUSE=1",
+  "command": "host-lane.sh run --holder writer --session pc-491-search --workload <baseline|mutant N|restored N> --candidate 4d881305 -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleSolverSearchBoundaryProofTests -m:1 -nr:false",
+  "baseline": {"exit": 0, "passed": 6, "failed": 0, "skipped": 0, "logSha256": "810a5dcf663bdc47e0d315f8b750c727727125e3971267707ca23544cb24a0df"},
+  "mutants": [
+    {"id": "M1", "span": "SolveCore budgetExhausted ternary", "before": "? Proposal(problem, SolveStatus.Indeterminate, [], workUnits, \"WORK_BUDGET_EXHAUSTED\")", "after": "? Proposal(problem, SolveStatus.ProvenInfeasible, [], workUnits, \"WORK_BUDGET_EXHAUSTED\")", "exit": 1, "passed": 5, "failed": 1, "skipped": 0, "detectingTest": "scheduling_eng_10_scheduling_ck_18_solver_boundary_budget budget 1", "assertion": "status Indeterminate", "logSha256": "de204135d9003c6bd7d404be8ba0f3a91e480563ff5e93f79e9ef4fa42a401c7", "restored": {"exit": 0, "passed": 6, "failed": 0, "skipped": 0, "logSha256": "e760eeb9829acbe22f0008dd93a4da4d05fa5e3fdc6dedcf097ad00f4fd05ad6"}},
+    {"id": "M2", "span": "SolveCore incompleteFactSets guard", "before": "if (incompleteFactSets.Count > 0)", "after": "if (incompleteFactSets.Count < 0)", "exit": 1, "passed": 5, "failed": 1, "skipped": 0, "detectingTest": "scheduling_eng_10_scheduling_ck_18_solver_boundary_incomplete_resources", "assertion": "status Indeterminate", "logSha256": "0ebb1de16e49891a277c25ca06219975ae8e2d9179cb71567311cca31c9e5a5e", "restored": {"exit": 0, "passed": 6, "failed": 0, "skipped": 0, "logSha256": "5a7d5872c6574df08d1d44a96d8c85e2141ff05601cae204ebc54ae2027e9c03"}},
+    {"id": "M3", "span": "AssignmentRules.Overlaps first comparison", "before": "left.StartSlot < right.EndSlotExclusive", "after": "left.StartSlot <= right.EndSlotExclusive", "exit": 1, "passed": 5, "failed": 1, "skipped": 0, "detectingTest": "scheduling_eng_10_scheduling_ck_18_solver_boundary_half_open bStart 1", "assertion": "status Feasible", "logSha256": "cab89a9b8345704fcaab820d59e54fa4cbf563bc665d21cd99d8a3650cda21a2", "restored": {"exit": 0, "passed": 6, "failed": 0, "skipped": 0, "logSha256": "c6c7066b607b1c5514e23eb626cb6677410d30ff620868615df2b203a8312d52"}}
+  ]
+}
