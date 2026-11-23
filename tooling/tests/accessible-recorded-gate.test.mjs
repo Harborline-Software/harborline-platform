@@ -14,6 +14,17 @@ const model = createGateModel(root)
 const accessible = model.verdictOf('assertAccessible')
 const catalog = ids => ({scenarios: ids.map(id => ({id}))})
 
+for (const gate of ['assertVisualParity', 'assertResponsiveQuality']) {
+  test(`${gate} cannot count newly drawn scenarios outside the recorded tree`, () => {
+    const verdict = model.verdictOf(gate)
+    const scenarios = ['recorded', 'new'].map(id => ({id, sourceQualityCaseIds: ['x.quality.visual-parity', 'x.quality.reflow']}))
+    const ctx = {gallery: true, catalog: {scenarios}, recordedScenarios: new Set(['recorded']), rendersReflow: true}
+    assert.equal(verdict(ctx)[0], 'PARTIAL')
+    assert.equal(verdict({...ctx, recordedScenarios: new Set(['recorded', 'new'])})[0], 'PASS')
+    assert.equal(verdict({...ctx, recordedScenarios: null})[0], 'PARTIAL')
+  })
+}
+
 test('every scenario in the recorded tree: PASS over exactly those scenarios', () => {
   const [status, note] = accessible({gallery: true, catalog: catalog(['a', 'b']), recordedScenarios: new Set(['a', 'b'])})
   assert.equal(status, 'PASS')

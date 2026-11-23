@@ -201,6 +201,10 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
       id: 'assertVisualParity',
       verdict: ctx => {
         if (!ctx.gallery) return ['UNBUILT', 'no recorded gallery-gate evidence']
+        if (!ctx.recordedScenarios) return ['PARTIAL', 'the recorded gallery-gate tested tree is not readable']
+        const unscanned = (ctx.catalog?.scenarios ?? []).filter(s =>
+          s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity')) && !ctx.recordedScenarios.has(s.id))
+        if (unscanned.length) return ['PARTIAL', `visual parity not recorded for: ${unscanned.map(s => s.id).join(', ')}`]
         const parity = ctx.catalog?.scenarios.filter(s =>
           s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.visual-parity'))).length ?? 0
         return parity > 0
@@ -276,7 +280,10 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
     {
       id: 'assertResponsiveQuality',
       parent: 'assertDesignQuality',
-      verdict: ctx => ctx.gallery
+      verdict: ctx => ctx.gallery && (!ctx.recordedScenarios || (ctx.catalog?.scenarios ?? []).some(s =>
+        s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow')) && !ctx.recordedScenarios.has(s.id)))
+        ? ['PARTIAL', 'reflow scenarios are outside the readable recorded gallery-gate tested tree']
+        : ctx.gallery
         // PASS requires the module to have a scenario that declares a reflow case AND is DRAWN in both
         // lanes, because that is exactly what makes assertReflow run for it: a 320px viewport at 200%
         // text with no horizontal overflow, measured on the rendered page. Declared-but-undrawn earns

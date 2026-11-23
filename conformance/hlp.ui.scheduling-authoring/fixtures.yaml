@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "authority": "DES-0022 section 4; ScheduleDefinition wire grammar",
+  "cases": [
+    {
+      "id": "scheduling-authoring.from-empty",
+      "steps": [["Schedule name", "Inspection"], ["Record type", "types.asset"], ["Starts kind", "form"], ["Starts target", "forms.inspection"], ["Due date", "2027-01-01T00:00:00Z"], ["Window earliest", "2026-12-31T00:00:00Z"], ["Window latest", "2027-01-02T00:00:00Z"], ["Tolerance early", "PT1H"], ["Tolerance late", "PT2H"], ["Grace", "PT3H"], ["Missed behaviour", "window_closed"], ["Legality citation", "legality.safety"]],
+      "expected": {"name":"Inspection","on_type_id":"types.asset","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","window":{"earliest":"2026-12-31T00:00:00Z","latest":"2027-01-02T00:00:00Z"},"tolerance":{"early":"PT1H","late":"PT2H"},"grace":"PT3H","missed_behaviour":"window_closed","legality_ref":"legality.safety"}
+    },
+    {
+      "id": "scheduling-authoring.bound",
+      "steps": [["Problem class", "Project"], ["Backend", "prototype.exhaustive-proof.v2"], ["Guarantee", "feasible_proof"], ["Work budget", "10"]],
+      "expected": {"problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","guarantee":"feasible_proof","work_budget":10}}
+    },
+    {"id": "scheduling-authoring.refusals"}
+  ]
+}

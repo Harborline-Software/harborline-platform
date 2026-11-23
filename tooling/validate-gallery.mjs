@@ -318,6 +318,9 @@ for (const path of ['gallery/projections/blazor/wwwroot/index.html', 'gallery/pr
   if (!source.includes('_content/Harborline.UIAdapters.Blazor/rule-authoring.css')) {
     errors.push(`${path}: Rule Authoring does not load CSS from the packed aggregate artifact`)
   }
+  if (!source.includes('_content/Harborline.UIAdapters.Blazor/scheduling-authoring.css')) {
+    errors.push(`${path}: Scheduling Authoring does not load CSS from the packed aggregate artifact`)
+  }
 }
 if (exists('catalog/ui-theme-registry.json') && exists('gallery/styles/canvas.css')) {
   const registry = load('catalog/ui-theme-registry.json')

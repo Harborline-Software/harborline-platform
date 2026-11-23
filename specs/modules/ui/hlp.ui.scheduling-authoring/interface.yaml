@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "interfaceRevision": 1,
+  "semantics": {
+    "operation": "Edit a producer-owned Schedule body and render supplied server refusals before publish. The host validates and owns storage and lifecycle.",
+    "availability": "Read-only shared availability runtime; configuration belongs to Booking per Resource.",
+    "valueDomains": "Resource, capability and calendar resolver binding is carried to workshop-mount: this editor selects references from host catalogues, while the app host owns resolver wiring. No resolver selection is persisted in ScheduleDefinition."
+  },
+  "dependencies": [
+    "hlp.ui.button"
+  ],
+  "invariants": [
+    "No local admission or solver implementation.",
+    "No automatic backend, module or chain-scope selection.",
+    "Host-owned and unknown body members survive field edits."
+  ],
+  "presentation": {
+    "disposition": "required",
+    "gallery": "gallery/scenarios/hlp.ui.scheduling-authoring.json"
+  },
+  "cases": [
+    {
+      "id": "scheduling-authoring.from-empty"
+    },
+    {
+      "id": "scheduling-authoring.bound"
+    },
+    {
+      "id": "scheduling-authoring.refusals"
+    }
+  ],
+  "errors": []
+}

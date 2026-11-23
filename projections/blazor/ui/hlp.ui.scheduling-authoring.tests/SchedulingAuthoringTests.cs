@@ -1,0 +1,128 @@
+using System.Text.Json.Nodes;
+using Bunit;
+using Harborline.UIAdapters.Blazor.Components.SchedulingAuthoring;
+using Xunit;
+
+namespace Harborline.UIAdapters.Blazor.Tests;
+
+public sealed class SchedulingAuthoringTests : BunitContext
+{
+    [Theory, Trait("ModuleConformance", "hlp.ui.scheduling-authoring")]
+    [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
+    public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
+    {
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); Module(); Refusals(); return; }
+        switch (caseId)
+        {
+            case "scheduling-authoring.from-empty": LaneParity(0); break;
+            case "scheduling-authoring.bound": LaneParity(1); Module(); break;
+            case "scheduling-authoring.refusals": Refusals(); break;
+            default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
+        }
+    });
+    private static ScheduleCatalogue Catalogue => new()
+    {
+        Types = [new("types.asset", "Asset")], Legality = [new("legality.safety", "Safety rules")],
+        Backends = [new("prototype.exhaustive-proof.v2", "Prototype", ["feasible_proof"])],
+        Modules = [new("precedence", "Precedence", "chain")]
+    };
+
+    [Fact(DisplayName = "scheduling-auth-15: requests a new Schedule without replacing the current body")]
+    public void Create()
+    {
+        JsonObject? created = null;
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, new JsonObject { ["name"] = "Existing" })
+            .Add(x => x.CreateRequested, next => created = next));
+        cut.FindAll("button").Single(button => button.TextContent == "Create Schedule").Click();
+        Assert.NotNull(created); Assert.Empty(created);
+        Assert.Equal("Existing", cut.Find("[aria-label='Schedule name']").GetAttribute("value"));
+    }
+
+    [Theory(DisplayName = "scheduling-auth-2: all generator editors preserve host metadata")]
+    [InlineData("fixed_calendar", "Recurrence rule", "FREQ=DAILY", "rrule")]
+    [InlineData("threshold", "Reading", "meter.hours", "reading")]
+    public void OtherGenerators(string kind, string label, string value, string member)
+    {
+        JsonObject actual = new() { ["due_date"] = "2027-01-01T00:00:00Z", ["envelope"] = new JsonObject { ["identity"] = "inspection" } };
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+        cut.Find("[aria-label='Basis']").Change(kind); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.Find($"[aria-label='{label}']").Change(value);
+        Assert.False(actual.ContainsKey("due_date"));
+        Assert.Equal("inspection", actual["envelope"]!["identity"]!.GetValue<string>());
+        Assert.Equal(kind, actual["basis"]!["kind"]!.GetValue<string>());
+        Assert.Equal(value, actual["basis"]![member]!.GetValue<string>());
+    }
+
+    [Theory(DisplayName = "scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-11 scheduling-auth-12 scheduling-auth-13 scheduling-auth-15 scheduling-eng-19 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity literal body")]
+    [InlineData(0)] [InlineData(1)]
+    public void LaneParity(int index)
+    {
+        var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;
+        JsonObject actual = new();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue)
+            .Add(x => x.ValueChanged, next => actual = next));
+        foreach (var step in fixture["steps"]!.AsArray())
+        {
+            var label = step![0]!.GetValue<string>(); var value = step[1]!.GetValue<string>();
+            cut.Find($"[aria-label='{label}']").Change(value);
+            cut.Render(p => p.Add(x => x.Value, actual));
+        }
+        Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+    }
+
+    [Fact(DisplayName = "scheduling-bound-6: supply is read-only and no availability member is written")]
+    public void AvailabilityReadOnly()
+    {
+        JsonObject original = new(); JsonObject? changed = null;
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, original).Add(x => x.ValueChanged, next => changed = next));
+        Assert.Contains("shared availability runtime, from each Resource's own availability source", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[aria-label='Availability source']"));
+        cut.Find("[aria-label='Schedule name']").Change("Inspection");
+        Assert.Equal("{\"name\":\"Inspection\"}", changed!.ToJsonString());
+        Assert.Empty(original);
+    }
+
+    [Fact(DisplayName = "scheduling-auth-2 scheduling-auth-6: authors chain nodes with independent tolerance")]
+    public void Chain()
+    {
+        JsonObject actual = new();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+        void Change(string label, string value) { cut.Find($"[aria-label='{label}']").Change(value); cut.Render(p => p.Add(x => x.Value, actual)); }
+        Change("Basis", "event_anchored_chain"); Change("Chain anchor", "event.install");
+        cut.FindAll("button").Single(button => button.TextContent == "Add node").Click(); cut.Render(p => p.Add(x => x.Value, actual));
+        Change("Node 1 id", "check"); Change("Node 1 offset", "P1D"); Change("Node 1 tolerance early", "PT1H"); Change("Node 1 tolerance late", "PT2H");
+        var expected = JsonNode.Parse("""{"basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"}}]}}""");
+        Assert.True(JsonNode.DeepEquals(expected, actual));
+        Change("Basis", "completion_offset"); Change("Completion offset", "P2D");
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"basis":{"kind":"completion_offset","offset":"P2D"}}"""), actual));
+    }
+
+    [Fact(DisplayName = "scheduling-bound-2 scheduling-bound-7: explicit admitted module binding and parameters")]
+    public void Module()
+    {
+        JsonObject actual = new();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue).Add(x => x.ValueChanged, next => actual = next));
+        Assert.False(cut.Find("input[type=checkbox]").HasAttribute("checked"));
+        Assert.Contains("explicit opt-in", cut.Markup, StringComparison.Ordinal);
+        cut.Find("input[type=checkbox]").Change(true); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.Find("[aria-label='Precedence parameters']").Change("{\"before\":\"a\",\"after\":\"b\"}"); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.Find("[aria-label='Backend parameters']").Change("{\"seed\":7}");
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"modules":[{"module":"precedence","parameters":{"before":"a","after":"b"}}],"solver":{"parameters":{"seed":7}}}"""), actual));
+    }
+
+    [Fact(DisplayName = "scheduling-auth-27: every conformance refusal is displayed before publish")]
+    public void Refusals()
+    {
+        var corpus = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/authoring-refusals.json")))!;
+        foreach (var entry in corpus["cases"]!.AsArray())
+        {
+            var refusals = entry!["refusals"]!.AsArray().Select(row => new ScheduleRefusal(row!["code"]!.GetValue<string>(), row["pointer"]!.GetValue<string>(), row["detail"]?.DeepClone())).ToArray();
+            var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Refusals, refusals));
+            Assert.Equal(refusals.Length, cut.FindAll("li").Count);
+            if (entry["id"]!.GetValue<string>() != "unsupported-configuration") foreach (var refusal in refusals) Assert.Contains(refusal.Code, cut.Markup, StringComparison.Ordinal);
+            Assert.Equal("true", cut.Find("[aria-live='polite']").GetAttribute("aria-atomic"));
+            Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent == "Publish");
+            cut.Dispose();
+        }
+    }
+}
