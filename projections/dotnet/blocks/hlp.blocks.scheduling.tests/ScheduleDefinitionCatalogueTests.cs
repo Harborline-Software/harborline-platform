@@ -97,15 +97,15 @@ public sealed class ScheduleDefinitionCatalogueTests
     [Fact(DisplayName = "scheduling-ck-26: refusal requirements are in ordinal order")]
     public async Task Scheduling_ck_26_RefusalRequirementsAreOrdinal()
     {
-        var catalogue = new ScheduleDefinitionCatalogue(_store, [new OrderedTestSolver("z-backend"), new OrderedTestSolver("a-backend")]);
+        var catalogue = new ScheduleDefinitionCatalogue(_store, [new OrderedTestSolver("b-backend"), new OrderedTestSolver("Z-backend"), new OrderedTestSolver("a-backend")]);
         var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
             Solver = new("missing", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 10) };
         var backend = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "backend").AsTask());
         Assert.Equal("scheduling.definition.backend_unsupported", Assert.Single(backend.Refusals).Code);
         using var backendJson = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(backend.Refusals)));
-        Assert.Equal(new[] { "a-backend", "z-backend" }, backendJson.RootElement.GetProperty("detail").GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(new[] { "Z-backend", "a-backend", "b-backend" }, backendJson.RootElement.GetProperty("detail").GetProperty("required").EnumerateArray().Select(x => x.GetString()));
 
-        definition = definition with { Solver = new("z-backend", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.OptimalProof, 10) };
+        definition = definition with { Solver = new("Z-backend", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.OptimalProof, 10) };
         var guarantee = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "guarantee").AsTask());
         Assert.Equal("scheduling.definition.guarantee_unsupported", Assert.Single(guarantee.Refusals).Code);
         using var guaranteeJson = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(guarantee.Refusals)));
