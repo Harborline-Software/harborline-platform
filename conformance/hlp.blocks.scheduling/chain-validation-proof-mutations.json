@@ -1,0 +1,97 @@
+{
+  "producerSha": "ee868fe3925e0bf1bd3bea109c27684c865454df",
+  "producerTree": "f176767832ad08113bbae0fe3991fcf598a5a84f",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainDefinitions.cs",
+  "targetSha256": "02389d580f1e6fd9c4db3287e0277d93b63abde36897e1a483b0fb3c3b395ae9",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainValidationProofTests.cs",
+  "testSha256": "0904121b58e4de895b430fcae20c0cb9d58121f6d23c3598e8dc7be01b4d9b36",
+  "fixtureInputs": "private literals in test file",
+  "toolchain": "dotnet 11.0.100",
+  "command": "bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session mb-491-validation --workload <run> --candidate ee868fe3925e0bf1bd3bea109c27684c865454df -- env DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleChainValidationProofTests -m:1 -nr:false",
+  "baseline": {
+    "log": "baseline.log",
+    "logSha256": "9780f20e238e0a275f2ab81f2818394e2e92c7f59d909842e119e32095e3218f",
+    "exit": 0,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0,
+    "total": 7
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "line": 33,
+      "before": "ScheduleDefinitionAdmission.Chain(new(definition.Anchor, definition.Nodes), found);",
+      "after": "// Mutation M1: omit structural admission.",
+      "detectingTest": "StructuralRefusal: Assert.Empty(nodes)",
+      "mutant": {
+        "log": "m1.log",
+        "logSha256": "02ffa06b18eeb2f732a4c18b2fb4f48a939297a77c7c38d83a2934c4f0cb0430",
+        "exit": 1,
+        "passed": 5,
+        "failed": 2,
+        "skipped": 0,
+        "total": 7
+      },
+      "restored": {
+        "log": "restored1.log",
+        "logSha256": "5c2de708009a961059918911b382f16355b842b76ec582a50694918022ae0e3b",
+        "exit": 0,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "total": 7
+      }
+    },
+    {
+      "id": "M2",
+      "line": 34,
+      "before": "definition.DefinitionRevision < 1 || string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
+      "after": "string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
+      "detectingTest": "InvalidRevision(0): Assert.Empty(nodes)",
+      "mutant": {
+        "log": "m2.log",
+        "logSha256": "f32b31eaa49eb820f36170457feda9eef764556b2eef121d151a1a3b84fb999b",
+        "exit": 1,
+        "passed": 5,
+        "failed": 2,
+        "skipped": 0,
+        "total": 7
+      },
+      "restored": {
+        "log": "restored2.log",
+        "logSha256": "fbac0430dd6b71f3a6136b0f584daf43bc5f34581b1318046302df89383b837f",
+        "exit": 0,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "total": 7
+      }
+    },
+    {
+      "id": "M3",
+      "line": 34,
+      "before": "definition.DefinitionRevision < 1 || string.IsNullOrWhiteSpace(definition.ChainDefinitionId)",
+      "after": "definition.DefinitionRevision < 1",
+      "detectingTest": "BlankId: Assert.Empty(nodes)",
+      "mutant": {
+        "log": "m3.log",
+        "logSha256": "814ee6c0d3d91c3aead574f61cff087d0437b69b6a661f9df0bdd7a30259b496",
+        "exit": 1,
+        "passed": 5,
+        "failed": 2,
+        "skipped": 0,
+        "total": 7
+      },
+      "restored": {
+        "log": "restored3.log",
+        "logSha256": "500646ea4234ed93b155c4ccc7f48ce47708840e198e6357acc650a9841084da",
+        "exit": 0,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "total": 7
+      }
+    }
+  ]
+}
