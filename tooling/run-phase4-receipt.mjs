@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // Vendored from the migration control plane's tooling/run-phase4-receipt.mjs (2026-08-20).
 //
-// The ONLY producer of .git/harborline-phase4-receipt.json. Platform cannot self-mint an
-// acceptable receipt: run-phase-4-gate.mjs run directly stamps mode 'current-index' and the
-// verifier accepts only 'exact-staged-tree'. The detached worktree below is the difference --
-// it runs the gate against the STAGED tree rather than the working tree.
+// Produces an exact-staged-tree receipt in .git. The detached worktree runs the staged subject;
+// main's orchestration is recorded separately when CI supplies it. This local document alone
+// never authorizes publication: release admission requires the separately attested gate evidence.
 import {execFileSync, spawn} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {mkdtempSync, rmSync, statfsSync, writeFileSync} from 'node:fs'
@@ -15,15 +14,19 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {formatGateFailure, writeGateFailureReport} from './gate-failure-report.mjs'
 import {checkReleaseReceipt, emitReleaseReceipt} from './release-receipt.mjs'
 import {cleanUpScratchOnSignal, killProcessTreeSync, sweepStaleScratchTrees, writeScratchPidFile} from './resolve-command.mjs'
+import {applyTrustedOrchestration, trustedOrchestrationInventory} from './run-phase-4-gate.mjs'
+import {headless, requiredStepIds} from './gate-contract.mjs'
 
 // Ticket 289: one prefix, shared with the self-tests and with anything else that ever mints a
 // `harborline-platform-receipt-*` scratch tree, so a rename in one place can't silently desync
 // the sweep from what it is meant to find.
 const RECEIPT_SCRATCH_PREFIX = 'harborline-platform-receipt-'
 
-// Was resolved through migration's workspace contract. This script now lives inside the
-// repository it measures, so the root is simply its own parent directory.
-const platform = path.resolve(import.meta.dirname, '..')
+// Local invocation measures this checkout. Main's CI entry lives outside the tested checkout and
+// explicitly supplies the subject root; its orchestration revision never replaces the subject id.
+const platform = path.resolve(process.env.HARBORLINE_SUBJECT_ROOT ?? path.resolve(import.meta.dirname, '..'))
+const orchestrationRevision = process.env.HARBORLINE_ORCHESTRATION_REVISION
+const orchestrationSource = path.resolve(import.meta.dirname, '..')
 
 const receiptLock = await acquirePhase4GateLock({repositoryRoot: platform})
 const inputOutcome = await runPhase4InputAttempt({
@@ -31,6 +34,13 @@ const inputOutcome = await runPhase4InputAttempt({
   kind: 'receipt',
   subject: {mode: 'exact-staged-tree'},
   launch: async inputAttempt => {
+    if (headless) throw new Error('exact-tree receipt requires the complete gallery gate')
+    if (orchestrationRevision) {
+      const apiRevision = process.env.HARBORLINE_API_REVISION, apiRoot = process.env.HARBORLINE_API_REPO
+      if (!/^[0-9a-f]{40}$/.test(apiRevision ?? '') || !apiRoot
+        || execFileSync('git', ['rev-parse', 'HEAD'], {cwd: apiRoot, encoding: 'utf8'}).trim() !== apiRevision)
+        throw new Error('main receipt requires the exact external-policy API revision')
+    }
     printDiskFree('start')
     // The failing runs are the ones that used to leak, so the end reading has to be printed on every
     // exit path (gate failure, thrown error, signal), not only after a receipt is written.
@@ -68,10 +78,15 @@ const inputOutcome = await runPhase4InputAttempt({
     // Covers the SIGINT/SIGTERM exit paths: cleanup runs once, then re-raises so a kill still kills.
     const disposeSignalCleanup = cleanUpScratchOnSignal(removeScratch)
 
-    let report
+    let report, orchestration
     try {
       execFileSync('git', ['worktree', 'add', '--detach', testedCheckout, baseHead], {cwd: platform, stdio: 'ignore'})
       execFileSync('git', ['read-tree', '--reset', '-u', testedTree], {cwd: testedCheckout})
+      if (orchestrationRevision) {
+        orchestration = trustedOrchestrationInventory({repositoryRoot: testedCheckout,
+          sourceRoot: orchestrationSource, revision: orchestrationRevision})
+        applyTrustedOrchestration({repositoryRoot: testedCheckout, sourceRoot: orchestrationSource, inventory: orchestration})
+      }
       const gate = await runGate(testedCheckout, baseHead, testedTree)
       if (gate.status !== 0) {
         // The gate still prints its full JSON report to stdout on failure (only process.exitCode is
@@ -90,6 +105,11 @@ const inputOutcome = await runPhase4InputAttempt({
       }
       report = JSON.parse(gate.stdout)
       if (report.status !== 'PASS') throw new Error('phase-4 gate did not pass')
+      if (JSON.stringify(report.requiredStepIds) !== JSON.stringify(requiredStepIds)
+        || report.results?.length !== requiredStepIds.length
+        || !requiredStepIds.every((id, index) => report.results[index]?.id === id
+          && report.results[index].passed === true && report.results[index].exitCode === 0 && !report.results[index].reusedFrom))
+        throw new Error('complete fresh main step inventory required for an exact-tree receipt')
     } finally {
       // Covers success, gate failure and any thrown error -- disposeSignalCleanup runs removeScratch
       // exactly once (a signal handler may already have run it) and unregisters the signal handlers.
@@ -108,6 +128,8 @@ const inputOutcome = await runPhase4InputAttempt({
       reportSha256: createHash('sha256').update(JSON.stringify(report)).digest('hex'),
       gate: report,
       inputPreflight: inputAttempt.preflight,
+      ...(orchestration ? {orchestration: {...orchestration, apiRevision: process.env.HARBORLINE_API_REVISION,
+        runtime: {node: process.version}}} : {}),
     }
     writeFileSync(path.resolve(platform, gitDir, 'harborline-phase4-receipt.json'), `${JSON.stringify(receipt, null, 2)}\n`)
 
@@ -143,7 +165,8 @@ const inputOutcome = await runPhase4InputAttempt({
         // grandchildren as one tree. A terminal Ctrl-C no longer reaches it directly; our own SIGINT
         // handler kills it explicitly instead.
         detached: process.platform !== 'win32',
-        env: {...process.env, HARBORLINE_BASE_HEAD: baseHead, HARBORLINE_TESTED_TREE: testedTree},
+        env: {...process.env, HARBORLINE_BASE_HEAD: baseHead, HARBORLINE_TESTED_TREE: testedTree,
+          HARBORLINE_RECEIPT_RUN: '1', NODE_OPTIONS: '', NODE_PATH: ''},
       })
       gateChild = child
       const chunks = []

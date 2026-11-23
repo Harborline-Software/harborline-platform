@@ -237,24 +237,45 @@ test('a retained local bundle cannot replace a deleted receipt artifact', t => {
     ? {artifacts: []} : f.api(path)}), /receipt artifact/)
 })
 
-test('candidate orchestration edits are replaced by the actual main-copy step', t => {
+test('candidate orchestration edits and additions are replaced by the complete main footprint', t => {
   const f = fixture(t)
   const producer = readWorkflow('verify-gallery-receipt.yml')
   const script = producer.match(/python3 - <<'PY'\n([\s\S]*?)\n          PY/)[1]
     .split('\n').map(line => line.slice(10)).join('\n')
+  const repository = resolve(import.meta.dirname, '../..'), copied = new Set()
+  const copy = name => {
+    if (copied.has(name)) return
+    copied.add(name)
+    const source = resolve(repository, name), bytes = readFileSync(source)
+    put(f.root, name, bytes.toString())
+    for (const match of bytes.toString().matchAll(/from\s+['"](\.[^'"]+)['"]/g))
+      copy(resolve(dirname(source), match[1]).slice(repository.length + 1))
+  }
+  copy('tooling/run-phase-4-gate.mjs')
+  put(f.root, 'package.json', '{"packageManager":"pnpm@10.0.0"}')
+  put(f.root, 'global.json', '{"sdk":{"version":"11.0.100"}}')
+  put(f.root, 'tooling/tests/candidate.test.mjs', 'old test')
+  git(f.root, 'add', '.')
+  git(f.root, '-c', 'core.hooksPath=', 'commit', '-m', 'main orchestration A')
+  const main = git(f.root, 'rev-parse', 'HEAD')
+  const mainGate = readFileSync(resolve(f.root, 'tooling/run-phase-4-gate.mjs'), 'utf8')
   put(f.root, 'tooling/run-phase-4-gate.mjs', 'candidate gate')
   put(f.root, 'tooling/collect-gallery-shards.mjs', 'candidate count')
   put(f.root, 'tooling/gate-contract.mjs', 'candidate recorder')
   put(f.root, 'tooling/tests/candidate.test.mjs', 'candidate test')
-  put(f.root, '.trusted-orchestration/tooling/run-phase-4-gate.mjs', 'main gate')
-  put(f.root, '.trusted-orchestration/tooling/collect-gallery-shards.mjs', 'main count')
-  put(f.root, '.trusted-orchestration/tooling/gate-contract.mjs', 'main recorder')
-  put(f.root, '.trusted-orchestration/tooling/tests/candidate.test.mjs', 'old test')
+  put(f.root, 'tooling/rogue.sh', 'exit 0')
+  git(f.root, 'add', '.')
+  git(f.root, '-c', 'core.hooksPath=', 'commit', '-m', 'candidate B')
+  const tree = git(f.root, 'write-tree')
+  git(f.root, 'worktree', 'add', '--detach', resolve(f.root, '.trusted-orchestration'), main)
+  const previous = process.env.ORCHESTRATION_REVISION
+  process.env.ORCHESTRATION_REVISION = main
+  t.after(() => { if (previous === undefined) delete process.env.ORCHESTRATION_REVISION; else process.env.ORCHESTRATION_REVISION = previous })
   execFileSync('python3', ['-c', script], {cwd: f.root})
-  assert.equal(readFileSync(resolve(f.root, 'tooling/run-phase-4-gate.mjs'), 'utf8'), 'main gate')
-  assert.equal(readFileSync(resolve(f.root, 'tooling/collect-gallery-shards.mjs'), 'utf8'), 'main count')
-  assert.equal(readFileSync(resolve(f.root, 'tooling/gate-contract.mjs'), 'utf8'), 'main recorder')
-  assert.equal(readFileSync(resolve(f.root, 'tooling/tests/candidate.test.mjs'), 'utf8'), 'candidate test')
+  assert.equal(readFileSync(resolve(f.root, 'tooling/run-phase-4-gate.mjs'), 'utf8'), mainGate)
+  assert.equal(readFileSync(resolve(f.root, 'tooling/tests/candidate.test.mjs'), 'utf8'), 'old test')
+  assert.throws(() => readFileSync(resolve(f.root, 'tooling/rogue.sh')), /ENOENT/)
+  assert.equal(git(f.root, 'write-tree'), tree)
 })
 
 test('refresh updates one PR, pushes fast-forward and carries only gate.json', t => {

@@ -25,6 +25,8 @@ jobs:
       head: ${{ steps.plan.outputs.head }}
       revision: ${{ steps.plan.outputs.revision }}
       release-eligible: ${{ steps.plan.outputs.release-eligible }}
+      api-revision: ${{ steps.plan.outputs.api-revision }}
+      policy-sha256: ${{ steps.plan.outputs.policy-sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -111,23 +113,22 @@ jobs:
           ref: ${{ needs.plan.outputs.revision }}
           path: .trusted-orchestration
           persist-credentials: false
-      - name: Use main orchestration, preserving candidate tests
-        run: |
-          python3 - <<'PY'
-          import os, shutil
-          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
-              children[:] = [name for name in children if name != 'tests']
-              target = directory.replace('.trusted-orchestration/', '', 1)
-              os.makedirs(target, exist_ok=True)
-              for name in files:
-                  if name.endswith(('.mjs', '.json')):
-                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
-          shutil.rmtree('.trusted-orchestration')
-          PY
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+          package-manager-cache: false
+      - name: Prepare the complete main orchestration footprint
+        env:
+          ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          subprocess.run(['node', '.trusted-orchestration/tooling/run-phase-4-gate.mjs',
+                          '--prepare-trusted-orchestration', '.', os.environ['ORCHESTRATION_REVISION']], check=True)
+          PY
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           global-json-file: global.json
@@ -136,8 +137,16 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
           cd gallery/tests && npx playwright install --with-deps chromium
-      - name: Mirror public API feed inputs
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Mirror the immutable public API feed input
+        env:
+          API_REVISION: ${{ needs.plan.outputs.api-revision }}
+        run: |
+          [[ "$API_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git clone --no-checkout https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+          cd "$RUNNER_TEMP/harborline-api"
+          git fetch --no-tags origin "$API_REVISION"
+          git checkout --detach "$API_REVISION"
+          test "$(git rev-parse HEAD)" = "$API_REVISION"
       - name: Build the candidate projections
         run: |
           for project in projections/react/ui/hlp.ui.button projections/typescript/contracts/hlp.contracts.forms projections/typescript/foundation/hlp.foundation.rule-runtime projections/typescript/foundation/hlp.foundation.rule-authoring projections/typescript/application/hlp.copilot.contracts; do
@@ -185,18 +194,20 @@ jobs:
           ref: ${{ needs.plan.outputs.revision }}
           path: .trusted-orchestration
           persist-credentials: false
-      - name: Use main orchestration, preserving candidate tests
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Prepare the complete main orchestration footprint
+        env:
+          ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
         run: |
           python3 - <<'PY'
-          import os, shutil
-          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
-              children[:] = [name for name in children if name != 'tests']
-              target = directory.replace('.trusted-orchestration/', '', 1)
-              os.makedirs(target, exist_ok=True)
-              for name in files:
-                  if name.endswith(('.mjs', '.json')):
-                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
-          shutil.rmtree('.trusted-orchestration')
+          import os, subprocess
+          subprocess.run(['node', '.trusted-orchestration/tooling/run-phase-4-gate.mjs',
+                          '--prepare-trusted-orchestration', '.', os.environ['ORCHESTRATION_REVISION']], check=True)
           PY
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -208,9 +219,6 @@ jobs:
           path: ${{ runner.temp }}/gallery-receipt
           merge-multiple: true
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           global-json-file: global.json
@@ -218,16 +226,38 @@ jobs:
         run: |
           pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
           cd gallery/tests && npx playwright install --with-deps chromium
-      - name: Mirror public API feed inputs
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Mirror the immutable public API feed input
+        env:
+          API_REVISION: ${{ needs.plan.outputs.api-revision }}
+        run: |
+          [[ "$API_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git clone --no-checkout https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+          cd "$RUNNER_TEMP/harborline-api"
+          git fetch --no-tags origin "$API_REVISION"
+          git checkout --detach "$API_REVISION"
+          test "$(git rev-parse HEAD)" = "$API_REVISION"
       - name: Full fresh phase-4 under main orchestration
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/control-ledger
           HARBORLINE_RECEIPT_RUN: '1'
+          HARBORLINE_SUBJECT_ROOT: ${{ github.workspace }}
+          HARBORLINE_ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          HARBORLINE_API_REVISION: ${{ needs.plan.outputs.api-revision }}
+          RELEASE_ELIGIBLE: ${{ needs.plan.outputs.release-eligible }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
           HARBORLINE_CI_GALLERY: '1'
           HARBORLINE_GALLERY_SHARD_REPORTS: ${{ runner.temp }}/gallery-receipt
-        run: node tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
+        run: |
+          if [ "$RELEASE_ELIGIBLE" = true ]; then
+            node .trusted-orchestration/tooling/run-phase4-receipt.mjs
+            cp "$(git rev-parse --git-path harborline-phase4-receipt.json)" "$RUNNER_TEMP/gallery-receipt/release-phase4-receipt.json"
+            cp "$(git rev-parse --git-path harborline-release-receipt.json)" "$RUNNER_TEMP/gallery-receipt/release-receipt.json"
+            node -e 'const fs = require("node:fs"); const p = process.env.RUNNER_TEMP + "/gallery-receipt/"; fs.writeFileSync(p + "phase4.json", JSON.stringify(JSON.parse(fs.readFileSync(p + "release-phase4-receipt.json")).gate));'
+          else
+            node tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
+          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:

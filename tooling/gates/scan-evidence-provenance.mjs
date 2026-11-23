@@ -368,16 +368,32 @@ export function verifyReleaseInvocation({root, approvedCommit, testedCommit, tes
 
 // Always fetch current repository configuration. A released file, artifact, predicate or dispatch
 // input cannot supply this snapshot or choose the verifier/source pin.
+function currentReleasePolicy(readApi) {
+  let response, policy
+  try {
+    response = readApi(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`)
+    if (response?.name !== 'RELEASE_GATE_POLICY' || typeof response.value !== 'string') throw new Error('missing owner variable')
+    policy = JSON.parse(response.value)
+  } catch { throw new Error('release policy: current owner configuration unavailable or malformed') }
+  const bytes = Buffer.from(response.value, 'utf8')
+  return {policy, bytes, sha256: sha256(bytes)}
+}
+
+// Gallery-only runs need the same immutable API input, but do not become release evidence.
+// In particular, a main push may test its own source revision; only release admission requires
+// strict prior-main verifier/signer ancestry. No branch-tip fallback is available for API inputs.
+export function loadTrustedApiInput({readApi = api} = {}) {
+  const loaded = currentReleasePolicy(readApi)
+  if (loaded.policy?.schemaVersion !== 1 || !OBJECT_ID.test(loaded.policy.apiRevision ?? ''))
+    throw new Error('release policy: immutable API input required')
+  return {apiRevision: loaded.policy.apiRevision, policySha256: loaded.sha256}
+}
+
 export function loadReleaseGatePolicy({root, approvedCommit, readApi = api}) {
   const require = (condition, reason) => {
     if (!condition) throw new Error(`release policy: ${reason}`)
   }
-  let response, policy
-  try {
-    response = readApi(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`)
-    require(response?.name === 'RELEASE_GATE_POLICY' && typeof response.value === 'string', 'missing owner variable')
-    policy = JSON.parse(response.value)
-  } catch { throw new Error('release policy: current owner configuration unavailable or malformed') }
+  const loaded = currentReleasePolicy(readApi), {policy} = loaded
   require(policy?.schemaVersion === 1 && OBJECT_ID.test(approvedCommit ?? ''), 'invalid policy schema or release identity')
   require([policy.verifierRevision, policy.signerRevision, policy.apiRevision].every(value => OBJECT_ID.test(value ?? '')),
     'full immutable verifier, signer and API revisions required')
@@ -393,8 +409,7 @@ export function loadReleaseGatePolicy({root, approvedCommit, readApi = api}) {
     .every(value => Number.isSafeInteger(value) && value > 0), 'native App identities required')
   require(policy.galleryAppId !== policy.actionsAppId && policy.reviewGateAppId !== policy.actionsAppId,
     'dedicated check publishers cannot use the Actions identity')
-  const bytes = Buffer.from(response.value, 'utf8')
-  return {policy, bytes, sha256: sha256(bytes)}
+  return loaded
 }
 
 if (import.meta.main && process.argv.includes('--release-policy')) {
@@ -572,7 +587,8 @@ if (import.meta.main && process.argv.includes('--receipt')) {
         requireThat(!refusal, 'durable main evidence failed provenance')
         const changed = shouldRerecord(root, event.before, head, durable)
         if (mode === 'plan-refresh') {
-          writeFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nhead=${head}\nrevision=${head}\n`, {flag: 'a'})
+          const inputs = changed ? loadTrustedApiInput() : {apiRevision: '', policySha256: ''}
+          writeFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\nhead=${head}\nrevision=${head}\napi-revision=${inputs.apiRevision}\npolicy-sha256=${inputs.policySha256}\n`, {flag: 'a'})
         } else if (mode === 'publish-refresh') {
           requireThat(changed, 'record-only or unchanged-scope landing cannot start a refresh')
           const directory = resolve(process.env.RECEIPT_DIRECTORY ?? 'receipt')
@@ -597,13 +613,15 @@ if (import.meta.main && process.argv.includes('--receipt')) {
         const changed = !!needsGalleryReceipt(root, expected.head, durable)
         const releaseEligible = OBJECT_ID.test(process.env.RELEASE_APPROVED_COMMIT ?? '')
           && process.env.RELEASE_APPROVED_COMMIT === expected.head
+        let inputs = changed || releaseEligible ? loadTrustedApiInput() : {apiRevision: '', policySha256: ''}
         if (releaseEligible) {
-          const {policy} = loadReleaseGatePolicy({root, approvedCommit: expected.head})
+          const {policy, sha256: policySha256} = loadReleaseGatePolicy({root, approvedCommit: expected.head})
+          inputs = {apiRevision: policy.apiRevision, policySha256}
           requireThat(policy.signerRevision === revision, 'producer does not match current release signer policy')
           await waitForReleaseRunPrerequisites({head: expected.head, queueId: expected.id, actionsAppId: policy.actionsAppId})
         }
         writeFileSync(process.env.GITHUB_OUTPUT,
-          `changed=${changed}\nhead=${expected.head}\nrevision=${revision}\nrelease-eligible=${releaseEligible}\n`, {flag: 'a'})
+          `changed=${changed}\nhead=${expected.head}\nrevision=${revision}\nrelease-eligible=${releaseEligible}\napi-revision=${inputs.apiRevision}\npolicy-sha256=${inputs.policySha256}\n`, {flag: 'a'})
       } else if (mode === 'build') {
         mkdirSync(directory, {recursive: true})
         const names = readdirSync(directory).filter(name => name === 'phase4.json' || /^gallery-shard-\d+\.json$/.test(name)).sort()

@@ -1,6 +1,6 @@
 // Oracles: T-1138 release.shared-signer-policy; ADR-0198 decision 5.
 import assert from 'node:assert/strict'
-import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs'
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 import {dirname, join, relative, resolve} from 'node:path'
 import {pathToFileURL} from 'node:url'
@@ -8,9 +8,208 @@ import {execFileSync, spawnSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import test from 'node:test'
 import * as evidence from '../gates/scan-evidence-provenance.mjs'
+import * as mainGate from '../run-phase-4-gate.mjs'
+import {hashStepInputs} from '../gate-step-evidence.mjs'
+import {requiredStepIds} from '../gate-contract.mjs'
 
 const workflow = name => readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
 const job = (text, name) => text.split(`\n  ${name}:\n`)[1]?.split(/\n  [a-z][a-z0-9-]*:\n/)[0]
+
+test('release.main-orchestration-inputs: producer selects immutable API data and invokes the main receipt entry outside the subject', () => {
+  const producer = workflow('verify-gallery-receipt')
+  for (const name of ['gallery-shard', 'phase-4']) {
+    const steps = job(producer, name)
+    assert.match(steps, /API_REVISION: \$\{\{ needs.plan.outputs.api-revision \}\}/)
+    assert.match(steps, /git checkout --detach "\$API_REVISION"/)
+    assert.doesNotMatch(steps, /git clone --quiet https:/)
+    assert.ok(steps.indexOf('package-manager-cache: false') < steps.indexOf('--prepare-trusted-orchestration'))
+    assert.ok(steps.indexOf('--prepare-trusted-orchestration') < steps.indexOf('pnpm/action-setup@'))
+  }
+  const phase4 = job(producer, 'phase-4')
+  assert.match(phase4, /HARBORLINE_SUBJECT_ROOT: \$\{\{ github.workspace \}\}/)
+  assert.match(phase4, /node \.trusted-orchestration\/tooling\/run-phase4-receipt.mjs/)
+  assert.match(phase4, /HARBORLINE_ORCHESTRATION_REVISION: \$\{\{ needs.plan.outputs.revision \}\}/)
+  assert.match(phase4, /HARBORLINE_API_REVISION: \$\{\{ needs.plan.outputs.api-revision \}\}/)
+})
+
+function copyProductionClosure(destination, entry) {
+  const repository = resolve(import.meta.dirname, '../..'), copied = new Set()
+  const copy = name => {
+    if (copied.has(name)) return
+    copied.add(name)
+    const source = resolve(repository, name), bytes = readFileSync(source)
+    mkdirSync(dirname(join(destination, name)), {recursive: true})
+    writeFileSync(join(destination, name), bytes)
+    for (const match of bytes.toString().matchAll(/from\s+['"](\.[^'"]+)['"]/g))
+      copy(relative(repository, resolve(dirname(source), match[1])))
+  }
+  copy(entry)
+}
+
+function orchestrationFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), 'release-orchestration-'))
+  t.after(() => rmSync(root, {recursive: true, force: true}))
+  const put = (name, bytes) => { mkdirSync(dirname(join(root, name)), {recursive: true}); writeFileSync(join(root, name), bytes) }
+  const git = (...args) => execFileSync('git', args, {cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    env: {...process.env, GIT_AUTHOR_NAME: 'Orchestration Fixture', GIT_COMMITTER_NAME: 'Orchestration Fixture',
+      GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_EMAIL: 'fixture@example.invalid'}}).trim()
+  git('init', '-b', 'main')
+  copyProductionClosure(root, 'tooling/run-phase4-receipt.mjs')
+  copyProductionClosure(root, 'tooling/run-phase-4-gate.mjs')
+  put('tooling/main-gate-logic.mjs', readFileSync(join(root, 'tooling/run-phase-4-gate.mjs')))
+  put('tooling/run-phase-4-gate.mjs', `
+    import {appendFileSync, readFileSync} from 'node:fs'; import {resolve} from 'node:path';
+    import {createReusableStepRunner} from './main-gate-logic.mjs';
+    import {loadPreviousPassEvidence} from './gate-step-evidence.mjs';
+    import {requiredStepIds} from './gate-contract.mjs';
+    export {trustedOrchestrationInventory, applyTrustedOrchestration} from './main-gate-logic.mjs';
+    if (import.meta.main) process.once('message', () => {
+      const root = resolve(import.meta.dirname, '..'), results = [], reports = new Map();
+      const run = id => { appendFileSync(process.env.ORCHESTRATION_LOG, id + '\\n');
+        const passed = id !== 'native-tests' || process.env.MAIN_SHOULD_FAIL !== '1';
+        const report = {tests: 1, pass: passed ? 1 : 0, fail: passed ? 0 : 1};
+        results.push({id, passed, exitCode: passed ? 0 : 1, report});
+        if (!passed) throw new Error('actual main native step failed'); return report; };
+      const reuse = createReusableStepRunner({env: process.env, repositoryRoot: root,
+        testedTree: process.env.HARBORLINE_TESTED_TREE,
+        previousPass: loadPreviousPassEvidence(resolve(root, 'docs/evidence/phase-4/gate.json')),
+        results, reports, run});
+      let status = 'PASS';
+      try { for (const id of requiredStepIds) id === 'native-tests' ? reuse(id, 'fixture', [], root, true) : run(id); }
+      catch { status = 'FAIL'; }
+      if (process.env.MAIN_REPORT_MUTATION === 'omit') results.pop();
+      if (process.env.MAIN_REPORT_MUTATION === 'reused') results[0].reusedFrom = {source: 'cached-pass'};
+      console.log(JSON.stringify({schemaVersion: 3, phase: 4, status, requiredStepIds, results,
+        subject: {repository: 'harborline-platform', baseHead: process.env.HARBORLINE_BASE_HEAD,
+          testedTree: process.env.HARBORLINE_TESTED_TREE, mode: 'exact-staged-tree'}, designReview: {expired: []}}));
+      process.exitCode = status === 'PASS' ? 0 : 1; process.disconnect();
+    });
+  `)
+  put('package.json', '{"packageManager":"pnpm@10.0.0"}')
+  put('pnpm-lock.yaml', 'lockfileVersion: 9.0\n')
+  put('global.json', '{"sdk":{"version":"11.0.100"}}')
+  put('gallery/tests/package.json', '{"name":"fixture-gallery","private":true}')
+  put('tooling/tests/main-input.test.mjs', 'export const role = "main";\n')
+  put('projections/product.cs', '// product A\n')
+  const seed = JSON.stringify({schemaVersion: 1, packageKey: 'harborline.platform', revision: '1.0.0', items: [{id: 'fixture'}]})
+  const seedDigest = createHash('sha256').update(`${seed}\n`).digest('hex')
+  put('_shared/packs/platform/platform-pack.export.json', `${seed.slice(0, -1)},"digest":{"algorithm":"sha256","value":"${seedDigest}"}}\n`)
+  git('add', '.'); git('commit', '-m', 'trusted A')
+  const A = git('rev-parse', 'HEAD'), treeA = git('rev-parse', 'HEAD^{tree}')
+  const fakeReport = `({schemaVersion:3,phase:4,status:'PASS',requiredStepIds:${JSON.stringify(requiredStepIds)},
+    results:${JSON.stringify(requiredStepIds)}.map(id=>({id,passed:true,exitCode:0,report:{tests:1,pass:1}})),
+    subject:{repository:'harborline-platform',baseHead:process.env.HARBORLINE_BASE_HEAD,
+      testedTree:process.env.HARBORLINE_TESTED_TREE,mode:'exact-staged-tree'},designReview:{expired:[]}})`
+  put('tooling/run-phase-4-gate.mjs', `import {appendFileSync} from 'node:fs'; process.once('message',()=>{
+    appendFileSync(process.env.ORCHESTRATION_LOG,'candidate-gate\\n'); console.log(JSON.stringify(${fakeReport})); process.disconnect(); });`)
+  put('tooling/gate-contract.mjs', 'export const requiredStepIds = [];\n')
+  put('tooling/collect-gallery-shards.mjs', 'export const forged = true;\n')
+  put('tooling/tests/main-input.test.mjs', 'export const role = "candidate";\n')
+  put('tooling/rogue.sh', '#!/usr/bin/env bash\nexit 0\n')
+  put('tooling/rogue.csproj', '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net11.0</TargetFramework></PropertyGroup></Project>')
+  put('coverage.runsettings', '<RunSettings/>')
+  put('.npmrc', 'node-options=--import ./tooling/rogue-loader.mjs\n')
+  put('package.json', '{"packageManager":"pnpm@99.0.0"}')
+  put('projections/product.cs', '// candidate product/test input must run\n')
+  git('add', '.')
+  // Cache setup is not the assertion oracle: the independently stated obligation is that main's
+  // failing native step executes once even when the existing reuse implementation finds a match.
+  const inputHash = hashStepInputs({repositoryRoot: root, testedTree: git('write-tree'), stepId: 'native-tests'})
+  put('docs/evidence/phase-4/gate.json', JSON.stringify({schemaVersion: 3, phase: 4, status: 'PASS',
+    subject: {baseHead: A, testedTree: treeA}, designReview: {expired: []},
+    results: [{id: 'native-tests', passed: true, exitCode: 0, inputHash, report: {tests: 1, pass: 1}}]}))
+  git('add', '.'); git('commit', '-m', 'candidate B')
+  const B = git('rev-parse', 'HEAD'), treeB = git('rev-parse', 'HEAD^{tree}')
+  const source = join(root, '.trusted-orchestration')
+  git('worktree', 'add', '--detach', source, A)
+  return {root, source, A, B, treeB, git, put}
+}
+
+test('release.main-orchestration-inputs: complete footprint replaces all tooling/config formats, deletes additions and preserves candidate product inputs', t => {
+  assert.equal(typeof mainGate.trustedOrchestrationInventory, 'function')
+  assert.equal(typeof mainGate.applyTrustedOrchestration, 'function')
+  const f = orchestrationFixture(t)
+  const inventory = mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A})
+  mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory})
+  assert.equal(readFileSync(join(f.root, 'package.json'), 'utf8'), '{"packageManager":"pnpm@10.0.0"}')
+  assert.equal(readFileSync(join(f.root, 'tooling/tests/main-input.test.mjs'), 'utf8'), 'export const role = "main";\n')
+  assert.equal(readFileSync(join(f.root, 'projections/product.cs'), 'utf8'), '// candidate product/test input must run\n')
+  for (const name of ['tooling/rogue.sh', 'tooling/rogue.csproj', 'coverage.runsettings', '.npmrc'])
+    assert.equal(existsSync(join(f.root, name)), false, name)
+  assert.equal(f.git('write-tree'), f.treeB, 'overlay must never relabel the original candidate Git tree')
+  assert.equal(inventory.revision, f.A)
+  assert.equal(inventory.testedTree, f.treeB)
+  assert.ok(inventory.subjectInputs.some(entry => entry.path === 'projections/product.cs' && entry.mode === '100644'))
+  mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory})
+  assert.equal(f.git('write-tree'), f.treeB, 'repeated application preserves the same subject')
+})
+
+test('release.main-orchestration-inputs: a candidate tooling link is removed without following it', t => {
+  const f = orchestrationFixture(t), outside = join(f.root, 'outside')
+  mkdirSync(outside); writeFileSync(join(outside, 'sentinel'), 'untouched')
+  renameSync(join(f.root, 'tooling'), join(f.root, 'saved-candidate-tooling'))
+  symlinkSync(outside, join(f.root, 'tooling'), process.platform === 'win32' ? 'junction' : 'dir')
+  const inventory = mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A})
+  mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory})
+  assert.equal(readFileSync(join(outside, 'sentinel'), 'utf8'), 'untouched')
+  assert.equal(readFileSync(join(f.root, 'tooling/tests/main-input.test.mjs'), 'utf8'), 'export const role = "main";\n')
+})
+
+test('release.main-orchestration-inputs: a candidate config parent link refuses before writing outside the subject', t => {
+  const f = orchestrationFixture(t), outside = join(f.root, 'outside')
+  mkdirSync(outside); writeFileSync(join(outside, 'sentinel'), 'untouched')
+  renameSync(join(f.root, 'gallery'), join(f.root, 'saved-candidate-gallery'))
+  symlinkSync(outside, join(f.root, 'gallery'), process.platform === 'win32' ? 'junction' : 'dir')
+  const inventory = mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A})
+  assert.throws(() => mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory}), /candidate parent redirects/)
+  assert.equal(readFileSync(join(outside, 'sentinel'), 'utf8'), 'untouched')
+  assert.equal(existsSync(join(outside, 'tests/package.json')), false)
+})
+
+test('release.main-orchestration-inputs: a dirty main executable checkout refuses the inventory', t => {
+  const f = orchestrationFixture(t)
+  writeFileSync(join(f.source, 'tooling/injected.sh'), 'exit 0')
+  assert.throws(() => mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A}), /main checkout is dirty/)
+})
+
+for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive passes', false, ''],
+  ['incomplete inventory refuses', false, 'omit'], ['reused result refuses', false, 'reused'],
+  ['wrong API refuses', false, 'api']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
+  assert.equal(typeof mainGate.trustedOrchestrationInventory, 'function')
+  const f = orchestrationFixture(t)
+  const inventory = mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A})
+  mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory})
+  const log = join(f.root, 'orchestration.log'), hook = join(f.root, 'forge-hook.mjs'), scratch = join(f.root, 'runner-scratch')
+  mkdirSync(scratch)
+  writeFileSync(log, '')
+  writeFileSync(hook, `import cp from 'node:child_process'; import {writeFileSync} from 'node:fs'; import {syncBuiltinESMExports} from 'node:module';
+    const actual = cp.execFileSync;
+    cp.execFileSync = (command,args,options) => {
+      if (command === 'git' && args[0] === 'fetch') {
+        actual('git',['update-ref','refs/remotes/origin/main',process.env.FIXTURE_MAIN],options);
+        const file = actual('git',['rev-parse','--path-format=absolute','--git-path','FETCH_HEAD'],{...options,encoding:'utf8'}).trim();
+        writeFileSync(file,process.env.FIXTURE_MAIN+"\\t\\tbranch 'main' of fixture\\n"); return ''; }
+      return actual(command,args,options); }; syncBuiltinESMExports();`)
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(hook).href, join(f.source, 'tooling/run-phase4-receipt.mjs')],
+    {encoding: 'utf8', timeout: 60000, cwd: f.root, env: {...process.env,
+      TEMP: scratch, TMP: scratch, TMPDIR: scratch, FIXTURE_MAIN: f.A, ORCHESTRATION_LOG: log,
+      MAIN_SHOULD_FAIL: fail ? '1' : '0', HARBORLINE_SUBJECT_ROOT: f.root,
+      MAIN_REPORT_MUTATION: mutation,
+      HARBORLINE_ORCHESTRATION_REVISION: f.A, HARBORLINE_RECEIPT_RUN: '0',
+      HARBORLINE_API_REPO: f.source, HARBORLINE_API_REVISION: mutation === 'api' ? f.B : f.A,
+    }})
+  const refused = fail || !!mutation
+  assert.equal(result.status, refused ? 1 : 0, result.stdout + result.stderr)
+  const calls = readFileSync(log, 'utf8').split('\n')
+  assert.equal(calls.filter(id => id === 'native-tests').length, mutation === 'api' ? 0 : 1, 'cached PASS cannot skip the actual main native step')
+  assert.equal(calls.filter(id => id === 'candidate-gate').length, 0, 'fresh internal Git checkout cannot execute candidate orchestration')
+  assert.equal(existsSync(join(f.root, '.git/harborline-phase4-receipt.json')), !refused)
+  if (!refused) {
+    const receipt = JSON.parse(readFileSync(join(f.root, '.git/harborline-phase4-receipt.json')))
+    assert.equal(receipt.testedTree, f.treeB)
+    assert.equal(receipt.orchestration.revision, f.A)
+  }
+})
 
 test('release.main-required-computations: reusable SBOM scans data with fixed main configuration and retains byte digests', () => {
   const sbom = workflow('license-sbom')
@@ -252,6 +451,18 @@ test('release.verifier-policy-outside-release: current owner policy pins exact p
   assert.deepEqual(loaded.policy, p.policy)
   assert.equal(loaded.sha256, createHash('sha256').update(p.response.value).digest('hex'))
   assert.equal(loaded.bytes.toString(), p.response.value)
+})
+
+test('release.main-orchestration-inputs: gallery input planning obtains a full API pin from current owner configuration', t => {
+  const f = invocation(t), p = externalPolicy(f)
+  assert.equal(typeof evidence.loadTrustedApiInput, 'function')
+  const readApi = path => f.documents[path.replace('repos/Harborline-Software/harborline-platform/', '')]
+  assert.deepEqual(evidence.loadTrustedApiInput({readApi}), {apiRevision: f.A,
+    policySha256: createHash('sha256').update(p.response.value).digest('hex')})
+  p.response.value = JSON.stringify({...p.policy, apiRevision: 'main'})
+  assert.throws(() => evidence.loadTrustedApiInput({readApi}), /release policy:/)
+  p.response.value = '{}'
+  assert.throws(() => evidence.loadTrustedApiInput({readApi}), /release policy:/)
 })
 
 for (const [label, mutate] of [
