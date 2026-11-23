@@ -140,6 +140,43 @@ public sealed class BorrowerEnvironmentTests
     [MemberData(nameof(BareRowCases))]
     public void T1232_Bare_missing_key_under_row_reads_the_field(string id, string json) => AssertKeyFenceCase(id, json);
 
+    // Oracle: literals. The root holds nothing and only the row bag carries each key, so a row
+    // read answers [] (or the ROW- canary) where the root-only answer is the key itself (or null).
+    [Theory(DisplayName = "T-1232 / rules-ck-28: a non-row path, dotted or not, never reads the snapshot row bag")]
+    [InlineData("cat-candidate", """{"missing":[{"cat":["candidate.","secret"]}]}""", """{"candidate.secret":"ROW-SECRET"}""", """["candidate.secret"]""")]
+    [InlineData("literal-candidate", """{"missing":["candidate.secret"]}""", """{"candidate.secret":"ROW-SECRET"}""", """["candidate.secret"]""")]
+    [InlineData("some-candidate", """{"missing_some":[1,["candidate.secret"]]}""", """{"candidate.secret":"ROW-SECRET"}""", """["candidate.secret"]""")]
+    [InlineData("var-candidate", """{"var":"candidate.secret"}""", """{"candidate.secret":"ROW-SECRET"}""", "null")]
+    [InlineData("literal-wf", """{"missing":["wf.x"]}""", """{"wf.x":"ROW-WF"}""", """["wf.x"]""")]
+    [InlineData("literal-timer", """{"missing":["timer.x"]}""", """{"timer.x":"ROW-TIMER"}""", """["timer.x"]""")]
+    [InlineData("literal-field", """{"missing":["field.x"]}""", """{"x":"ROW-X"}""", """["field.x"]""")]
+    [InlineData("literal-bare", """{"missing":["x"]}""", """{"x":"ROW-X"}""", """["x"]""")]
+    public void T1232_Non_row_paths_never_read_the_row_bag(string id, string expression, string row, string expected)
+    {
+        foreach (bool rowScope in new[] { false, true })
+            AssertSnapshotRead($"{id}/{(rowScope ? "row" : "root")}", ["field", "candidate", "wf", "timer"], expression, row, rowScope, expected);
+    }
+
+    // Oracle: literals. An admitted row. path at row scope reads the row bag's own value.
+    [Theory(DisplayName = "T-1232 / rules-ck-28: an authorized row. path still reads the snapshot row bag")]
+    [InlineData("var-row", """{"var":"row.x"}""", "\"ROW-VALUE\"")]
+    [InlineData("missing-row", """{"missing":["row.x"]}""", "[]")]
+    public void T1232_Authorized_row_read_resolves_from_the_row(string id, string expression, string expected)
+        => AssertSnapshotRead(id, ["field", "row"], expression, """{"x":"ROW-VALUE"}""", rowScope: true, expected);
+
+    private static void AssertSnapshotRead(string id, string[] variables, string expression, string row, bool rowScope, string expected)
+    {
+        var definition = rowScope ? Rule(id, "items/out", expression, scope: RuleScope.Row) : Rule(id, "out", expression);
+        var admission = BorrowerEnvironmentAdmission.Admit(TestAdmission.Declaration(
+            operations: ["var", "missing", "missing_some", "cat"], variables: variables)).For(EvaluationPhase.Run);
+        var context = RuleContextSnapshot.FromJsonText("{\"root\":{},\"row\":" + row + "}");
+        var scope = rowScope ? new RuleEvalScope("items", "r1") : RuleEvalScope.Root;
+        var result = new GuardEvaluator(new FixedClock(Clock)).EvaluateValue(definition, context, scope, admission);
+        Assert.Null(result.Error?.Code);
+        Assert.Equal(ValueState.Resolved, result.State);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(expected), result.Value), $"{id}: expected {expected}, actual {result.Value?.ToJsonString() ?? "null"}");
+    }
+
     private static void AssertKeyFenceCase(string id, string json)
     {
         var test = JsonNode.Parse(json)!;

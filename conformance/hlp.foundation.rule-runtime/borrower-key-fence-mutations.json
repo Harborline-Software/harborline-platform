@@ -1244,6 +1244,104 @@
         "failed": 0,
         "total": 122
       }
+    },
+    {
+      "tier": "dotnet",
+      "id": "non-row-row-fallback",
+      "path": "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs",
+      "before": "        return root.TryGetValue(name, out var value)\n",
+      "after": "        if (!path.StartsWith(\"field.\", StringComparison.Ordinal) && name.Contains('.') && row is not null && row.TryGetValue(name, out var local))\n            return PendingSentinel.Is(local) ? RefValue.Pending : RefValue.Resolved(local);\n        return root.TryGetValue(name, out var value)\n",
+      "killingTest": "T1232_Non_row_paths_never_read_the_row_bag(cat-candidate, literal-candidate, some-candidate, var-candidate, literal-wf, literal-timer)",
+      "assertion": "value [\"candidate.secret\"] / [\"wf.x\"] / [\"timer.x\"] and var null: a dotted non-row path reads the empty root, not the snapshot row bag (actual [] or \"ROW-SECRET\" under the mutant)",
+      "oracle": "Test literals: root {} with the key only in the row bag, so the root-only answer is the key itself or null (T-1232 trust-boundary gap 2: only an explicit row. path reads the row bag)",
+      "sourceIdentityNote": "Runs used the uncommitted bytes in runSourceSha256 atop the candidate head; the source was restored byte-for-byte before the restored run. The PR names the resulting committed head.",
+      "runSourceSha256": {
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime/Context/RuleContextSnapshot.cs": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+        "projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/BorrowerEnvironmentTests.cs": "d5b262e1f87f9c6f73660357b39cf54f2c0244535680e1a343859323fab98b0a"
+      },
+      "sourceSha256": "eaca29a2eccdf451ec7fa4ab170840ceb488954eaf6536e2736f7d871e738e62",
+      "mutantSourceSha256": "4892e6861ef94b7c79eb1003b7aac8b33a7009ee6d523476446ccf544249ee88",
+      "baseline": {
+        "label": "rowbag-mutant-baseline",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "rowbag-mutant-baseline",
+          "--candidate",
+          "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi\n"
+        ],
+        "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "exitCode": 0,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-mutant-baseline.log",
+        "logSha256": "ee724ea46caf2344c6fee125995fea2f8942fe67da1d851d1786393ae99cb3d3",
+        "passed": 132,
+        "failed": 0,
+        "total": 132
+      },
+      "red": {
+        "label": "rowbag-mutant-red",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "rowbag-mutant-red",
+          "--candidate",
+          "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi\n"
+        ],
+        "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "exitCode": 1,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-mutant-red.log",
+        "logSha256": "8bdfa95988c6887e9a70c409dad137002b7a16a290d1cb8466a5fe14334f3108",
+        "passed": 126,
+        "failed": 6,
+        "total": 132
+      },
+      "restored": {
+        "label": "rowbag-mutant-restored",
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-1232-bare-key",
+          "--workload",
+          "rowbag-mutant-restored",
+          "--candidate",
+          "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+          "--",
+          "bash",
+          "-c",
+          "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi\n"
+        ],
+        "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "exitCode": 0,
+        "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-mutant-restored.log",
+        "logSha256": "562a5dd7ac4519c80ada293c4f0ce6cd84af3b62924703295986a35ffa2ac0b6",
+        "passed": 132,
+        "failed": 0,
+        "total": 132
+      }
     }
   ],
   "orderingCoverage": {
@@ -1887,6 +1985,88 @@
       "passed": 1249,
       "failed": 0,
       "total": 1249
+    },
+    {
+      "label": "rowbag-dotnet-red",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "rowbag-dotnet-red",
+        "--candidate",
+        "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi\n"
+      ],
+      "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+      "exitCode": 1,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-dotnet-red.log",
+      "logSha256": "23f7507a14af7a45ad1aa28a5d7fe5aa8bce5eb4662bf435b81246753cd896ae",
+      "passed": 126,
+      "failed": 6,
+      "total": 132,
+      "note": "bd2dfb22 source with only the new tests added: all six failures are T1232_Non_row_paths_never_read_the_row_bag dotted cases at root scope"
+    },
+    {
+      "label": "rowbag-dotnet-green",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "rowbag-dotnet-green",
+        "--candidate",
+        "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj --filter FullyQualifiedName~T1232_ -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj --filter FullyQualifiedName~ValueDomainRulesBindingTests -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi\n"
+      ],
+      "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+      "exitCode": 0,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-dotnet-green.log",
+      "logSha256": "616328fe325c67c28f5f0cbf48613fa457ef24b11f0ab965d879012b1676de19",
+      "passed": 132,
+      "failed": 0,
+      "total": 132
+    },
+    {
+      "label": "rowbag-dotnet-full",
+      "command": [
+        "bash",
+        "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+        "run",
+        "--holder",
+        "writer",
+        "--session",
+        "mini-1232-bare-key",
+        "--workload",
+        "rowbag-dotnet-full",
+        "--candidate",
+        "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+        "--",
+        "bash",
+        "-c",
+        "dotnet test projections/dotnet/foundation/hlp.foundation.rule-runtime.tests/Harborline.Foundation.RuleEngine.Tests.csproj -m:1 -nr:false; rules_status=$?; dotnet test projections/dotnet/foundation/hlp.foundation.field-runtime.tests/Harborline.Foundation.FieldRuntime.Tests.csproj -m:1 -nr:false; field_status=$?; if [ \"$rules_status\" -ne 0 ] || [ \"$field_status\" -ne 0 ]; then exit 1; fi"
+      ],
+      "candidate": "bd2dfb2218ff98f03f4601d664800fe0326cbf6d",
+      "exitCode": 0,
+      "logPath": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t1232-bare-key/rowbag-dotnet-full.log",
+      "logSha256": "ffc6ea6aace194b1debd2886661cb78371c7b2d3d8880f7e4629d29735916306",
+      "passed": 1259,
+      "failed": 0,
+      "total": 1259
     }
   ]
 }
