@@ -34,7 +34,7 @@ const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Proje
 /** Controlled Schedule body editor. The host supplies authoritative refusals for this value before publishing. */
 export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = [], readOnly, onChange, onCreate }: SchedulingAuthoringEditorProps) {
   const id = useId()
-  const fieldId = (label: string) => `${id}-${encodeURIComponent(label)}`
+  const fieldId = (key: string) => `${id}-${encodeURIComponent(key)}`
   const latest = useRef(value)
   latest.current = value
   const [parameterError, setParameterError] = useState('')
@@ -62,7 +62,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const nodes = list(basis.nodes)
   const modules = list(value.modules)
   const updateNode = (index: number, key: string, next: ScheduleJson) => nested('basis', 'nodes', nodes.map((node, position) => position === index ? { ...object(node), [key]: next } : node))
-  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void) => <label htmlFor={fieldId(label)}>{label}<textarea id={fieldId(label)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
+  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
     if (event.currentTarget.value === event.currentTarget.defaultValue) { setParameterError(''); return }
     try {
       const parsed: ScheduleJson = JSON.parse(event.currentTarget.value)
@@ -115,8 +115,8 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       </fieldset>
       <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>
         {(catalogue.modules ?? []).map(module => { const entry = modules.find(candidate => object(candidate).module === module.id); return <div key={module.id} data-scope={module.scope}>
-          <label htmlFor={fieldId(`module.${module.id}`)}><input id={fieldId(`module.${module.id}`)} type="checkbox" checked={entry !== undefined} onChange={event => change('modules', event.currentTarget.checked ? [...modules, { module: module.id, parameters: {} }] : modules.filter(candidate => object(candidate).module !== module.id))} />{module.label} — {module.scope} scope{module.scope === 'chain' ? ' (explicit opt-in)' : ''}</label>
-          {entry && parameters(`${module.label} parameters`, object(entry).parameters, next => change('modules', modules.map(candidate => object(candidate).module === module.id ? { ...object(candidate), parameters: next } : candidate)))}
+          <label htmlFor={fieldId(`module.selected.${module.id}`)}><input id={fieldId(`module.selected.${module.id}`)} type="checkbox" checked={entry !== undefined} onChange={event => change('modules', event.currentTarget.checked ? [...modules, { module: module.id, parameters: {} }] : modules.filter(candidate => object(candidate).module !== module.id))} />{module.label} — {module.scope} scope{module.scope === 'chain' ? ' (explicit opt-in)' : ''}</label>
+          {entry && parameters(`${module.label} parameters`, object(entry).parameters, next => change('modules', modules.map(candidate => object(candidate).module === module.id ? { ...object(candidate), parameters: next } : candidate)), `module.parameters.${module.id}`)}
         </div> })}
       </fieldset>
     </fieldset>

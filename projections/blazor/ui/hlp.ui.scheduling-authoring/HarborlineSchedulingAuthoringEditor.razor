@@ -63,10 +63,10 @@
             @foreach (var module in Catalogue.Modules)
             {
                 var entry = Modules.FirstOrDefault(candidate => Text(Object(candidate)["module"]) == module.Id);
-                var controlId = FieldId("module." + module.Id);
+                var controlId = FieldId("module.selected." + module.Id);
                 <div data-scope="@module.Scope">
                     <label for="@controlId"><input id="@controlId" type="checkbox" checked="@(entry is not null)" @onchange="args => ToggleModule(module.Id, args.Value is true)" />@module.Label — @module.Scope scope@(module.Scope == "chain" ? " (explicit opt-in)" : "")</label>
-                    @if (entry is not null) { @Parameters($"{module.Label} parameters", Object(entry)["parameters"], next => ModuleParameters(module.Id, next)) }
+                    @if (entry is not null) { @Parameters($"{module.Label} parameters", Object(entry)["parameters"], next => ModuleParameters(module.Id, next), "module.parameters." + module.Id) }
                 </div>
             }
         </fieldset>
@@ -93,7 +93,7 @@
     /// <summary>Disables editing.</summary>
     [Parameter] public bool ReadOnly { get; set; }
     private readonly string _id = "schedule-" + Guid.NewGuid().ToString("N");
-    private string FieldId(string label) => _id + "-" + Uri.EscapeDataString(label);
+    private string FieldId(string key) => _id + "-" + Uri.EscapeDataString(key);
     private string _parameterError = "";
     private static readonly System.Text.Json.JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
     private JsonObject Basis => Object(Value["basis"]);
@@ -127,8 +127,8 @@
         foreach (var option in options) { builder.OpenElement(14, "option"); builder.AddAttribute(15, "value", option.Id); builder.AddContent(16, option.Label); builder.CloseElement(); }
         builder.CloseElement(); builder.CloseElement();
     };
-    private RenderFragment Parameters(string label, JsonNode? value, Func<JsonObject, Task> changed) => builder => {
-        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "textarea"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
+    private RenderFragment Parameters(string label, JsonNode? value, Func<JsonObject, Task> changed, string? controlKey = null) => builder => {
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(controlKey ?? label)); builder.AddContent(2, label); builder.OpenElement(3, "textarea"); builder.AddAttribute(4, "id", FieldId(controlKey ?? label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
             try { if (JsonNode.Parse(args.Value?.ToString() ?? "") is JsonObject parameters) { _parameterError = ""; await changed(parameters); } else _parameterError = label + " must be a JSON object."; }
             catch (System.Text.Json.JsonException) { _parameterError = label + " must be a JSON object."; }
         })); builder.CloseElement(); builder.CloseElement();

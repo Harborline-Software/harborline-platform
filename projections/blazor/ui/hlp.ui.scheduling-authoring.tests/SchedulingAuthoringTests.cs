@@ -10,6 +10,26 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    [Fact(DisplayName = "scheduling-eng-19: repeated module labels retain unique control identities and exactly one own label")]
+    public void RepeatedModuleLabels()
+    {
+        var catalogue = new ScheduleCatalogue { Modules = [new("one", "Shared", "chain"), new("two", "Shared", "chain"), new("three", "Backend", "chain")] };
+        var body = JsonNode.Parse("""{"solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{},"guarantee":"feasible_proof","work_budget":10},"modules":[{"module":"one","parameters":{}},{"module":"two","parameters":{}},{"module":"three","parameters":{}}],"basis":{"kind":"event_anchored_chain","nodes":[{"node_id":"same"},{"node_id":"same"}]}}""")!.AsObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, body).Add(x => x.Catalogue, catalogue));
+        // Oracle: HTML ID uniqueness/label association and literal supplied labels, not FieldId.
+        var ids = cut.FindAll("[id]").Select(element => element.Id).ToArray();
+        Assert.Equal(ids.Length, ids.Distinct(StringComparer.Ordinal).Count());
+        var controls = cut.FindAll("textarea");
+        Assert.Equal(4, controls.Count);
+        var names = new[] { "Backend parameters", "Shared parameters", "Shared parameters", "Backend parameters" };
+        for (var index = 0; index < controls.Count; index++)
+        {
+            var control = controls[index];
+            var ownLabel = Assert.Single(cut.FindAll("label"), label => label.GetAttribute("for") == control.Id);
+            Assert.Equal(names[index], ownLabel.ChildNodes[0].TextContent);
+            Assert.Same(ownLabel, control.Closest("label"));
+        }
+    }
     // Oracle: HTML label element and WAI explicit-label guidance, not another renderer's output.
     [Theory(DisplayName = "scheduling-eng-19: gallery scenarios have direct labels linked to controls")]
     [InlineData("scheduling-authoring.from-empty")]

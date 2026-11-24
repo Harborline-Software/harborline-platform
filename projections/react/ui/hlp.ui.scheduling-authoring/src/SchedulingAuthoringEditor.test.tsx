@@ -11,6 +11,22 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  it('scheduling-eng-19: repeated module labels retain unique control identities and exactly one own label', () => {
+    const modules = [{ id: 'one', label: 'Shared', scope: 'chain' as const }, { id: 'two', label: 'Shared', scope: 'chain' as const }, { id: 'three', label: 'Backend', scope: 'chain' as const }]
+    const view = render(<SchedulingAuthoringEditor value={{ solver: { backend_id: 'prototype.exhaustive-proof.v2', parameters: {}, guarantee: 'feasible_proof', work_budget: 10 }, modules: [{ module: 'one', parameters: {} }, { module: 'two', parameters: {} }, { module: 'three', parameters: {} }], basis: { kind: 'event_anchored_chain', nodes: [{ node_id: 'same' }, { node_id: 'same' }] } }} catalogue={{ modules }} onChange={() => {}} />)
+    // Oracle: HTML ID uniqueness and explicit label association; literal supplied labels.
+    const ids = [...view.container.querySelectorAll('[id]')].map(element => element.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    const textareas = [...view.container.querySelectorAll('textarea')]
+    expect(textareas).toHaveLength(4)
+    textareas.forEach((control, index) => {
+      const ownLabels = [...view.container.querySelectorAll('label')].filter(label => label.htmlFor === control.id)
+      expect(ownLabels).toHaveLength(1)
+      expect(ownLabels[0].firstChild?.textContent).toBe(['Backend parameters', 'Shared parameters', 'Shared parameters', 'Backend parameters'][index])
+      expect(control.labels).toHaveLength(1)
+      expect(ownLabels[0].control).toBe(control)
+    })
+  })
   // Oracle: HTML label element and WAI explicit-label guidance; gallery quality fixture
   // requires reactEqualsBlazor. Window/tolerance labels are direct fieldset children in both lanes.
   it.each(['scheduling-authoring.from-empty', 'scheduling-authoring.bound', 'scheduling-authoring.refusals'])('scheduling-eng-19: %s has direct labels explicitly linked to controls', scenario => {
