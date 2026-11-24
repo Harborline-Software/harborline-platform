@@ -184,11 +184,12 @@ describe('Schedule authoring', () => {
     expect(screen.queryByLabelText('Availability source')).toBeNull()
   })
   // Oracle: literal fixture bodies, optional producer members and the specified numeric-input error text.
-  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string; expectedThresholdWire?: string[]; expectedThresholdDisplay?: string }) => {
+  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string; expectedThresholdWire?: string[]; expectedThresholdDisplay?: string; unchangedThresholdEdit?: boolean }) => {
     let actual: ScheduleBody = entry.initial ?? {}
     let changes = 0
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { changes++; actual = next; setBody(next) }} /> }
     render(<Host />)
+    if (entry.unchangedThresholdEdit) expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
     for (const [label, value, action] of entry.steps) {
       if (action === 'click') fireEvent.click(screen.getByRole('button', { name: label }))
       else { fireEvent.change(screen.getByLabelText(label), { target: { value } }); fireEvent.blur(screen.getByLabelText(label)) }
@@ -201,9 +202,12 @@ describe('Schedule authoring', () => {
     expect(actual).toStrictEqual(entry.expected)
     if (entry.expectedThresholdDisplay) {
       expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
-      const edit = entry.expectedThresholdDisplay + (entry.expectedThresholdDisplay.includes('.') ? '0' : '.0')
-      fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: edit } })
-      fireEvent.blur(screen.getByLabelText('Threshold'))
+      if (entry.unchangedThresholdEdit) expect(changes).toBe(0)
+      else {
+        const edit = entry.expectedThresholdDisplay + (entry.expectedThresholdDisplay.includes('.') ? '0' : '.0')
+        fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: edit } })
+        fireEvent.blur(screen.getByLabelText('Threshold'))
+      }
       expect(screen.queryByRole('alert')).toBeNull()
       expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
       expect(actual).toStrictEqual(entry.expected)

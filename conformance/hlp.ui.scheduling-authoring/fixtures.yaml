@@ -253,6 +253,42 @@
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-1e-28},"host_note":"preserve"},
       "expectedThresholdWire": ["-1e-28","-0.0000000000000000000000000001"],
       "expectedThresholdDisplay": "-0.0000000000000000000000000001"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-small",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-7},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-7},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-7"],
+      "expectedThresholdDisplay": "0.0000001",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-large",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1E+21},"host_note":"preserve"},
+      "steps": [["Threshold","1000000000000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1E+21},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e+21","1E+21"],
+      "expectedThresholdDisplay": "1000000000000000000000",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-small-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-14},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000000000000123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-14},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e-14"],
+      "expectedThresholdDisplay": "0.0000000000000123456789012345",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-preserve-scale-29",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-15},"host_note":"preserve"},
+      "steps": [["Threshold","0.00000000000000123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-15},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e-15"],
+      "expectedThresholdDisplay": "0.00000000000000123456789012345",
+      "unchangedThresholdEdit": true
     }
   ]
 }

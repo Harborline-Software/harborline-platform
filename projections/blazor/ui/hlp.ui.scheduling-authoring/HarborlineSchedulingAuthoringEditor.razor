@@ -107,6 +107,24 @@
     private JsonArray Modules => Value["modules"] as JsonArray ?? new();
     private static JsonObject Object(JsonNode? node) => node as JsonObject ?? new();
     private static string Text(JsonNode? node) => node is JsonValue value ? value.ToString() : "";
+    private static string NumberText(JsonNode? node)
+    {
+        if (node is not JsonValue || node.GetValueKind() != System.Text.Json.JsonValueKind.Number) return Text(node);
+        if (!double.TryParse(node.ToJsonString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number)) return Text(node);
+        if (number == 0) return "0";
+        var text = number.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+        var exponent = text.IndexOfAny(['e', 'E']);
+        if (exponent < 0) return text;
+        var mantissa = text[..exponent];
+        var sign = mantissa.StartsWith('-') ? "-" : "";
+        var parts = mantissa.TrimStart('-').Split('.');
+        var digits = string.Concat(parts);
+        var point = parts[0].Length + int.Parse(text[(exponent + 1)..], System.Globalization.CultureInfo.InvariantCulture);
+        var plain = point <= 0 ? "0." + new string('0', -point) + digits
+            : point >= digits.Length ? digits + new string('0', point - digits.Length)
+            : digits.Insert(point, ".");
+        return sign + plain;
+    }
     private static JsonNode? Number(string value, bool integer)
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\z")) return null;
@@ -149,8 +167,8 @@
     private Task RemoveNode(int index) { var nodes = (JsonArray)Nodes.DeepClone(); nodes.RemoveAt(index); return Nested("basis", "nodes", nodes); }
     private Task ToggleModule(string id, bool selected) { var modules = new JsonArray(Modules.Where(entry => Text(Object(entry)["module"]) != id).Select(entry => entry?.DeepClone()).ToArray()); if (selected) modules.Add(new JsonObject { ["module"] = id, ["parameters"] = new JsonObject() }); return Set("modules", modules); }
     private Task ModuleParameters(string id, JsonObject parameters) { var modules = (JsonArray)Modules.DeepClone(); foreach (var entry in modules) if (Text(Object(entry)["module"]) == id) Object(entry)["parameters"] = parameters.DeepClone(); return Set("modules", modules); }
-    private RenderFragment NumberInput(string label, JsonNode? value, Func<JsonNode?, Task> changed, bool integer = false) => Input(label, value, async raw => {
-        if (raw == Text(value)) { _numberError = ""; return; }
+    private RenderFragment NumberInput(string label, JsonNode? value, Func<JsonNode?, Task> changed, bool integer = false) => Input(label, JsonValue.Create(NumberText(value)), async raw => {
+        if (raw == NumberText(value)) { _numberError = ""; return; }
         var trimmed = raw.Trim(' ', '\t', '\r', '\n', '\f', '\v');
         var parsed = trimmed.Length == 0 ? null : Number(trimmed, integer);
         if (trimmed.Length != 0 && parsed is null) { _numberError = integer ? label + " must be a 32-bit integer in plain decimal notation." : label + " must be an exact decimal with at most 15 significant digits and scale 28."; return; }
