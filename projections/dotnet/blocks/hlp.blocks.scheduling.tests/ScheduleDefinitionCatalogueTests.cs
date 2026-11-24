@@ -29,11 +29,14 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
-    [Fact(DisplayName = "scheduling-ck-26: catalogue construction requires an explicit solver registry")]
+    [Fact(DisplayName = "scheduling-ck-26: internal catalogue construction requires an explicit solver registry")]
     public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
     {
-        Assert.Null(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore)]));
-        Assert.NotNull(typeof(ScheduleDefinitionCatalogue).GetConstructor([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)]));
+        Assert.Empty(typeof(ScheduleDefinitionCatalogue).GetConstructors());
+        var constructor = Assert.Single(typeof(ScheduleDefinitionCatalogue).GetConstructors(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic));
+        Assert.Equal([typeof(IVersionedDefinitionStore), typeof(IEnumerable<IPlanningSolver>)],
+            constructor.GetParameters().Select(parameter => parameter.ParameterType));
     }
 
     [Theory(DisplayName = "scheduling-ck-26: exact draft save replay precedes changed backend admission")]
@@ -68,13 +71,54 @@ public sealed class ScheduleDefinitionCatalogueTests
         var solvers = new IPlanningSolver[] { new LimitedSolver() };
         var catalogue = new ScheduleDefinitionCatalogue(_store, solvers);
         var save = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "save").AsTask());
-        Assert.Equal([new DefinitionRefusal(code, pointer)], save.Refusals);
+        // Oracle: T-491/solver-refusal-detail acceptance 3, independent of backend production values.
+        var detail = code switch
+        {
+            "scheduling.definition.backend_unsupported" => """{"observed":"missing","required":["prototype.exhaustive-proof.v2"]}""",
+            "scheduling.definition.problem_class_unsupported" => problem == ScheduleProblemClass.None
+                ? """{"observed":"None","required":["JobShop","Project"]}"""
+                : """{"observed":"Workforce","required":["JobShop","Project"]}""",
+            "scheduling.definition.guarantee_unsupported" => """{"observed":"optimal_proof","required":["feasible_proof"]}""",
+            _ => budget == -1 ? """{"observed":-1,"minimum":0,"maximum":10}""" : """{"observed":11,"minimum":0,"maximum":10}""",
+        };
+        var expected = JsonSerializer.Deserialize<DefinitionRefusal>("{\"Code\":\"" + code + "\",\"Pointer\":\"" + pointer + "\",\"detail\":" + detail + "}")!;
+        Assert.Equal([expected], save.Refusals);
+        using var wire = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(save.Refusals)));
+        using var expectedWire = JsonDocument.Parse(detail);
+        Assert.True(JsonElement.DeepEquals(expectedWire.RootElement, wire.RootElement.GetProperty("detail")));
         Assert.Empty(await _store.ListHistoryAsync(Key));
         var document = new DefinitionDocument(Key, Id + "@1.0.0", "1.0.0", ScheduleDefinitionJson.Serialize(definition with { Envelope = definition.Envelope! with { Version = null } }));
         await _store.SaveDraftAsync(document, 0, "raw");
         var publish = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.PublishAsync(Tenant, Id, "1.0.0", 1, "publish").AsTask());
-        Assert.Equal([new DefinitionRefusal(code, pointer)], publish.Refusals);
+        Assert.Equal([expected], publish.Refusals);
         Assert.Null(await _store.GetPublishedHeadAsync(Key));
+    }
+
+    [Fact(DisplayName = "scheduling-ck-26: refusal requirements are in ordinal order")]
+    public async Task Scheduling_ck_26_RefusalRequirementsAreOrdinal()
+    {
+        var catalogue = new ScheduleDefinitionCatalogue(_store, [new OrderedTestSolver("b-backend"), new OrderedTestSolver("Z-backend"), new OrderedTestSolver("a-backend")]);
+        var definition = Definition with { ProblemClass = ScheduleProblemClass.Project,
+            Solver = new("missing", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.FeasibleProof, 10) };
+        var backend = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "backend").AsTask());
+        Assert.Equal("scheduling.definition.backend_unsupported", Assert.Single(backend.Refusals).Code);
+        using var backendJson = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(backend.Refusals)));
+        Assert.Equal(new[] { "Z-backend", "a-backend", "b-backend" }, backendJson.RootElement.GetProperty("detail").GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+
+        definition = definition with { Solver = new("Z-backend", JsonSerializer.SerializeToElement(new { }), SolverGuarantee.OptimalProof, 10) };
+        var guarantee = await Assert.ThrowsAsync<DefinitionRefusalException>(() => catalogue.SaveDraftAsync(Tenant, Id, "1.0.0", definition, 0, "guarantee").AsTask());
+        Assert.Equal("scheduling.definition.guarantee_unsupported", Assert.Single(guarantee.Refusals).Code);
+        using var guaranteeJson = JsonDocument.Parse(JsonSerializer.Serialize(Assert.Single(guarantee.Refusals)));
+        Assert.Equal(new[] { "bounded_heuristic", "feasible_proof" }, guaranteeJson.RootElement.GetProperty("detail").GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+    }
+
+    private sealed class OrderedTestSolver(string id) : IPlanningSolver
+    {
+        private readonly DeterministicExhaustiveProofSolver _inner = new();
+        public SolverBackend Backend => _inner.Backend with { Id = id, Guarantees = new HashSet<SolverGuarantee> { SolverGuarantee.FeasibleProof, SolverGuarantee.BoundedHeuristic } };
+        public string SolverId => id;
+        public SolverGuarantee Guarantee => _inner.Guarantee;
+        public SchedulingProposal Solve(CompiledPlanningProblem problem, int deterministicWorkBudget) => _inner.Solve(problem, deterministicWorkBudget);
     }
 
     [Theory(DisplayName = "scheduling-ck-26: both backend budget boundaries are admitted")]

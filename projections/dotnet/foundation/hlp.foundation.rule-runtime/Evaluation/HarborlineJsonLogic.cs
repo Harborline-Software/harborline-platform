@@ -22,7 +22,8 @@ namespace Harborline.Foundation.RuleEngine.Evaluation;
 /// <c>==</c>/<c>!=</c>/<c>===</c>/<c>!==</c>/<c>!</c>/<c>!!</c>/<c>and</c>/<c>or</c>/<c>if</c>;
 /// compare <c>&gt;</c>/<c>&gt;=</c>/<c>&lt;</c>/<c>&lt;=</c>; arithmetic
 /// <c>+</c>/<c>-</c>/<c>*</c>/<c>/</c>/<c>%</c>/<c>min</c>/<c>max</c>; membership
-/// <c>in</c>/<c>cat</c>; earlier source <c>agg</c>/<c>money.add</c>/<c>money.sub</c>/<c>money.mul</c>/
+/// <c>in</c>/<c>cat</c>/<c>startsWith</c>/<c>endsWith</c>; collection predicates
+/// <c>some</c>/<c>all</c>/<c>none</c>; earlier source <c>agg</c>/<c>money.add</c>/<c>money.sub</c>/<c>money.mul</c>/
 /// <c>date.add</c>/<c>date.diff</c>/<c>date.today</c>/<c>coding.is</c>.</para>
 /// <para><b>Deliberately excluded (v1):</b> any regex/pattern operator (ReDoS
 /// structurally absent — Decision DG); <c>map</c>/<c>filter</c>/<c>reduce</c>/<c>merge</c>
@@ -74,7 +75,7 @@ internal static class HarborlineJsonLogic
     internal static JsonNode? EvalVar(List<JsonNode?> args, EvalContext ctx)
     {
         string path = AsString(args.Count > 0 ? Evaluate(args[0], ctx) : null) ?? "";
-        if (path.Length == 0) return null;
+        if (path.Length == 0 && ctx.Resolver is not ElementResolver) return null;
         var rv = ctx.Resolver.ResolveVar(path);
         return Unwrap(rv, args.Count > 1 ? Evaluate(args[1], ctx) : null);
     }
@@ -229,6 +230,37 @@ internal static class HarborlineJsonLogic
             return Bool(n is not null && hs.Contains(n, StringComparison.Ordinal));
         }
         return Bool(false);
+    }
+
+    internal static JsonNode EvalStringTest(List<JsonNode?> args, EvalContext ctx, bool prefix)
+    {
+        var text = Eval(args, 0, ctx);
+        var part = Eval(args, 1, ctx);
+        if (text?.GetValueKind() != JsonValueKind.String || part?.GetValueKind() != JsonValueKind.String)
+            throw new RuleEvalException(RuleError.Of(RuleEngineCodes.TypeError, "op", prefix ? "startsWith" : "endsWith"));
+        var value = text!.GetValue<string>();
+        var pattern = part!.GetValue<string>();
+        ctx.Budget.ChargeSize((long)value.Length + pattern.Length + 1);
+        return Bool(prefix ? value.StartsWith(pattern, StringComparison.Ordinal) : value.EndsWith(pattern, StringComparison.Ordinal));
+    }
+
+    internal static JsonNode EvalQuantifier(List<JsonNode?> args, EvalContext ctx, string op)
+    {
+        var values = Eval(args, 0, ctx) as JsonArray;
+        if (values is null)
+            throw new RuleEvalException(RuleError.Of(RuleEngineCodes.TypeError, "op", op));
+        foreach (var element in values)
+        {
+            ctx.Charge();
+            var local = new EvalContext(new ElementResolver(element, ctx.Budget), ctx.Now, ctx.Budget, ctx.Coding);
+            bool matched = IsTruthy(Evaluate(args[1], local));
+            if (op == "all")
+            {
+                if (!matched) return Bool(false);
+            }
+            else if (matched) return Bool(op == "some");
+        }
+        return Bool(op != "some");
     }
 
     internal static JsonNode EvalCat(List<JsonNode?> args, EvalContext ctx)

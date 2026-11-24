@@ -46,6 +46,8 @@ public static class ScheduleDefinitionCodes
     public const string WindowInvalid = "scheduling.definition.window_invalid";
     /// <summary>A generator is missing a member or breaks its own rules.</summary>
     public const string BasisInvalid = "scheduling.definition.basis_invalid";
+    /// <summary>The authored generator is outside the four declared generators.</summary>
+    public const string BasisUnsupported = "scheduling.definition.basis_unsupported";
     /// <summary>A duration is not a non-negative ISO 8601 duration.</summary>
     public const string DurationInvalid = "scheduling.definition.duration_invalid";
     /// <summary>The escalation does not name who it goes to.</summary>
@@ -87,7 +89,7 @@ public sealed class ScheduleDefinitionCatalogue
     private readonly IReadOnlyDictionary<string, IPlanningSolver> _backends;
 
     /// <summary>Binds the catalogue to the host's registered planning solvers.</summary>
-    public ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
+    internal ScheduleDefinitionCatalogue(IVersionedDefinitionStore store, IEnumerable<IPlanningSolver> backends)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _backends = (backends ?? throw new ArgumentNullException(nameof(backends)))
@@ -165,21 +167,19 @@ public sealed class ScheduleDefinitionCatalogue
     {
         if (definition.Solver is not { } solver) return;
         if (!_backends.TryGetValue(solver.BackendId, out var backend))
-            throw new DefinitionRefusalException(phase, [new("scheduling.definition.backend_unsupported", "/solver/backend_id")]);
-        try { backend.Backend.Validate(definition.ProblemClass, solver.Guarantee, solver.WorkBudget); }
-        catch (UnsupportedProfileException exception)
-        {
-            var reason = exception.Message.Split(':', 2)[0];
-            if (reason is not ("PROBLEM_CLASS_UNSUPPORTED" or "GUARANTEE_UNSUPPORTED" or "WORK_BUDGET_UNSUPPORTED")) throw;
-            var pointer = reason switch
-            {
-                "PROBLEM_CLASS_UNSUPPORTED" => "/solver",
-                "GUARANTEE_UNSUPPORTED" => "/solver/guarantee",
-                "WORK_BUDGET_UNSUPPORTED" => "/solver/work_budget",
-                _ => "/solver/work_budget",
-            };
-            throw new DefinitionRefusalException(phase, [new("scheduling.definition." + reason.ToLowerInvariant(), pointer)]);
-        }
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.backend_unsupported", "/solver/backend_id")
+            { Detail = new() { ["observed"] = solver.BackendId, ["required"] = JsonSerializer.SerializeToNode(_backends.Keys.Order(StringComparer.Ordinal)) } }]);
+        var declaration = backend.Backend;
+        if (!declaration.ProblemClasses.Contains(definition.ProblemClass))
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.problem_class_unsupported", "/solver")
+            { Detail = new() { ["observed"] = definition.ProblemClass.ToString(), ["required"] = JsonSerializer.SerializeToNode(declaration.ProblemClasses.Select(value => value.ToString()).Order(StringComparer.Ordinal)) } }]);
+        if (!declaration.Guarantees.Contains(solver.Guarantee))
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.guarantee_unsupported", "/solver/guarantee")
+            { Detail = new() { ["observed"] = JsonNamingPolicy.SnakeCaseLower.ConvertName(solver.Guarantee.ToString()),
+                ["required"] = JsonSerializer.SerializeToNode(declaration.Guarantees.Select(value => JsonNamingPolicy.SnakeCaseLower.ConvertName(value.ToString())).Order(StringComparer.Ordinal)) } }]);
+        if (solver.WorkBudget < 0 || solver.WorkBudget > declaration.MaximumWorkBudget)
+            throw new DefinitionRefusalException(phase, [new("scheduling.definition.work_budget_unsupported", "/solver/work_budget")
+            { Detail = new() { ["observed"] = solver.WorkBudget, ["minimum"] = 0, ["maximum"] = declaration.MaximumWorkBudget } }]);
     }
 
     /// <summary>Copies a published version into a new draft (scheduling-ck-21); publishing it moves the head.</summary>
@@ -237,6 +237,17 @@ public sealed class ScheduleDefinitionCatalogue
         else if (body.ContainsKey("solver") && body["solver"] is not null)
             refusals.Add(new("scheduling.definition.solver_invalid", "/solver"));
         if (refusals.Count > 0) return refusals;
+        if (body["basis"] is JsonObject basis && basis["kind"] is JsonValue kind
+            && kind.TryGetValue<string>(out var generator)
+            && generator is not ("completion_offset" or "event_anchored_chain" or "fixed_calendar" or "threshold"))
+            return [new(ScheduleDefinitionCodes.BasisUnsupported, "/basis/kind")
+            {
+                Detail = new()
+                {
+                    ["observed"] = generator,
+                    ["required"] = new JsonArray("completion_offset", "event_anchored_chain", "fixed_calendar", "threshold"),
+                },
+            }];
         ScheduleDefinition definition;
         try
         {
@@ -249,16 +260,28 @@ public sealed class ScheduleDefinitionCatalogue
         return ScheduleDefinitionAdmission.Validate(definition, document, phase, PlatformPackageSeed.ContractWindow);
     }
 
-    // The store has already parsed the body; a duplicate member is the one shape JsonObject still refuses.
+    // JsonObject members are lazy: visit every nested object before validation reads any member.
     private static JsonObject? Parse(string json)
     {
         try
         {
             var body = JsonNode.Parse(json) as JsonObject;
-            _ = body?.Count;
+            Materialize(body);
             return body;
         }
         catch (ArgumentException) { return null; }
+
+        static void Materialize(JsonNode? node)
+        {
+            if (node is JsonObject obj)
+            {
+                foreach (var member in obj) Materialize(member.Value);
+            }
+            else if (node is JsonArray array)
+            {
+                foreach (var item in array) Materialize(item);
+            }
+        }
     }
 
     // L491's integer revision is refused wherever a body still carries it; a repeated semantic version must agree.

@@ -1,0 +1,876 @@
+{
+  "schemaVersion": 1,
+  "slice": "T-601/terminal-census-proof",
+  "producer": {
+    "commit": "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+    "tree": "f0e26aa3eeb0d0fe9029d03b3e236f1be53fad9b",
+    "sourcePin": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+    "note": "The new proof file was uncommitted during these runs; its exact bytes are bound by proofInputs. Compare source/test/fixture hashes to the final candidate before gate and delivery."
+  },
+  "controlRevision": "e65293f4c1e8a2b094ecd2ca65a3bd9ab8026cfe",
+  "proofInputs": {
+    "target": {
+      "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+    },
+    "test": {
+      "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+      "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+    },
+    "fixtures": []
+  },
+  "toolchain": {
+    "node": "v24.21.0",
+    "dotnet": "11.0.100",
+    "environment": {
+      "DOTNET_ROOT": "/usr/local/share/dotnet",
+      "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+      "MSBUILDDISABLENODEREUSE": "1"
+    },
+    "buildFlags": [
+      "-m:1",
+      "-nr:false"
+    ],
+    "noBuild": false
+  },
+  "oracleSources": [
+    "Control terminal-census-proof acceptance 1-2: (1,1,1,1,1,1)/6 and (2,1,3,0,4,5)/15, named fields and reversed inputs",
+    "DES-0023 data-exchange-eng-8, data-exchange-eng-9, data-exchange-run-2, data-exchange-run-3",
+    "ADR-0098 decision 14: partial completion is distinct from clean completion and unsafe halt",
+    "Pinned ExchangeRunClosure.ValidateOutcome contract: six known arms; null/999 refuse with literal run.outcome_unknown; status-only correction succeeds",
+    "T-724 rulings 35/121"
+  ],
+  "baseline": {
+    "command": [
+      "bash",
+      "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "mini-601-census",
+      "--workload",
+      "platform 570 census baseline",
+      "--candidate",
+      "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "-c",
+      "Release",
+      "--filter",
+      "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+      "-m:1",
+      "-nr:false",
+      "--logger",
+      "trx;LogFileName=baseline.trx",
+      "--results-directory",
+      "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/baseline-results"
+    ],
+    "exit": 0,
+    "counts": {
+      "total": 19,
+      "executed": 19,
+      "passed": 19,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/baseline.log",
+    "logSha256": "95056fa306e40bd1a07d3bd571b2bd90fba577a338fbb47c3fd09cf780b5d0fd",
+    "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/baseline-results/baseline.trx",
+    "trxSha256": "73827f5e8f36b05a39dcfbf779da9fa81041ff3e11fef11682425021cfa20b08",
+    "failures": []
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "before": "statuses.Count(status => status == ExchangeEffectStatus.Skipped)",
+      "after": "statuses.Count(status => status == ExchangeEffectStatus.Applied)",
+      "method": "Census_preserves_asymmetric_named_counts",
+      "assertion": "Assert.Equal(1, census.Skipped)",
+      "expectedFailures": 2,
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "span": {
+        "line": 24,
+        "column": 13
+      },
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+          "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+        },
+        "test": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+          "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+        },
+        "fixtures": []
+      },
+      "mutantSourceSha256": "4b9e32166368509189212f7747ba02cf8139469630c339b41383bcd01acc7685",
+      "mutant": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M1-mutant",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M1-mutant.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-mutant-results"
+        ],
+        "exit": 1,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 17,
+          "failed": 2,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-mutant.log",
+        "logSha256": "9a31986354813da053fea77e69d1a94564365c20954fe1c8b5f01c13c87c1c5b",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-mutant-results/M1-mutant.trx",
+        "trxSha256": "9ba036c47de9a743a4fb1f7310c7ebf467316e9b6cf830b5797e6bba29ad2ef8",
+        "failures": [
+          {
+            "testName": "data-exchange-eng-8 data-exchange-eng-9 data-exchange-run-2 data-exchange-run-3 census preserves distinct asymmetric counts(reverse: False)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Boolean reverse) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 61\n   at InvokeStub_ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          },
+          {
+            "testName": "data-exchange-eng-8 data-exchange-eng-9 data-exchange-run-2 data-exchange-run-3 census preserves distinct asymmetric counts(reverse: True)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: 1\nActual:   2",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Boolean reverse) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 61\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\n   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)"
+          }
+        ]
+      },
+      "restored": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M1-restored",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M1-restored.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-restored-results"
+        ],
+        "exit": 0,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 19,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-restored.log",
+        "logSha256": "e04a216c731cb755b161d29fab6c7adcc474178b6db25959a4e404e1fa1c6a88",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M1-restored-results/M1-restored.trx",
+        "trxSha256": "73ec8e986edbd2011155378f48d4a3b7ef738ebb84585f395674027fd80dddc6",
+        "failures": []
+      },
+      "restoredSourceSha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567",
+      "result": "killed-by-new-assertion"
+    },
+    {
+      "id": "M2",
+      "before": "statuses.Count(status => status == ExchangeEffectStatus.Failed)",
+      "after": "statuses.Count(status => status == ExchangeEffectStatus.Halted)",
+      "method": "Census_preserves_asymmetric_named_counts",
+      "assertion": "Assert.Equal(4, census.Failed)",
+      "expectedFailures": 2,
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "span": {
+        "line": 27,
+        "column": 13
+      },
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+          "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+        },
+        "test": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+          "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+        },
+        "fixtures": []
+      },
+      "mutantSourceSha256": "61f037d92363c1d3e518f12f1307570247d190fcef2bf4fc7ba5e6f3cb8be777",
+      "mutant": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M2-mutant",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M2-mutant.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-mutant-results"
+        ],
+        "exit": 1,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 17,
+          "failed": 2,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-mutant.log",
+        "logSha256": "1bc297fc9dd0cb66d94a5e181fd4db3da9aed3e45181cdf9832bf9bd3387e3a5",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-mutant-results/M2-mutant.trx",
+        "trxSha256": "330e87a14049ee6032accea139201f60ceebe2ad99b55906cc55857bf26feea6",
+        "failures": [
+          {
+            "testName": "data-exchange-eng-8 data-exchange-eng-9 data-exchange-run-2 data-exchange-run-3 census preserves distinct asymmetric counts(reverse: False)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: 4\nActual:   5",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Boolean reverse) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 64\n   at InvokeStub_ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          },
+          {
+            "testName": "data-exchange-eng-8 data-exchange-eng-9 data-exchange-run-2 data-exchange-run-3 census preserves distinct asymmetric counts(reverse: True)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: 4\nActual:   5",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_preserves_asymmetric_named_counts(Boolean reverse) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 64\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\n   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)"
+          }
+        ]
+      },
+      "restored": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M2-restored",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M2-restored.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-restored-results"
+        ],
+        "exit": 0,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 19,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-restored.log",
+        "logSha256": "f18d7eaf73847e88640d5d4bade3a8387b8dae318d5dd9fa402a2d8196499089",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M2-restored-results/M2-restored.trx",
+        "trxSha256": "91581b45c4b56846a212a5c1454ac7ceadc082333fc8639bdf9c8cef89fcfddb",
+        "failures": []
+      },
+      "restoredSourceSha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567",
+      "result": "killed-by-new-assertion"
+    },
+    {
+      "id": "M3",
+      "before": "census.Halted > 0",
+      "after": "census.Halted < 0",
+      "method": "Census_terminal_status_preserves_partial_completion_and_halt",
+      "assertion": "Assert.Equal(expected, ExchangeRunClosure.TerminalStatus(census)); expected Halted for (2,0,0,0,0,1) and (1,1,1,1,1,1)",
+      "expectedFailures": 2,
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "span": {
+        "line": 8,
+        "column": 12
+      },
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+          "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+        },
+        "test": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+          "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+        },
+        "fixtures": []
+      },
+      "mutantSourceSha256": "4eb8347b2481e37f14024e158f98b43dbcd5572666000294ddaecac501b353bd",
+      "mutant": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M3-mutant",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M3-mutant.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-mutant-results"
+        ],
+        "exit": 1,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 17,
+          "failed": 2,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-mutant.log",
+        "logSha256": "6143881418349cf14dac0a1ed11a4166bfb5a90835efbac8b03d29aa1eb84818",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-mutant-results/M3-mutant.trx",
+        "trxSha256": "d681fedd5afe59bbde80b9d1138c5b87124a508c741b0cc938be8a8d3953a0d4",
+        "failures": [
+          {
+            "testName": "data-exchange-eng-9 data-exchange-run-3 census distinguishes completion, partial completion and halt(applied: 2, skipped: 0, conflicted: 0, rejected: 0, failed: 0, halted: 1, expected: Halted)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: Halted\nActual:   CompletedWithRefusals",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Int32 applied, Int32 skipped, Int32 conflicted, Int32 rejected, Int32 failed, Int32 halted, ExchangeRunTerminalStatus expected) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 83\n   at InvokeStub_ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithManyArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          },
+          {
+            "testName": "data-exchange-eng-9 data-exchange-run-3 census distinguishes completion, partial completion and halt(applied: 1, skipped: 1, conflicted: 1, rejected: 1, failed: 1, halted: 1, expected: Halted)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: Halted\nActual:   CompletedWithRefusals",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Int32 applied, Int32 skipped, Int32 conflicted, Int32 rejected, Int32 failed, Int32 halted, ExchangeRunTerminalStatus expected) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 83\n   at InvokeStub_ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithManyArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          }
+        ]
+      },
+      "restored": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M3-restored",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M3-restored.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-restored-results"
+        ],
+        "exit": 0,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 19,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-restored.log",
+        "logSha256": "d154e64cbd158c3285e4eb51a20f5d5a3087c660f346da0fcca276c1e2f69428",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M3-restored-results/M3-restored.trx",
+        "trxSha256": "9549e861488e790871beb94f0f989eea35cc526f19d0a2129cbea2f3eaa69a81",
+        "failures": []
+      },
+      "restoredSourceSha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567",
+      "result": "killed-by-new-assertion"
+    },
+    {
+      "id": "M4",
+      "before": "census.Applied == census.Accounted",
+      "after": "census.Applied > 0",
+      "method": "Census_terminal_status_preserves_partial_completion_and_halt",
+      "assertion": "Assert.Equal(expected, ExchangeRunClosure.TerminalStatus(census)); expected CompletedWithRefusals for (2,0,0,1,0,0)",
+      "expectedFailures": 1,
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "span": {
+        "line": 9,
+        "column": 15
+      },
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+          "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+        },
+        "test": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+          "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+        },
+        "fixtures": []
+      },
+      "mutantSourceSha256": "6a5b0613703e6cdfd1e61e267c6eca302b0661cd2683c534a4f488c0b682dde2",
+      "mutant": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M4-mutant",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M4-mutant.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-mutant-results"
+        ],
+        "exit": 1,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 18,
+          "failed": 1,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-mutant.log",
+        "logSha256": "23b00a6da8f0ebf754c45124d7ed7c1c4bce08cec8dc9abdd772d48f1b7a6bd5",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-mutant-results/M4-mutant.trx",
+        "trxSha256": "fd0c5d9fa3eb5f620859661c203260fedc65892edd523f85a0dad789ffea2917",
+        "failures": [
+          {
+            "testName": "data-exchange-eng-9 data-exchange-run-3 census distinguishes completion, partial completion and halt(applied: 2, skipped: 0, conflicted: 0, rejected: 1, failed: 0, halted: 0, expected: CompletedWithRefusals)",
+            "evidence": "Assert.Equal() Failure: Values differ\nExpected: CompletedWithRefusals\nActual:   Completed",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Int32 applied, Int32 skipped, Int32 conflicted, Int32 rejected, Int32 failed, Int32 halted, ExchangeRunTerminalStatus expected) in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 83\n   at InvokeStub_ExchangeTerminalCensusProofTests.Census_terminal_status_preserves_partial_completion_and_halt(Object, Span`1)\n   at System.Reflection.MethodBaseInvoker.InvokeWithManyArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)"
+          }
+        ]
+      },
+      "restored": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M4-restored",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M4-restored.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-restored-results"
+        ],
+        "exit": 0,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 19,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-restored.log",
+        "logSha256": "4fcb442899a9186d24bce6f4a0b110c4944b221b79cb4fc6fe28b60b24dd90dc",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M4-restored-results/M4-restored.trx",
+        "trxSha256": "ad95c6f3d2aa72d9657919e667addf299370fbfe479f0db4119165c460a8a7a0",
+        "failures": []
+      },
+      "restoredSourceSha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567",
+      "result": "killed-by-new-assertion"
+    },
+    {
+      "id": "M5",
+      "before": "outcome is null || !Enum.IsDefined(outcome.Status)",
+      "after": "outcome is null",
+      "method": "Census_outcome_validation_refuses_unknown_numeric_status_until_corrected",
+      "assertion": "Assert.Throws<DataExchangeCommitRefusedException>; expected literal run.outcome_unknown for numeric status 999",
+      "expectedFailures": 1,
+      "file": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+      "span": {
+        "line": 14,
+        "column": 13
+      },
+      "proofInputs": {
+        "target": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange/ExchangeRunClosure.cs",
+          "sha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567"
+        },
+        "test": {
+          "path": "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs",
+          "sha256": "4f403248fddb3c9ac1634c6fcb9b053479e4bad4f02a25ffb678a56a62609b66"
+        },
+        "fixtures": []
+      },
+      "mutantSourceSha256": "d632b9d3ff0fa37e7a92c8908dabd64e16f6baeff805385f7f709828e5c4d319",
+      "mutant": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M5-mutant",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M5-mutant.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-mutant-results"
+        ],
+        "exit": 1,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 18,
+          "failed": 1,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-mutant.log",
+        "logSha256": "3c5c6d65bf1bf94711e809dd69766c9f8e4e734422360ba5fc84bdd63ebab88e",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-mutant-results/M5-mutant.trx",
+        "trxSha256": "d8c47bb6ba8160792bcd816660688b70e59887017efbfe006e8ea8524fb55c89",
+        "failures": [
+          {
+            "testName": "data-exchange-eng-8 data-exchange-run-2 census outcome validation refuses unknown numeric status until corrected",
+            "evidence": "Assert.Throws() Failure: No exception was thrown\nExpected: typeof(Harborline.Foundation.DataExchange.DataExchangeCommitRefusedException)",
+            "stack": "   at Harborline.Foundation.DataExchange.Tests.ExchangeTerminalCensusProofTests.Census_outcome_validation_refuses_unknown_numeric_status_until_corrected() in /Users/chris/.t3/worktrees/harborline-platform/slice-T-601-terminal-ce-37c93bd93fb91774/projections/dotnet/foundation/hlp.foundation.data-exchange.tests/ExchangeTerminalCensusProofTests.cs:line 114\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)"
+          }
+        ]
+      },
+      "restored": {
+        "command": [
+          "bash",
+          "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "mini-601-census",
+          "--workload",
+          "platform 570 census M5-restored",
+          "--candidate",
+          "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+          "-c",
+          "Release",
+          "--filter",
+          "FullyQualifiedName~ExchangeTerminalCensusProofTests",
+          "-m:1",
+          "-nr:false",
+          "--logger",
+          "trx;LogFileName=M5-restored.trx",
+          "--results-directory",
+          "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-restored-results"
+        ],
+        "exit": 0,
+        "counts": {
+          "total": 19,
+          "executed": 19,
+          "passed": 19,
+          "failed": 0,
+          "error": 0,
+          "timeout": 0,
+          "aborted": 0,
+          "inconclusive": 0,
+          "passedButRunAborted": 0,
+          "notRunnable": 0,
+          "notExecuted": 0,
+          "disconnected": 0,
+          "warning": 0,
+          "completed": 0,
+          "inProgress": 0,
+          "pending": 0
+        },
+        "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-restored.log",
+        "logSha256": "83be681960ebe76137c8db920c3c6661a1cf0846aa9cecfc34af616f142333a0",
+        "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/M5-restored-results/M5-restored.trx",
+        "trxSha256": "bd756b128d6b7d11ed09e35038199df8b9f9905daf5a09ca5ad47ca10ce73491",
+        "failures": []
+      },
+      "restoredSourceSha256": "aa1b46465a8f919f77857be1b2064f261cf34877a8d271959333619f31da3567",
+      "result": "killed-by-new-assertion"
+    }
+  ],
+  "suite": {
+    "command": [
+      "bash",
+      "/Users/chris/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "mini-601-census",
+      "--workload",
+      "platform 570 complete Data Exchange suite",
+      "--candidate",
+      "11bdb607c7ef665dfbe6c00883c8060f453d5892",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/foundation/hlp.foundation.data-exchange.tests/Harborline.Foundation.DataExchange.Tests.csproj",
+      "-c",
+      "Release",
+      "-m:1",
+      "-nr:false",
+      "--logger",
+      "trx;LogFileName=suite.trx",
+      "--results-directory",
+      "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/suite-results"
+    ],
+    "exit": 0,
+    "counts": {
+      "total": 153,
+      "executed": 153,
+      "passed": 153,
+      "failed": 0,
+      "error": 0,
+      "timeout": 0,
+      "aborted": 0,
+      "inconclusive": 0,
+      "passedButRunAborted": 0,
+      "notRunnable": 0,
+      "notExecuted": 0,
+      "disconnected": 0,
+      "warning": 0,
+      "completed": 0,
+      "inProgress": 0,
+      "pending": 0
+    },
+    "log": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/suite.log",
+    "logSha256": "cd79aa7215afb6fe624f1bd51ed6c0ea1c1fb8d74f71c3f305b336ceaffbee21",
+    "trx": "/var/folders/w0/pxv_fls90fz9ppn1jmn5nd380000gn/T/harborline/t601-census/suite-results/suite.trx",
+    "trxSha256": "85c9e21ac8e4becd61c416f3671ea0569dad5753de6546bdd00fdadfb6859824"
+  },
+  "summary": {
+    "baseline": {
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    "mutantsKilled": 5,
+    "mutantsSurvived": 0,
+    "mutantAssertionFailures": 8,
+    "restoredRuns": 5,
+    "restoredTestsPassed": 95,
+    "suite": {
+      "passed": 153,
+      "failed": 0,
+      "skipped": 0
+    },
+    "productionRestoredByteForByte": true
+  }
+}

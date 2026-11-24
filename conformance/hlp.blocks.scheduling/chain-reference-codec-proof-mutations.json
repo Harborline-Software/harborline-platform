@@ -1,0 +1,346 @@
+{
+  "slice": "T-491/chain-reference-codec-proof",
+  "producerSha": "12548511112c3991020146918abc3c7546bd88d3",
+  "producerTree": "f0e26aa3eeb0d0fe9029d03b3e236f1be53fad9b",
+  "proofInputs": {
+    "target": {
+      "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+      "sha256": "8e26ab0f4b8bfef8a8744144da253ad1dfc59afb82e1a3db5562aef2e911c297"
+    },
+    "test": {
+      "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs",
+      "sha256": "d8bb2af715467bf96719d60507817e3210496c6c67388ab60a28fd93fe5e5a0b"
+    },
+    "fixtures": []
+  },
+  "toolchain": {
+    "dotnet": "11.0.100",
+    "node": "v24.22.2"
+  },
+  "command": "#!/bin/bash\nset -eu\nunset HARBORLINE_TESTED_TREE HARBORLINE_BASE_HEAD\nexport DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1\nlabel=$1\ncandidate=$(git rev-parse HEAD)\nbash \"$HOME/Projects/Harborline/harborline-control/tools/ci/host-lane.sh\" run --holder writer --session mb-491-codec --workload \"T-491 chain codec $label\" --candidate \"$candidate\" -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleChainReferenceCodecProofTests -m:1 -nr:false > \"${TMPDIR%/}/harborline/t491-codec/$label.log\" 2>&1\n",
+  "baseline": {
+    "label": "baseline",
+    "exit": 0,
+    "failed": 0,
+    "passed": 11,
+    "skipped": 0,
+    "total": 11,
+    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/baseline.log",
+    "logSha256": "196cb2eb8d71462a7d122032a0fdfa71e2f7e7c5471d3bb819ec2c481771e5f6"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+      "span": {
+        "startLine": 29,
+        "startColumn": 192,
+        "endLine": 29,
+        "endColumn": 204,
+        "endExclusive": true
+      },
+      "before": "or (byte)'~'",
+      "after": "or (byte)'~' or (byte)'/'",
+      "mutantSourceSha256": "2bc985b2d0fb86e5eb24bea581785ead91f4fd0a5b481db6778b5613abd5dea8",
+      "detectingTest": "EscapeMatchesIndependentLiteral",
+      "assertion": "Assert.Equal(\"%2F\", Escape(\"/\")) via InlineData",
+      "killInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+          "sha256": "8e26ab0f4b8bfef8a8744144da253ad1dfc59afb82e1a3db5562aef2e911c297"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs",
+          "sha256": "d8bb2af715467bf96719d60507817e3210496c6c67388ab60a28fd93fe5e5a0b"
+        },
+        "fixtures": []
+      },
+      "mutant": {
+        "label": "M1",
+        "exit": 1,
+        "failed": 5,
+        "passed": 6,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M1.log",
+        "logSha256": "b1e286fc23ccc831b6d97c6987e0653ff7e1dcf7d10d6da9717b2ee67287d08c"
+      },
+      "restored": {
+        "label": "M1-restored",
+        "exit": 0,
+        "failed": 0,
+        "passed": 11,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M1-restored.log",
+        "logSha256": "8930697fca980702a592e72664fd9afa46f7f35ef1091f50be2bfc5e5f45b267"
+      },
+      "failureEvidence": [
+        "[xUnit.net 00:00:00.41]     scheduling-run-2 / scheduling-eng-5: opaque-reference components use uppercase UTF-8 percent escapes(input: \"/\", expected: \"%2F\") [FAIL]",
+        "[xUnit.net 00:00:00.41]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: 0) [FAIL]",
+        "[xUnit.net 00:00:00.41]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: -1) [FAIL]",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(String input, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 29",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(Object, Span`1)",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 66",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 66",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Object, Span`1)",
+        "[xUnit.net 00:00:00.43]     scheduling-run-2 / scheduling-eng-5: opaque-reference component boundaries and positive revisions remain distinct [FAIL]",
+        "[xUnit.net 00:00:00.43]     scheduling-run-2 / scheduling-eng-5: opaque-reference producer and identity preserve escaped coordinates and revision [FAIL]",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.CompleteLiteralsKeepBoundariesAndRevisionsDistinct() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 38",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EncodeAndIdentityToStringMatchFrozenLiteral() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 17"
+      ]
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+      "span": {
+        "startLine": 32,
+        "startColumn": 54,
+        "endLine": 32,
+        "endColumn": 68,
+        "endExclusive": true
+      },
+      "before": "ToString(\"X2\",",
+      "after": "ToString(\"x2\",",
+      "mutantSourceSha256": "476ad207d29e28bcbe671cfded2f675eaa96e22399ed37a9a025bf72934aeebc",
+      "detectingTest": "EscapeMatchesIndependentLiteral",
+      "assertion": "uppercase literal %2F / %2B / %C3%A9 equality",
+      "killInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+          "sha256": "8e26ab0f4b8bfef8a8744144da253ad1dfc59afb82e1a3db5562aef2e911c297"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs",
+          "sha256": "d8bb2af715467bf96719d60507817e3210496c6c67388ab60a28fd93fe5e5a0b"
+        },
+        "fixtures": []
+      },
+      "mutant": {
+        "label": "M2",
+        "exit": 1,
+        "failed": 7,
+        "passed": 4,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M2.log",
+        "logSha256": "0181109adfdc16b88ac287af203bbbc8981460612a67b3b0080a03be759ec474"
+      },
+      "restored": {
+        "label": "M2-restored",
+        "exit": 0,
+        "failed": 0,
+        "passed": 11,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M2-restored.log",
+        "logSha256": "8a8135e35f945d0c93c38ef3088abcbc4d87cc18bcb9062743c30f7e2a137883"
+      },
+      "failureEvidence": [
+        "[xUnit.net 00:00:00.68]     scheduling-run-2 / scheduling-eng-5: opaque-reference components use uppercase UTF-8 percent escapes(input: \"/\", expected: \"%2F\") [FAIL]",
+        "[xUnit.net 00:00:00.69]     scheduling-run-2 / scheduling-eng-5: opaque-reference components use uppercase UTF-8 percent escapes(input: \"\u00e9\", expected: \"%C3%A9\") [FAIL]",
+        "[xUnit.net 00:00:00.69]     scheduling-run-2 / scheduling-eng-5: opaque-reference components use uppercase UTF-8 percent escapes(input: \"+\", expected: \"%2B\") [FAIL]",
+        "[xUnit.net 00:00:00.69]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: 0) [FAIL]",
+        "[xUnit.net 00:00:00.69]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: -1) [FAIL]",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(String input, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 29",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(Object, Span`1)",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(String input, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 29",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(Object, Span`1)",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(String input, String expected) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 29",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.EscapeMatchesIndependentLiteral(Object, Span`1)",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 66",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 66",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Object, Span`1)",
+        "[xUnit.net 00:00:00.71]     scheduling-run-2 / scheduling-eng-5: opaque-reference component boundaries and positive revisions remain distinct [FAIL]",
+        "[xUnit.net 00:00:00.72]     scheduling-run-2 / scheduling-eng-5: opaque-reference producer and identity preserve escaped coordinates and revision [FAIL]",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.CompleteLiteralsKeepBoundariesAndRevisionsDistinct() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 38",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EncodeAndIdentityToStringMatchFrozenLiteral() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 17"
+      ]
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+      "span": {
+        "startLine": 15,
+        "startColumn": 156,
+        "endLine": 15,
+        "endColumn": 181,
+        "endExclusive": true
+      },
+      "before": "/r{id.OccurrenceRevision}",
+      "after": "/r{1}",
+      "mutantSourceSha256": "ca725dd188756d59cd406f84308e2ec3bd9b73cc85b348e33a5a59ff177ff8f6",
+      "detectingTest": "EncodeAndIdentityToStringMatchFrozenLiteral",
+      "assertion": "Assert.Equal(expected, RelativeChainReferenceCodec.Encode(Id())) with literal r2",
+      "killInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+          "sha256": "8e26ab0f4b8bfef8a8744144da253ad1dfc59afb82e1a3db5562aef2e911c297"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs",
+          "sha256": "d8bb2af715467bf96719d60507817e3210496c6c67388ab60a28fd93fe5e5a0b"
+        },
+        "fixtures": []
+      },
+      "mutant": {
+        "label": "M3",
+        "exit": 1,
+        "failed": 2,
+        "passed": 9,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M3.log",
+        "logSha256": "fa0626bd929910c377cf0e09efd0f1f29e0a71aacf99a1c9c62c8aa28a0449c4"
+      },
+      "restored": {
+        "label": "M3-restored",
+        "exit": 0,
+        "failed": 0,
+        "passed": 11,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M3-restored.log",
+        "logSha256": "5c29cc65c8ad53ca78aad15e48b0556968d19c18b17a5ae1f561ea1af73dc23e"
+      },
+      "failureEvidence": [
+        "[xUnit.net 00:00:00.41]     scheduling-run-2 / scheduling-eng-5: opaque-reference component boundaries and positive revisions remain distinct [FAIL]",
+        "[xUnit.net 00:00:00.41]     scheduling-run-2 / scheduling-eng-5: opaque-reference producer and identity preserve escaped coordinates and revision [FAIL]",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.CompleteLiteralsKeepBoundariesAndRevisionsDistinct() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 40",
+        "Assert.Equal() Failure: Strings differ",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.EncodeAndIdentityToStringMatchFrozenLiteral() in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 17"
+      ]
+    },
+    {
+      "id": "M4",
+      "file": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+      "span": {
+        "startLine": 14,
+        "startColumn": 1,
+        "endLine": 15,
+        "endColumn": 1,
+        "endExclusive": true
+      },
+      "before": "        if (id.OccurrenceRevision is < 1) throw new ArgumentOutOfRangeException(nameof(id));\n",
+      "after": "",
+      "mutantSourceSha256": "9204ebaa2413ab6f2f2e1c44a197fc2055b9e3d7b652bbb4772d35ce5211ca7f",
+      "detectingTest": "NonPositiveRevisionRefusesAndCorrectionSucceeds",
+      "assertion": "Assert.Throws<ArgumentOutOfRangeException>(() => RelativeChainReferenceCodec.Encode(invalid))",
+      "killInputs": {
+        "target": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling/Occurrences/Chains/RelativeChainReferenceCodec.cs",
+          "sha256": "8e26ab0f4b8bfef8a8744144da253ad1dfc59afb82e1a3db5562aef2e911c297"
+        },
+        "test": {
+          "path": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs",
+          "sha256": "d8bb2af715467bf96719d60507817e3210496c6c67388ab60a28fd93fe5e5a0b"
+        },
+        "fixtures": []
+      },
+      "mutant": {
+        "label": "M4",
+        "exit": 1,
+        "failed": 2,
+        "passed": 9,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M4.log",
+        "logSha256": "eb3478d54518b5bd053997477eac37ea737f9ec6a896f543b75ffd8399732830"
+      },
+      "restored": {
+        "label": "M4-restored",
+        "exit": 0,
+        "failed": 0,
+        "passed": 11,
+        "skipped": 0,
+        "total": 11,
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/M4-restored.log",
+        "logSha256": "7095140c1826ff8b035e41efd99ac313191875343b12948d70b168e91f15ca4f"
+      },
+      "failureEvidence": [
+        "[xUnit.net 00:00:00.42]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: 0) [FAIL]",
+        "[xUnit.net 00:00:00.43]     scheduling-run-2 / scheduling-eng-5: opaque-reference non-positive revisions refuse and corrected revision one succeeds(revision: -1) [FAIL]",
+        "Assert.Throws() Failure: No exception was thrown",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 63",
+        "Assert.Throws() Failure: No exception was thrown",
+        "at Harborline.Blocks.Scheduling.Tests.ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Int32 revision) in /Users/christopherwood/.t3/worktrees/harborline-platform/slice-T-491-chain-refer-2bbad9604ab23a73/projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs:line 63",
+        "at InvokeStub_ScheduleChainReferenceCodecProofTests.NonPositiveRevisionRefusesAndCorrectionSucceeds(Object, Span`1)"
+      ]
+    }
+  ],
+  "fullPlatformGate": {
+    "state": "pending",
+    "host": "Mac mini",
+    "requirement": "exact final committed candidate/tree; recompare proofInputs before gate"
+  },
+  "oracleSources": [
+    "frozen specs/modules/blocks/hlp.blocks.scheduling/interface.yaml canonicalReferences occurrenceFormat, escaping and limits",
+    "Control chain-reference-codec-proof acceptance 1\u20132; ADR-0117 decision 5; DES-0022 scheduling-eng-5/run-2; T-724 ruling 121"
+  ],
+  "controlRecord": {
+    "path": "tickets/T-491-scheduling-authored-and-bound-in-the-domain-builder/slices/chain-reference-codec-proof.md",
+    "revision": "e65293f4c1e8a2b094ecd2ca65a3bd9ab8026cfe"
+  },
+  "deliveryProofInputComparison": {
+    "sourceMatchesAllKills": true,
+    "testMatchesAllKills": true,
+    "fixtureInputs": [],
+    "note": "Rechecked after final restoration before commit. Final commit is named in the PR; compare these bytes again on Mac mini before full gate. No rebase performed."
+  },
+  "acceptance": {
+    "1": "focused pass: literal Encode and identity ToString",
+    "2": "focused pass: escaping, boundaries, revisions and refusals",
+    "3": "4 compiling mutants killed by new assertions",
+    "4": "baseline 11/11; each restoration 11/11; 0 skips; byte-identical source restored",
+    "5": "focused MacBook evidence complete; acceptance OPEN pending exact-candidate Mac mini full platform gate",
+    "6": "passed: staged paths included; ownership scan clear for new paths; changed-from check 0 records/0 stale, Scheduling owner check 1 record/0 stale; no rebase or refresh"
+  },
+  "totals": {
+    "runs": 9,
+    "selected": 99,
+    "passed": 83,
+    "expectedMutantFailures": 16,
+    "skipped": 0,
+    "killed": 4,
+    "survived": 0,
+    "compileFailures": 0
+  },
+  "machine": "MacBook",
+  "provenance": {
+    "nodeVersion": "v24.22.2",
+    "changedPaths": [
+      "conformance/hlp.blocks.scheduling/chain-reference-codec-proof-mutations.json",
+      "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleChainReferenceCodecProofTests.cs"
+    ],
+    "checks": [
+      {
+        "command": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+        "exit": 0,
+        "summary": "0 record(s) read, 0 stale hash(es)",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/provenance.log",
+        "logSha256": "b70b36c66ff37aff4627d7eb432099767d51e572751a2aaa63661c326f4e2bac"
+      },
+      {
+        "command": "node tooling/refresh-provenance-hashes.mjs --module hlp.blocks.scheduling --check",
+        "exit": 0,
+        "summary": "1 record(s) read, 0 stale hash(es)",
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t491-codec/scheduling-provenance.log",
+        "logSha256": "0e66ede8b84d90db50e575c585c628dae1cc84679421ab84f8f194fff2fba0d4"
+      }
+    ],
+    "refresh": "None: new paths have no contentHashes owner; temporary codec target restored byte-for-byte."
+  }
+}

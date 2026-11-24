@@ -11,7 +11,7 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class LayoutRuntimeTests : BunitContext
 {
-    [Fact]
+    [Fact(DisplayName = "layout-bound-4: screen flow keeps order, static regions and version provenance")]
     public void ScreenFlowKeepsOrderStaticRegionsAndVersionProvenance()
     {
         var plan = new LayoutRuntimePlan("invoice", "version-7", "screen", [new("title", "layout.text", 0), new("table", "layout.table", 1)], [new("header", "layout.text", 0, "header.center")]);
@@ -22,7 +22,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Contains("version-7", cut.Markup);
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-runtime-eng-8: persisted invalid values render diagnostics without normalization")]
     public void PersistedInvalidValueRendersDiagnosticWithoutClamp()
     {
         var plan = new LayoutRuntimePlan("invoice", "version-7", "page", [], [], [new("layout.numeric.out_of_range", "/blocks/0/placement/span")]);
@@ -88,7 +88,8 @@ public sealed class LayoutRuntimeTests : BunitContext
     private static LayoutRuntimePlan DenyAll()
         => JsonSerializer.Deserialize<LayoutRuntimePlan>(File.ReadAllText(Path.Combine(RepositoryRoot(), "_shared", "layout", "deny-all-authority.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-32: closed grammar has no reading-order or numeric control")]
+    [Trait("Holds", "layout-eng-23")]
     public void EditorOffersTheClosedLayoutGrammarWithoutAReadingOrderOrNumericControl()
     {
         LayoutAuthoringDraft? changed = null;
@@ -106,6 +107,201 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Empty(cut.FindAll("input[type=number]"));
         cut.FindAll("button").Single(button => button.TextContent == "Add block").Click();
         Assert.Equal("layout.table", changed!.Blocks.Last().Kind);
+    }
+
+    // Oracles: DES-0052 authoring rows, layout-ck-9/11/13/14; literal slice choices.
+    private static LayoutAuthoringDraft AuthoringRowDraft() => new(
+        "Draft", "screen", "sm", [new("table", "layout.table", Intent: "observe", Width: "hug", AlignSelf: "start")],
+        DefaultIntent: "observe", ContainerFlow: "stack", Gap: 1, Density: "comfortable",
+        PageRuns: [new("run-1", "letter", "letter-master")]);
+
+    private static LayoutAuthoringCatalogue AuthoringRowCatalogue() => new(
+        [new("layout.table", "Table")], ["header.center"],
+        [new("letter", "Letter"), new("a4", "A4")],
+        [new("letter-master", "Letter master"), new("a4-master", "A4 master")]);
+
+    [Fact(DisplayName = "layout-auth-1: names the surface and declares page medium")]
+    public void AuthoringRowNameAndMedium()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Layout name']").Change("Invoice");
+        expected = expected with { Name = "Invoice" };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, changed!));
+        cut.Find("[aria-label='Layout medium']").Change("page");
+        expected = expected with { Medium = "page" };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-2: writes surface default intent")]
+    public void AuthoringRowDefaultIntent()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Default intent']").Change("capture");
+        expected = expected with { DefaultIntent = "capture" };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-4: overrides block intent without changing the surface default")]
+    public void AuthoringRowBlockIntent()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Block 1 intent']").Change("capture");
+        expected = expected with { Blocks = [expected.Blocks[0] with { Intent = "capture" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-5: writes areas from the closed flow vocabulary")]
+    public void AuthoringRowContainerFlow()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        Assert.Equal(["stack", "flow", "areas"], cut.Find("[aria-label='Container flow']").QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        cut.Find("[aria-label='Container flow']").Change("areas");
+        expected = expected with { ContainerFlow = "areas" };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-6: selects a catalogue zone and clears it with No zone")]
+    public void AuthoringRowBlockZone()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Block 1 zone']").Change("header.center");
+        expected = expected with { Blocks = [expected.Blocks[0] with { Zone = "header.center" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, changed!));
+        cut.Find("[aria-label='Block 1 zone']").Change("");
+        expected = expected with { Blocks = [expected.Blocks[0] with { Zone = null }] };
+        Assert.Equivalent(expected, changed, strict: true);
+        Assert.Null(changed!.Blocks[0].Zone);
+    }
+
+    [Fact(DisplayName = "layout-auth-7: writes end from the closed alignment vocabulary")]
+    public void AuthoringRowBlockAlignment()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        Assert.Equal(["start", "center", "end", "stretch"], cut.Find("[aria-label='Block 1 alignment']").QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        cut.Find("[aria-label='Block 1 alignment']").Change("end");
+        expected = expected with { Blocks = [expected.Blocks[0] with { AlignSelf = "end" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-8: writes container gap four")]
+    public void AuthoringRowContainerGap()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Container gap']").Change("4");
+        expected = expected with { Gap = 4 };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-9: writes fixed sizing without a numeric control")]
+    public void AuthoringRowBlockWidth()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        Assert.Equal(["hug", "fill", "fixed"], cut.Find("[aria-label='Block 1 width']").QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        Assert.Empty(cut.FindAll("input[type=number]"));
+        cut.Find("[aria-label='Block 1 width']").Change("fixed");
+        expected = expected with { Blocks = [expected.Blocks[0] with { Width = "fixed" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-10: writes md collapse and compact density separately")]
+    public void AuthoringRowCollapseAndDensity()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        Assert.Equal(["", "sm", "md", "lg"], cut.Find("[aria-label='Collapse below']").QuerySelectorAll("option").Select(option => option.GetAttribute("value")));
+        Assert.Equal("No collapse", cut.Find("[aria-label='Collapse below'] option").TextContent);
+        cut.Find("[aria-label='Collapse below']").Change("md");
+        expected = expected with { CollapseBelow = "md" };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, changed!));
+        cut.Find("[aria-label='Container density']").Change("compact");
+        expected = expected with { Density = "compact" };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-11: keeps a row whole and starts a new sheet")]
+    public void AuthoringRowBlockPageBreaks()
+    {
+        var initial = AuthoringRowDraft();
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Block 1 avoid page break']").Change(true);
+        expected = expected with { Blocks = [expected.Blocks[0] with { AvoidPageBreak = true }] };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, changed!));
+        cut.Find("[aria-label='Block 1 break before']").Change(true);
+        expected = expected with { Blocks = [expected.Blocks[0] with { BreakBefore = true }] };
+        Assert.Equivalent(expected, changed, strict: true);
+    }
+
+    [Fact(DisplayName = "layout-auth-12: writes a second catalogue layout and master only in page medium")]
+    public void AuthoringRowPageRunReferences()
+    {
+        var initial = AuthoringRowDraft();
+        initial = initial with { Medium = "page" };
+        LayoutAuthoringDraft? changed = null;
+        var cut = Render<HarborlineLayoutAuthoringEditor>(parameters => parameters
+            .Add(x => x.Value, initial).Add(x => x.Catalogue, AuthoringRowCatalogue())
+            .Add(x => x.ValueChanged, value => changed = value));
+        var expected = initial;
+        cut.Find("[aria-label='Page run 1 layout']").Change("a4");
+        expected = expected with { PageRuns = [expected.PageRuns![0] with { PageLayoutId = "a4" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, changed!));
+        cut.Find("[aria-label='Page run 1 master']").Change("a4-master");
+        expected = expected with { PageRuns = [expected.PageRuns![0] with { PageMasterId = "a4-master" }] };
+        Assert.Equivalent(expected, changed, strict: true);
+        cut.Render(parameters => parameters.Add(x => x.Value, expected with { Medium = "screen" }));
+        Assert.Empty(cut.FindAll("[aria-label='Page run 1 layout'], [aria-label='Page run 1 master']"));
     }
 
     [Fact(DisplayName = "layout-auth-13..16: the editor binds a block to any of the five kinds and names it from the catalogue")]
@@ -141,7 +337,7 @@ public sealed class LayoutRuntimeTests : BunitContext
         Assert.Single(cut.FindAll("[aria-label='Block 1 binding kind']"));
     }
 
-    [Fact]
+    [Fact(DisplayName = "layout-auth-17: static content is authored on the block")]
     public void EditorAuthorsStaticContentOnTheBlockRatherThanLookingItUp()
     {
         LayoutAuthoringDraft? changed = null;

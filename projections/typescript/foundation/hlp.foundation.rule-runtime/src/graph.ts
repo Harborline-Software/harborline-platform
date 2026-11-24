@@ -4,7 +4,7 @@
  * cells with Error/Pending propagation, and reactively re-evaluates the transitive
  * dependents on a single-cell change or a child-table row add/remove.
  */
-import { admissionRefusal, type EvaluationAdmission } from './environment.js'
+import { admissionRefusal, fenceResolver, type EvaluationAdmission } from './environment.js'
 import { CodingSubsumptionSnapshot, requireCodingSnapshot } from './coding-subsumption.js'
 import { Codes } from './codes.js'
 import { cell } from './model.js'
@@ -292,7 +292,7 @@ export class FormRuleGraph {
   constructor(
     compiled: CompiledGraph,
     private readonly clock: () => Date,
-    admission: EvaluationAdmission | null,
+    private readonly admission: EvaluationAdmission | null,
     limits: RuleEngineLimits = DEFAULT_LIMITS,
     coding?: CodingSubsumptionSnapshot,
   ) {
@@ -682,7 +682,7 @@ export class FormRuleGraph {
       scope.rowSection,
       scope.rowId,
     )
-    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget, coding: this.#coding }
+    const ctx: EvalContext = { resolver: fenceResolver(this.admission!, resolver), now: this.evaluationInstant!, budget, coding: this.#coding }
     try {
       return { state: 'Resolved', value: evaluate(c.rule!.ast as Json, ctx) }
     } catch (e) {
@@ -706,7 +706,7 @@ export class FormRuleGraph {
       scope.rowSection,
       scope.rowId,
     )
-    const ctx: EvalContext = { resolver, now: this.evaluationInstant!, budget, coding: this.#coding }
+    const ctx: EvalContext = { resolver: fenceResolver(this.admission!, resolver), now: this.evaluationInstant!, budget, coding: this.#coding }
     const previousRule = demand.inFlightRule
     demand.inFlightRule = plan.rule.source.id
     const outcome = buildOutcome(plan.rule, plan.target, ctx).outcome

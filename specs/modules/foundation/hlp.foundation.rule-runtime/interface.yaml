@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.rule-runtime",
-  "interfaceRevision": 6,
+  "interfaceRevision": 7,
   "status": "frozen",
   "purpose": "Evaluate the closed harborline-jsonlogic/v1 language deterministically for Dynamic Forms, Calculations, and workflow guards through reactive TypeScript and authoritative .NET integrity tiers.",
   "dependencies": [{"moduleId": "hlp.contracts.rules", "minimumRevision": 1}, {"moduleId": "hlp.contracts.text", "minimumRevision": 1}, {"moduleId": "hlp.contracts.presentation", "minimumRevision": 1}],
@@ -19,7 +19,7 @@
       "wallClockAuthority": "authoritative infrastructure timeout; never a rule verdict"
     }
   },
-  "operatorSet": ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
+  "operatorSet": ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "startsWith", "endsWith", "some", "all", "none", "agg", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
   "limits": {
     "maxGraphNodes": 5000,
     "maxTableRowsPerAggregate": 2000,
@@ -32,6 +32,7 @@
     "wallClockMilliseconds": 250
   },
   "invariants": [
+    "Revision 7 (T-1194, ADR-0153): some, all and none evaluate predicates with each array element as local data, with Enumerable.Any/All and !Any semantics (empty false/true/true; non-arrays, including null, fail with rule.type_error). startsWith and endsWith take two strings with StringComparison.Ordinal semantics; non-strings fail with rule.type_error. Quantifier predicates retain operation admission, have no outer variable or aggregate access, and have finite multiplicative work bounds. Only views-ck-14 gains these operations; other borrower declarations stay pinned. map, filter, reduce and merge remain compile refusals.",
     "Revision 6 (T-616/prevalidation-mutation, ADR 0124 decision 1): RecordDerivedFields.Derive(bound, calculations, closure, instant, limits?, cancellationToken) fills each RecordFieldCalculation(FieldKey, ExactPin) of a Records write with NamedReferences.Compute through the closure, under the records-auth-12 environment (RecordWriteRules.Declaration, Submission phase), and returns RecordDerivation(Candidate, Refusal). The bound object is not changed; a supplied derived value is replaced. A calculation may read only top-level record fields; one that reads another derived field runs after it. It fails closed with RecordDerivedFieldRefusal codes records.mutate.calculation_unresolved (no closure, absent pin, digest mismatch), records.mutate.calculation_unreadable (a non-field reference, a self-read or a cycle) and records.mutate.calculation_failed (a value that does not resolve).",
     "Revision 4 relocates nominal CLR rule, text, presentation and serialization types inside the existing Contracts artifact. Forms and Workflow borrow the same declarations. Wire fields, closed values, absent versus null behavior and Runtime parsed-JSON expression input remain unchanged; clean source borrowers must migrate to the new namespaces.",
     "RuleEngine contains no Forms-owned TypeRefs or erased imports. Its neutral property, generic and converter dependency closure remains independent of Forms. Existing T493 constructors, opt-in capture positions, admission priority and budgets remain unchanged.",
@@ -44,7 +45,7 @@
     "One evaluator/graph holds one immutable snapshot across guard/value, full, row and incremental paths. A reactive edit requiring an uncaptured pair fails closed; changed tenant/pin/query sets require explicit construction with a new capture. No setter, callback or hidden fetch is admitted. Broader caller/package/consumer and T493/L591 acceptance remain open.",
 
     "Both tiers consume Rules revision 1 grammar, Text revision 1 and Presentation revision 1 contracts and emit canonical RuleOutcome values with all five output types, including Options.",
-    "The 15-file, 179-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
+    "The 16-file, 288-case corpus is one language-neutral authority; canonical per-rule outcomes from both tiers must be structurally identical.",
     "Unknown operators, PowerFx evaluation, malformed grammar, cycles, resource-bound violations, and non-array Options results fail closed with stable localizable codes.",
     "The v1 operator set is closed and contains no regex or user-pattern operator; pattern validation remains in the schema-validation module.",
     "The v1 operator set is the R1 built-in register (T-590): each tier's evaluator dispatches, and its compiler admits keys and arity, only through that register, and both editor palettes are generated from it. Function references are discriminated BuiltInFunction(key) or PackageFunction(package_id, function_key); only the register constructs the built-in arm and no package function is registered or executed in R1.",
@@ -61,8 +62,8 @@
   "publicSeams": ["finite pinned Taxonomy answer snapshot", "context adapter", "deterministic clock", "trace authority filter", "named-rule registry store"],
   "conformance": {
     "corpus": "conformance/hlp.foundation.rule-runtime/corpus",
-    "files": 15,
-    "cases": 179,
+    "files": 16,
+    "cases": 288,
     "runner": "conformance/hlp.foundation.rule-runtime/runners/run-shared.mjs",
     "nativeTests": {"typescript": 201, "dotnet": 137}
   },

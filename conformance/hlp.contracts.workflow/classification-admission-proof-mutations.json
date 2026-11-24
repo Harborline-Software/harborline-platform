@@ -1,0 +1,368 @@
+{
+  "slice": "T-488/classification-admission-proof",
+  "date": "2026-11-21",
+  "host": "MacBook",
+  "controlCommit": "2d1da43057c6c2204025155f11bda360570194cc",
+  "base": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+  "candidateHead": "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+  "proofSha256": "ec6223282b8b05e5a81d93fb217e36e5285996e57ab08df65e0eed7595d087b2",
+  "oracle": "Control slice acceptance 1\u20133 literal wire values, error pairs and ordered violation pairs; DES-0019 workflows-ck-9 / eng-3 / auth-9; frozen workflow interface revision 8; T-724 rulings 35 and 121. Resolver dictionary is supplied input, not host wiring proof.",
+  "preliminaryRed": "Wire closed-set mutant first: exit 1, 1 failed / 2 passed; expected unknown-closed-value, actual invalid-wire-value; then restored before required sequences.",
+  "mutants": [
+    {
+      "id": "accept-unspecified",
+      "file": "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs",
+      "line": 121,
+      "original": "[\"ActionClassification\"] = [\"CP\", \"AP\"],",
+      "replacement": "[\"ActionClassification\"] = [\"CP\", \"AP\", \"Unspecified\"],",
+      "killingTest": "Classification_wire_accepts_only_CP_and_AP",
+      "observedMismatch": "Expected (\"unknown-closed-value\", \"ActionClassification\"); actual (\"invalid-wire-value\", \"ActionClassification\")",
+      "baseline": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "accept-unspecified-baseline",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/accept-unspecified-baseline.log"
+      },
+      "red": {
+        "exit": 1,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "accept-unspecified-red",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/accept-unspecified-red.log"
+      },
+      "restoredGreen": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "accept-unspecified-restored",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/accept-unspecified-restored.log"
+      },
+      "counts": {
+        "baseline": {
+          "passed": 3,
+          "failed": 0
+        },
+        "red": {
+          "passed": 2,
+          "failed": 1
+        },
+        "restoredGreen": {
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "id": "skip-classification-mismatch",
+      "file": "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs",
+      "line": 502,
+      "original": "if (action.Classification != derived) { Add(WorkflowAdmissionCodes.ClassificationMismatch, \"declared classification does not match authority registry\", action.Id); continue; }",
+      "replacement": "",
+      "killingTest": "Classification_admission_requires_matching_registry",
+      "observedMismatch": "Expected IsValid false for declared CP / registered AP; actual true",
+      "baseline": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-classification-mismatch-baseline",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-classification-mismatch-baseline.log"
+      },
+      "red": {
+        "exit": 1,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-classification-mismatch-red",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-classification-mismatch-red.log"
+      },
+      "restoredGreen": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-classification-mismatch-restored",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-classification-mismatch-restored.log"
+      },
+      "counts": {
+        "baseline": {
+          "passed": 3,
+          "failed": 0
+        },
+        "red": {
+          "passed": 2,
+          "failed": 1
+        },
+        "restoredGreen": {
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    },
+    {
+      "id": "skip-cp-autonomous-refusal",
+      "file": "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs",
+      "line": 503,
+      "original": "if (derived == ActionClassification.CP && FiresWithoutHumanGate(action, definition, transitionById, triggerById))\n                    Add(WorkflowAdmissionCodes.CpReachableWithoutHumanTask, \"CP action can fire without a human gate\", action.Id);",
+      "replacement": "",
+      "killingTest": "Classification_CP_admission_requires_human_task",
+      "observedMismatch": "Expected IsValid false for autonomous matching CP; actual true",
+      "baseline": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-cp-autonomous-refusal-baseline",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-cp-autonomous-refusal-baseline.log"
+      },
+      "red": {
+        "exit": 1,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-cp-autonomous-refusal-red",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-cp-autonomous-refusal-red.log"
+      },
+      "restoredGreen": {
+        "exit": 0,
+        "command": [
+          "bash",
+          "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+          "run",
+          "--holder",
+          "writer",
+          "--session",
+          "macbook-488-classification",
+          "--workload",
+          "skip-cp-autonomous-refusal-restored",
+          "--candidate",
+          "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+          "--",
+          "dotnet",
+          "test",
+          "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+          "--no-restore",
+          "--filter",
+          "FullyQualifiedName~WorkflowFixtureConformanceTests.Classification_",
+          "-m:1",
+          "-nr:false"
+        ],
+        "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/skip-cp-autonomous-refusal-restored.log"
+      },
+      "counts": {
+        "baseline": {
+          "passed": 3,
+          "failed": 0
+        },
+        "red": {
+          "passed": 2,
+          "failed": 1
+        },
+        "restoredGreen": {
+          "passed": 3,
+          "failed": 0
+        }
+      }
+    }
+  ],
+  "fullProject": {
+    "exit": 0,
+    "command": [
+      "bash",
+      "/Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh",
+      "run",
+      "--holder",
+      "writer",
+      "--session",
+      "macbook-488-classification",
+      "--workload",
+      "full-contract-project",
+      "--candidate",
+      "9b80cd18eb58a9ff775d986cb5db87f2f08e5cc2",
+      "--",
+      "dotnet",
+      "test",
+      "projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj",
+      "--no-restore",
+      "-m:1",
+      "-nr:false"
+    ],
+    "log": "/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/t488-classification/full-contract-project.log",
+    "counts": {
+      "passed": 176,
+      "failed": 0,
+      "skipped": 0,
+      "total": 176
+    }
+  },
+  "excludedAttempt": "Initial skip-mismatch replacement if(false) produced CS0162; not counted as a kill. Replaced by removing the branch and reran all sequences.",
+  "productionRestoration": "git diff --exit-code -- projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs: exit 0, empty output",
+  "acceptance6": "Pending Mac mini full receipt check; known main phase4-input-preflight.test.mjs:662 inherits HARBORLINE_TESTED_TREE.",
+  "provenance": {
+    "preRefreshCheck": "1 record(s) read, 1 stale hash(es)",
+    "refresh": {
+      "command": "node tooling/refresh-provenance-hashes.mjs --module hlp.contracts.workflow",
+      "exit": 0,
+      "output": "1 record(s) read, 1 stale hash(es) refreshed"
+    },
+    "check": {
+      "command": "node tooling/refresh-provenance-hashes.mjs --module hlp.contracts.workflow --check",
+      "exit": 0,
+      "output": "1 record(s) read, 0 stale hash(es)"
+    }
+  },
+  "restore": {
+    "exit": 0,
+    "nuCodes": [],
+    "count": 1
+  },
+  "candidateNote": "Tests ran on the named claim head plus the proof file identified by proofSha256. Each temporary mutation is recorded below; receipt and provenance finalized afterward."
+}

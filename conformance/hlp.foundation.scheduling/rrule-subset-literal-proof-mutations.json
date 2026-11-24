@@ -1,0 +1,109 @@
+{
+  "producerSha": "45893f44aedbd69868673caf03e8efe4a11a655f",
+  "producerTree": "72bbc000329e1ad2dd0941983f66cbc610f5fdec",
+  "target": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleSubset.cs",
+  "targetSha256": "2b7c594d2b96b17fce9a12a18cf8302c7e01312c694262e0ffc5cdd32b8b450a",
+  "test": "projections/dotnet/foundation/hlp.foundation.scheduling.tests/SchedulingRruleSubsetLiteralProofTests.cs",
+  "testSha256": "b4c5ad5d555f52450335cfc560d1afd06c8d3d6527e2e6eb2081dd65f1d05590",
+  "fixtureInputs": [],
+  "dotnetVersion": "11.0.100",
+  "command": "dotnet test projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~SchedulingRruleSubsetLiteralProofTests -m:1 -nr:false",
+  "environment": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1; host-lane mb-491-rrule",
+  "baseline": {
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "total": 6,
+    "logSha256": "bf0b30ecd408525034a6dc4da0d156f7f649ab2c1ee09bd41e373b3867711eca"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "line": 49,
+      "before": "if (!seen.Add(key))",
+      "after": "if (!seen.Add(key) && false)",
+      "detectingTest": "RepeatedFrequency",
+      "assertion": "Assert.Throws: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "427979a52d9e2b75fc038a041de5ccbf8f0b070baf3bffb9dd499639ad6596b8"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "4a569bdd15e1c3bd266610261a19804748f7321d6122f1a4a2678c3db53c5402"
+      },
+      "restoredTargetSha256": "2b7c594d2b96b17fce9a12a18cf8302c7e01312c694262e0ffc5cdd32b8b450a",
+      "testSha256": "b4c5ad5d555f52450335cfc560d1afd06c8d3d6527e2e6eb2081dd65f1d05590"
+    },
+    {
+      "id": "M2",
+      "line": 89,
+      "before": "if (count is not null && until is not null)",
+      "after": "if (count is not null && until is not null && false)",
+      "detectingTest": "ConflictingBounds",
+      "assertion": "Assert.Throws: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "136dfc5d20a67676a9fd34c50a5f04c734c972c2752bb996fc7a20d706aeefbf"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "8c6950537a766971825d902fbfb9cda04a1295d438367a36703498d4d156cccf"
+      },
+      "restoredTargetSha256": "2b7c594d2b96b17fce9a12a18cf8302c7e01312c694262e0ffc5cdd32b8b450a",
+      "testSha256": "b4c5ad5d555f52450335cfc560d1afd06c8d3d6527e2e6eb2081dd65f1d05590"
+    },
+    {
+      "id": "M3",
+      "line": 93,
+      "before": "if (freq == \"WEEKLY\" && byMonthDay.Count > 0)",
+      "after": "if (freq == \"WEEKLY\" && byMonthDay.Count > 0 && false)",
+      "detectingTest": "WeeklyMonthDay",
+      "assertion": "Assert.Throws: no exception thrown",
+      "mutant": {
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "6554bb48289f4d493ac814f2c7692c6f98a50d6e4dce502d7741dcfa81a17cb9"
+      },
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "total": 6,
+        "logSha256": "4a569bdd15e1c3bd266610261a19804748f7321d6122f1a4a2678c3db53c5402"
+      },
+      "restoredTargetSha256": "2b7c594d2b96b17fce9a12a18cf8302c7e01312c694262e0ffc5cdd32b8b450a",
+      "testSha256": "b4c5ad5d555f52450335cfc560d1afd06c8d3d6527e2e6eb2081dd65f1d05590"
+    }
+  ],
+  "unfiltered": {
+    "command": "dotnet test projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj -c Release -m:1 -nr:false",
+    "exit": 0,
+    "passed": 294,
+    "failed": 0,
+    "skipped": 0,
+    "total": 294,
+    "logSha256": "ce10357ce77443c3fe3e8021d287e5d878825dabe70a96c882ecce4d67f60505"
+  }
+}

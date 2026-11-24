@@ -26,7 +26,7 @@ public sealed class OperatorCatalogArchTests
         "==", "!=", "===", "!==", "!", "!!", "and", "or", "if",
         ">", ">=", "<", "<=",
         "+", "-", "*", "/", "%", "min", "max",
-        "in", "cat",
+        "in", "cat", "startsWith", "endsWith", "some", "all", "none",
         "agg", "money.add", "money.sub", "money.mul",
         "date.add", "date.diff", "date.today", "coding.is",
     };

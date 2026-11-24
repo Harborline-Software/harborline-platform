@@ -18,6 +18,11 @@ namespace Harborline.Foundation.RuleEngine.Graph;
 /// </summary>
 public sealed class FormRuleGraph : IFormRuleGraph
 {
+    // Internal observers pin mediation before the real demand/read boundaries.
+    internal Action<string, string>? DemandObserved { get; set; }
+    internal Action<string, string>? RawReadObserved { get; set; }
+
+    private readonly AdmittedEnvironment? _environment;
     private readonly RuleEngineLimits _limits;
     private readonly TimeProvider _clock;
     private readonly CodingSubsumptionSnapshot? _coding;
@@ -58,6 +63,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
 
     private FormRuleGraph(CompiledGraph compiled, TimeProvider clock, EvaluationAdmission? admission, RuleEngineLimits? limits, CodingSubsumptionSnapshot? coding, bool captured)
     {
+        _environment = admission?.Environment;
         _coding = coding;
         Compiled = compiled ?? throw new ArgumentNullException(nameof(compiled));
         _limits = limits ?? RuleEngineLimits.Default;
@@ -536,7 +542,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         if (cell.AggFold is { } fold) return FoldAggregate(fold.Fn, fold.Section, fold.Col, run);
 
         var scope = new RuleEvalScope(cell.Rule!.RowSection, cell.RowId);
-        var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope);
+        var resolver = _environment!.Fence(new DemandResolver(run.Adapter.CreateResolver(scope), run, cell.Key, scope));
         var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget, _coding);
         try
         {
@@ -569,7 +575,7 @@ public sealed class FormRuleGraph : IFormRuleGraph
         }
         BeginPlanReads(plan.Key);
         var scope = new RuleEvalScope(plan.Rule.RowSection, plan.RowId);
-        var resolver = new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true);
+        var resolver = _environment!.Fence(new DemandResolver(run.Adapter.CreateResolver(scope), run, plan.Key, scope, plan: true));
         var ctx = new EvalContext(resolver, _evaluationInstant, run.Budget, _coding);
         return OutcomeBuilder.Build(plan.Rule, plan.Target, resolver, ctx).Outcome;
     }
@@ -821,7 +827,12 @@ public sealed class FormRuleGraph : IFormRuleGraph
         {
             if (plan) _graph.RecordActualPlanRead(owner, key);
             else _graph.RecordActualCellRead(owner, key);
-            if (!_graph._cells.TryGetValue(key, out var cell)) return fallback();
+            if (!_graph._cells.TryGetValue(key, out var cell))
+            {
+                _graph.RawReadObserved?.Invoke(owner, key);
+                return fallback();
+            }
+            _graph.DemandObserved?.Invoke(owner, key);
             return FromComputed(Evaluate(cell), key);
         }
 

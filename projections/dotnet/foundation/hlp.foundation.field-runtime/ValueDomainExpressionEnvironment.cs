@@ -1,5 +1,4 @@
 using Harborline.Foundation.RuleEngine.Environments;
-using Harborline.Foundation.RuleEngine.Functions;
 
 namespace Harborline.Foundation.FieldRuntime;
 
@@ -14,7 +13,7 @@ public static class ValueDomainExpressionEnvironment
         Borrower: "value-domain-predicate",
         Grammar: BorrowerEnvironmentAdmission.Grammar,
         Variables: new Dictionary<string, string> { ["field"] = "pinned source member fields" },
-        Operations: [.. BuiltInFunctionRegister.Functions.Select(function => function.Key).Where(key => key != "agg")],
+        Operations: ["var", "missing", "missing_some", "==", "!=", "===", "!==", "!", "!!", "and", "or", "if", ">", ">=", "<", "<=", "+", "-", "*", "/", "%", "min", "max", "in", "cat", "money.add", "money.sub", "money.mul", "date.add", "date.diff", "date.today", "coding.is"],
         Effects: [BorrowerEnvironmentAdmission.FieldRead],
         MissingValues: "missing-field-reads-null",
         TimeSource: "resolver-clock",

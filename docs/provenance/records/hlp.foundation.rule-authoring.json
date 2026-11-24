@@ -9,7 +9,7 @@
     "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/RuleDefinitionCatalogTests.cs": "2276eea6b60048eadc816084b969c34fc29c222393afcd7784bf4cb7f3e72db1",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/ContractAliases.cs": "db6562c0bf1668c4ef076c427c6825937a2f1dbe94cd508ea4000acb963129b7",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/JsNumberMirror.cs": "d0c85a75eac8d46948706d03870f77e57c4a0fc64bb2bd334212140ab73dcf10",
-    "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleAuthoringModel.cs": "62a809d9e543507c9733e2f78e46c3a252d3b701a9fa1ed463016a713e6acbd4",
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleAuthoringModel.cs": "a5d50ba98c531e826165115594bb98aaca3673f117db8ccbdf70b2d27616c842",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleDefinitionCodec.cs": "0ba8e5d2fab1db06110e62fbd744baa50cf2846a61ce2d1a56e61f438a844ba1",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleDefinitionDocument.cs": "ba176907e0b1188b5a5a7e7d53c68a19c8d4d1d9e9c12a6361a0d8d46b9e022d",
     "projections/dotnet/foundation/hlp.foundation.rule-authoring/RuleIntentValidator.cs": "31697b902ca7987bebd9e8a0281d0b28a6d272bcc605bf86f39ec2009632b5eb",
@@ -22,13 +22,19 @@
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/compile.ts": "769f529d586bd2f58093ae950e1998b6c1ab14f6bc9d27de22e5412c6bb08008",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition-json.ts": "f8b2b8c2b798695ca596820c715d4471c0d26c17a2ffc3655fc75e952d12c5a4",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/definition.ts": "09639800fb4c6d936fa90f44e8ca6796bd22d212d9f257baf4c60f11769c003c",
-    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/index.ts": "ff75349b21fd4326b9e14609ab1de70350c5705b28728a5639cf3bc4b361dcdd",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/index.ts": "2f7dd1c3f287e92ab474e31a71d1f6ff55873851e7e18308cec43bfea1908d43",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/key-suggestion.ts": "f573576bf24c3b9e3afbc614c7a42326f7a395d4d7b980b0442effea3e3edeee",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/lint.ts": "d5e0ea55c258732dbf030f8cb677d8e22ca34698c559dc248dedf75bd83abae4",
-    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/model.ts": "e8a866a0d67b8416cadb857ef3f0e9712886299c05bc074fe573a84adfead820",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/model.ts": "7b13ecb0083b5df96fbf10abd41082536d12dae5d1024bbe3b740f09d1223358",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/seeds.ts": "b0060331084042ddeb142fb21f2204e364f5f9944a3de8f9afc705fa98cc7641",
     "projections/typescript/foundation/hlp.foundation.rule-authoring/src/structured-clone.d.ts": "a56ec4ef16e5e0103ebaa7ca346acd97516f5867d91a4e06d1ec1d837ea79e05",
-    "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml": "df657f51ea80c8afabca275c666e1ae6fb6cf704f47c9053921313a0897dca99"
+    "specs/modules/foundation/hlp.foundation.rule-authoring/interface.yaml": "37d902dcc2930c78cb41a242bfee67b7ee6eefe500e5f77ebf70cc2d40083f42",
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring.tests/RulesPaletteTests.cs": "07aa01eea3ff79c8f78be4cba236ad423ebcdedcbf86774987e3b82911864e77",
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring/RulesPalette.cs": "83c4b06a568ffa42809afadada79ded771cae41cae8451ba06c2b24d79a2e62a",
+    "projections/dotnet/foundation/hlp.foundation.rule-authoring/RulesPreviewEnvironment.cs": "31433c2dc8c7dec569666592cf6e33c1e53622b1d733e709ccdb4b25e0cd3a69",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/__tests__/palette.test.ts": "a26bb9b1e86f3d37fa37eecd8b8887bb51c19db73f4c90119105e478ffd43bc9",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/palette.ts": "6c5ae42824bc585cd4a97d59bdd4d2b2e094c94c72e03cdbe57bc2207e04eec3",
+    "projections/typescript/foundation/hlp.foundation.rule-authoring/src/preview-environment.ts": "6c70ad3f8bb4ed3858ea968197a99f2530fa54ef998e4fa4522c907adddf66f7"
   },
   "nextGate": "Pass the full platform gate for T-588, then implement T-589 runtime outcome renderers and both member editors against the shared definition boundary."
 }

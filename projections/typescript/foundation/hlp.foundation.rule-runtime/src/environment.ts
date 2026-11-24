@@ -6,6 +6,7 @@
  */
 import { registeredBuiltIn } from './jsonlogic.js'
 import type { Json } from './model.js'
+import { err, refError, type ValueResolver } from './eval-support.js'
 
 export type EvaluationPhase = 'AuthoringValidation' | 'PublishValidation' | 'Render' | 'Submission' | 'Run' | 'SignOff'
 export const evaluationPhases: readonly EvaluationPhase[] = ['AuthoringValidation', 'PublishValidation', 'Render', 'Submission', 'Run', 'SignOff']
@@ -77,7 +78,15 @@ export function admissionRefusal(admission: EvaluationAdmission | null | undefin
   if (admission === null || admission === undefined || !minted.has(admission)) return BorrowerEnvironmentCodes.notAdmitted
   const operations = new Set(admission.declaration.operations)
   const variables = new Set(Object.keys(admission.declaration.variables))
-  const walk = (node: Json): string | null => {
+  const missingKeyAdmitted = (key: Json, element: boolean): boolean => {
+    if (Array.isArray(key)) return key.every((item) => missingKeyAdmitted(item, element))
+    if (typeof key === 'string') {
+      const dot = key.indexOf('.')
+      return element || variables.has(dot < 0 ? 'field' : key.slice(0, dot))
+    }
+    return true
+  }
+  const walk = (node: Json, element = false): string | null => {
     if (typeof node !== 'object' || node === null || Array.isArray(node)) return null
     const keys = Object.keys(node)
     if (keys.length !== 1) return null
@@ -85,16 +94,31 @@ export function admissionRefusal(admission: EvaluationAdmission | null | undefin
     if (!operations.has(op)) return BorrowerEnvironmentCodes.operationNotAdmitted
     const raw = (node as Record<string, Json>)[op]
     const args = Array.isArray(raw) ? raw : [raw]
-    if (op === 'var' && typeof args[0] === 'string') {
+    if (!element && op === 'var' && typeof args[0] === 'string') {
       const dot = args[0].indexOf('.')
       if (!variables.has(dot < 0 ? 'field' : args[0].slice(0, dot))) return BorrowerEnvironmentCodes.variableNotAdmitted
     }
+    if (['missing', 'missing_some'].includes(op) && !(op === 'missing_some' ? args.slice(1, 2) : args).every((key) => missingKeyAdmitted(key, element))) return BorrowerEnvironmentCodes.variableNotAdmitted
     if (op === 'agg' && !variables.has('row')) return BorrowerEnvironmentCodes.variableNotAdmitted
-    for (const arg of args) { const refusal = walk(arg); if (refusal !== null) return refusal }
+    for (let i = 0; i < args.length; i++) { const refusal = walk(args[i], element || (i === 1 && ['some', 'all', 'none'].includes(op))); if (refusal !== null) return refusal }
     return null
   }
   for (const program of programs) { const refusal = walk(program); if (refusal !== null) return refusal }
   return null
+}
+
+/** @internal Mediate resolved keys before snapshot lookup or graph demand. */
+export function fenceResolver(admission: EvaluationAdmission, inner: ValueResolver): ValueResolver {
+  const variables = new Set(Object.keys(admission.declaration.variables))
+  return {
+    resolveVar(path) {
+      const dot = path.indexOf('.')
+      return variables.has(dot < 0 ? 'field' : path.slice(0, dot))
+        ? inner.resolveVar(path)
+        : refError(err(BorrowerEnvironmentCodes.variableNotAdmitted))
+    },
+    resolveAgg: (fn, section, col) => inner.resolveAgg(fn, section, col),
+  }
 }
 
 /** The canonical export of a declaration, byte-identical to the .NET tier's `CanonicalJson`. */

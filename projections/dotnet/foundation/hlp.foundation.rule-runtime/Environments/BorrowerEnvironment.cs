@@ -5,6 +5,8 @@ using System.Text.Json.Nodes;
 
 using Harborline.Foundation.RuleEngine.Compilation;
 using Harborline.Foundation.RuleEngine.Functions;
+using Harborline.Foundation.RuleEngine.Evaluation;
+using Harborline.Foundation.RuleEngine.Model;
 
 namespace Harborline.Foundation.RuleEngine.Environments;
 
@@ -96,18 +98,41 @@ public sealed class AdmittedEnvironment
         return null;
     }
 
-    private string? Walk(JsonNode? node)
+    private string? Walk(JsonNode? node, bool element = false)
     {
         if (node is not JsonObject { Count: 1 } call) return null;
         var (op, raw) = (call.First().Key, call.First().Value);
         if (!_operations.Contains(op)) return BorrowerEnvironmentAdmission.OperationNotAdmitted;
         var args = raw is JsonArray array ? array.ToList() : [raw];
-        if (op == "var" && args.FirstOrDefault() is JsonValue path && path.TryGetValue<string>(out var p) && !Addresses(p))
+        if (!element && op == "var" && args.FirstOrDefault() is JsonValue path && path.TryGetValue<string>(out var p) && !Addresses(p))
             return BorrowerEnvironmentAdmission.VariableNotAdmitted;
+        if (op is "missing" or "missing_some")
+        {
+            var keys = op == "missing_some" ? args.Skip(1).Take(1) : args;
+            if (keys.Any(key => !MissingKeyAdmitted(key, element))) return BorrowerEnvironmentAdmission.VariableNotAdmitted;
+        }
         if (op == "agg" && !_variables.Contains("row")) return BorrowerEnvironmentAdmission.VariableNotAdmitted;
-        foreach (var arg in args)
-            if (Walk(arg) is { } refusal) return refusal;
+        for (int i = 0; i < args.Count; i++)
+            if (Walk(args[i], element || (i == 1 && op is "some" or "all" or "none")) is { } refusal) return refusal;
         return null;
+    }
+
+    private bool MissingKeyAdmitted(JsonNode? key, bool element) => key switch
+    {
+        JsonArray keys => keys.All(item => MissingKeyAdmitted(item, element)),
+        JsonValue value when value.TryGetValue<string>(out var path) => element || Addresses(path),
+        _ => true,
+    };
+
+    internal IValueResolver Fence(IValueResolver resolver) => new EnvironmentResolver(this, resolver);
+
+    private sealed class EnvironmentResolver(AdmittedEnvironment environment, IValueResolver inner) : IValueResolver
+    {
+        public RefValue ResolveVar(string path) => environment.Addresses(path)
+            ? inner.ResolveVar(path)
+            : RefValue.OfError(RuleError.Of(BorrowerEnvironmentAdmission.VariableNotAdmitted));
+
+        public RefValue ResolveAgg(string fn, string section, string col) => inner.ResolveAgg(fn, section, col);
     }
 
     private bool Addresses(string path)

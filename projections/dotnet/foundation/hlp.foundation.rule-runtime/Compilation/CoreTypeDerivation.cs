@@ -47,7 +47,7 @@ public static class CoreTypeDerivation
         Func<string, CoreJsonType>? declaredInput = null,
         Func<string, RuleCompilationException>? refusal = null)
     {
-        Result Visit(JsonNode? value)
+        Result Visit(JsonNode? value, bool element = false)
         {
             if (value is null) return new(CoreJsonType.Null);
             if (value is JsonArray) return new(CoreJsonType.Array);
@@ -60,7 +60,7 @@ public static class CoreTypeDerivation
             if (value is not JsonObject expression || expression.Count != 1) return new(CoreJsonType.Object);
             var (op, rawArgs) = expression.First();
             var args = rawArgs is JsonArray array ? array.ToList() : new List<JsonNode?> { rawArgs };
-            var children = args.Select(Visit).ToArray(); // Visit all executable operands, even short-circuited ones.
+            var children = args.Select((arg, index) => Visit(arg, element || (index == 1 && op is "some" or "all" or "none"))).ToArray(); // Visit all executable operands, even short-circuited ones.
             Result Join(CoreJsonType types, bool error = false, bool pending = false)
                 => new(types, error || children.Any(x => x.CanError), pending || children.Any(x => x.CanPending));
             void Require(string name, CoreJsonType accepted, params int[] positions)
@@ -78,7 +78,7 @@ public static class CoreTypeDerivation
                 case "var":
                 {
                     var path = args.Count == 0 ? "" : VarPath(args[0]);
-                    var primary = declaredInput?.Invoke(path) ?? CoreJsonType.AnyJson;
+                    var primary = element ? CoreJsonType.AnyJson : declaredInput?.Invoke(path) ?? CoreJsonType.AnyJson;
                     // A statically known graph producer is always represented by its computed
                     // cell; an unresolved dynamic path may yield null.  Preserve that null only
                     // for the AnyJson (unproven) resolver contract.
@@ -88,6 +88,8 @@ public static class CoreTypeDerivation
                     // value's JSON kind.  The fallback is evaluated eagerly by the evaluator.
                     return Join(primary | fallback, error: true, pending: true);
                 }
+                case "some": case "all": case "none": case "startsWith": case "endsWith":
+                    return Join(CoreJsonType.Boolean, error: true);
                 case "missing": return Join(CoreJsonType.Array, error: true, pending: true);
                 case "missing_some": return Join(CoreJsonType.Array, error: true, pending: true);
                 case "==": case "!=": case "===": case "!==": case "!": case "!!":

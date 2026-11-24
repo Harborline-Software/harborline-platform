@@ -1,7 +1,7 @@
 namespace Harborline.Blocks.Scheduling.Planning;
 
 /// <summary>Exhaustively searches candidates in deterministic order until it proves feasibility or exhaustion.</summary>
-public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
+internal sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
     public string SolverId => Backend.Id;
@@ -187,7 +187,7 @@ public sealed class DeterministicExhaustiveProofSolver : IPlanningSolver
 }
 
 /// <summary>Assigns the first compatible candidate for each activity in stable id order.</summary>
-public sealed class GreedyFirstFitSolver : IPlanningSolver
+internal sealed class GreedyFirstFitSolver : IPlanningSolver
 {
     /// <summary>Stable identifier used in proposal ids and telemetry.</summary>
     public string SolverId => Backend.Id;
