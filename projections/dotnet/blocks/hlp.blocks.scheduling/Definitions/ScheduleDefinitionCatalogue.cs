@@ -260,7 +260,7 @@ public sealed class ScheduleDefinitionCatalogue
         return ScheduleDefinitionAdmission.Validate(definition, document, phase, PlatformPackageSeed.ContractWindow);
     }
 
-    // JsonObject members are lazy: visit every nested object before validation reads any member.
+    // Direct admission can bypass store parsing; materialize lazy members here so duplicate keys also refuse.
     private static JsonObject? Parse(string json)
     {
         try
@@ -269,7 +269,7 @@ public sealed class ScheduleDefinitionCatalogue
             Materialize(body);
             return body;
         }
-        catch (ArgumentException) { return null; }
+        catch (Exception exception) when (exception is JsonException or ArgumentException) { return null; }
 
         static void Materialize(JsonNode? node)
         {
