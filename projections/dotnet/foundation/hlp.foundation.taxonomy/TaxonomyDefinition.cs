@@ -8,10 +8,8 @@ using Harborline.Foundation.Definitions;
 namespace Harborline.Foundation.Taxonomy;
 
 /// <summary>Content kind 8, the api's <c>PackContentKind.TaxonomyDefinition</c>. 7 is <c>TemplateDefinition</c> and was a collision (T-738).</summary>
-public static class TaxonomyPackIdentity
+public static partial class TaxonomyPackIdentity
 {
-    /// <summary>Content kind discriminator for taxonomy definitions (8, per T-738).</summary>
-    public const int ContentKind = 8;
 }
 /// <summary>Stable vendor, domain, and taxonomy-name coordinates for a definition.</summary>
 /// <param name="Vendor">The namespace owner of the taxonomy.</param><param name="Domain">The domain that owns the taxonomy.</param><param name="TaxonomyName">The taxonomy name within the domain.</param>
