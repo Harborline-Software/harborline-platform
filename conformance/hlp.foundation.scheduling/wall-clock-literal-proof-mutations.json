@@ -1,0 +1,102 @@
+{
+  "producerSha": "2f1b33e48f21b12a36d4a7e232a8f32292803ee6",
+  "producerTree": "72bbc000329e1ad2dd0941983f66cbc610f5fdec",
+  "target": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/WallClockResolver.cs",
+  "restoredTargetSha256": "103b41a07b8cb332f951f2e1a816c36f9f4d2fafafdc982b06991c1f97e1e1de",
+  "test": "projections/dotnet/foundation/hlp.foundation.scheduling.tests/SchedulingWallClockLiteralProofTests.cs",
+  "testSha256": "22ef55fcf7d2f3faf1b657816f730a6a40ea3884232ce75f615e5af2268ce7c5",
+  "fixtures": [],
+  "toolchain": "11.0.100",
+  "command": "dotnet test projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~SchedulingWallClockLiteralProofTests -m:1 -nr:false",
+  "environment": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1; host lane mb-491-wallclock",
+  "baseline": {
+    "name": "baseline",
+    "logSha256": "b30c3e55c1dc6dc15191396bd7a6f16becc16651b804d6d4c4132a2738573868",
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/WallClockResolver.cs",
+      "span": "ToUtcInstant",
+      "before": "Resolvers.LenientResolver",
+      "after": "Resolvers.CreateMappingResolver(Resolvers.ReturnLater, Resolvers.ReturnForwardShifted)",
+      "detectingAssertion": "UtcInstantUsesRfcPolicy overlap 05:30Z",
+      "mutant": {
+        "name": "mutant1",
+        "logSha256": "3178310026396244833a66b9288d7059bf69e15b5240ee423e91cfac043f48a4",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0
+      },
+      "restored": {
+        "name": "restored1",
+        "logSha256": "af1bfb5db054fb82c664712aee5d3d7439ec4b658950163ff781ffab02653ec4",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/WallClockResolver.cs",
+      "span": "ToUtcInstant",
+      "before": "Resolvers.LenientResolver",
+      "after": "Resolvers.CreateMappingResolver(Resolvers.ReturnEarlier, Resolvers.ReturnStartOfIntervalAfter)",
+      "detectingAssertion": "UtcInstantUsesRfcPolicy gap 07:30Z",
+      "mutant": {
+        "name": "mutant2",
+        "logSha256": "c384cc252468ba5b4b5c71436fce649e0ce7ac24f5ab83dc2dcf9e6fd62b11bd",
+        "exit": 1,
+        "passed": 5,
+        "failed": 1,
+        "skipped": 0
+      },
+      "restored": {
+        "name": "restored2",
+        "logSha256": "af1bfb5db054fb82c664712aee5d3d7439ec4b658950163ff781ffab02653ec4",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/WallClockResolver.cs",
+      "span": "ToLocalDateTime",
+      "before": ".InZone(zone)",
+      "after": ".InUtc()",
+      "detectingAssertion": "LocalDateTimeUsesSeriesZone Auckland and Honolulu",
+      "mutant": {
+        "name": "mutant3",
+        "logSha256": "6affaf7bbf624940bd92c573e3278975e9b98c7dcfdb19f7266e0bd4215bcb7c",
+        "exit": 1,
+        "passed": 4,
+        "failed": 2,
+        "skipped": 0
+      },
+      "restored": {
+        "name": "restored3",
+        "logSha256": "af1bfb5db054fb82c664712aee5d3d7439ec4b658950163ff781ffab02653ec4",
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0
+      }
+    }
+  ],
+  "fullProject": {
+    "name": "full",
+    "logSha256": "232446dbe1c9b42099b9dbc292570a4e146d84f1456900e1e40de9c28adcbe84",
+    "exit": 0,
+    "passed": 294,
+    "failed": 0,
+    "skipped": 0
+  }
+}

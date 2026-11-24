@@ -1,0 +1,97 @@
+{
+  "producerSha": "10e9e514635508b2134ab5faa4b3b61c893de64f",
+  "producerTree": "3a4549a8bed4217c13226232c4c37020a7471e37",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Planning/PlanningSolvers.cs",
+  "targetSha256": "7bc69c59cde4b557d26969289e759df4260bfb4b1ec3225d876a2393d347bba9",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleSolverSearchBoundaryProofTests.cs",
+  "testWorkingSha256": "45bcfe5a17ebd8bf129ebd9e3c1c670e637539d2c9ed04457cec421ef2e4ba6e",
+  "fixtureInputs": "literal fixtures in test file",
+  "toolchain": "dotnet SDK 11.0.100; macOS arm64; DOTNET_ROOT=/usr/local/share/dotnet; DOTNET_CLI_USE_MSBUILD_SERVER=0; MSBUILDDISABLENODEREUSE=1",
+  "command": "bash /Users/christopherwood/Projects/Harborline/harborline-control/tools/ci/host-lane.sh run --holder writer --session macbook-582b --workload \"platform 582 display-name mutation rerun\" --candidate 10e9e514635508b2134ab5faa4b3b61c893de64f -- python3 /var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/fix-582b/rerun.py; environment DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 DOTNET_ROOT=/usr/local/share/dotnet TMPDIR=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/fix-582b; each run: /usr/local/share/dotnet/dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release -m:1 -nr:false --filter FullyQualifiedName~ScheduleSolverSearchBoundaryProofTests --logger \"trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/fix-582b/<baseline|M1|restored-M1|M2|restored-M2|M3|restored-M3>.trx\"; producer SHA/tree identify the starting head; testWorkingSha256 identifies the DisplayName-only working test bytes",
+  "baseline": {
+    "exit": 0,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "e6b9c877e655da63b22dbb2b4a29f1c4ff43fac78d8b77a59a5a7ce59b800c23"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "span": "SolveCore budgetExhausted ternary",
+      "before": "? Proposal(problem, SolveStatus.Indeterminate, [], workUnits, \"WORK_BUDGET_EXHAUSTED\")",
+      "after": "? Proposal(problem, SolveStatus.ProvenInfeasible, [], workUnits, \"WORK_BUDGET_EXHAUSTED\")",
+      "exit": 1,
+      "passed": 5,
+      "failed": 1,
+      "skipped": 0,
+      "detectingTest": "scheduling-eng-10, scheduling-ck-18: solver-boundary budget exhaustion and feasibility(budget: 1, status: \"Indeterminate\", reason: \"WORK_BUDGET_EXHAUSTED\", work: 1)",
+      "assertion": "status Indeterminate",
+      "logSha256": "5377c7373a2b29fe5cbd33d63b07d9133f2cabeaa7c75d8a185ec9f947693835",
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "93b93acaf0aff01222acf4273acf0475bfef0937e7c31fc3742c235a2e05188a"
+      },
+      "line": 165,
+      "startColumn": 13,
+      "endColumnExclusive": 99
+    },
+    {
+      "id": "M2",
+      "span": "SolveCore incompleteFactSets guard",
+      "before": "if (incompleteFactSets.Count > 0)",
+      "after": "if (incompleteFactSets.Count < 0)",
+      "exit": 1,
+      "passed": 5,
+      "failed": 1,
+      "skipped": 0,
+      "detectingTest": "scheduling-eng-10, scheduling-ck-18: solver-boundary incomplete resources",
+      "assertion": "status Indeterminate",
+      "logSha256": "5aea41e16d56f469cadad17703e975ada038c99eca8ec6acc8e1d472ea119338",
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "f46fb38118cc90dd13870378361ad824e92725b04ac7d46cad07bd4185f27846"
+      },
+      "line": 28,
+      "startColumn": 9,
+      "endColumnExclusive": 42
+    },
+    {
+      "id": "M3",
+      "span": "AssignmentRules.Overlaps first comparison",
+      "before": "left.StartSlot < right.EndSlotExclusive",
+      "after": "left.StartSlot <= right.EndSlotExclusive",
+      "exit": 1,
+      "passed": 5,
+      "failed": 1,
+      "skipped": 0,
+      "detectingTest": "scheduling-eng-10, scheduling-ck-18: solver-boundary half-open resource assignments(bStart: 1, status: \"Feasible\", reason: \"ALL_HARD_CONSTRAINTS_SATISFIED\")",
+      "assertion": "status Feasible",
+      "logSha256": "3f35107db522d403b062dd713d9da681629ca83c9a49214de49a74a1463bd626",
+      "restored": {
+        "exit": 0,
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "2f1c5b29e18a8ccbbfc11bac8068578d7a122950fc0e9846e7010a41f5fc2e7e"
+      },
+      "line": 346,
+      "startColumn": 9,
+      "endColumnExclusive": 48
+    }
+  ],
+  "projectRun": {
+    "exit": 0,
+    "passed": 597,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "9d4be64bcb1f82b3422e6785866ba5e04f3061c7db1f735e9beb9e491c927224",
+    "command": "/usr/local/share/dotnet/dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release -m:1 -nr:false --logger \"trx;LogFileName=/var/folders/bh/_jx8khmd797c29yx18l9651r0000gn/T/harborline/fix-582b/scheduling-project.trx\""
+  }
+}
