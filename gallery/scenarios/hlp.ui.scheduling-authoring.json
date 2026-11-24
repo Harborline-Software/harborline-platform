@@ -111,6 +111,40 @@
         ],
         "footer": []
       }
+    },
+    {
+      "id": "scheduling-authoring.long-content",
+      "name": "Long refusal target and module label",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "scheduling-authoring.refusals"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity",
+        "scheduling-authoring.quality.refusals"
+      ],
+      "content": {
+        "blurb": "Long module labels and refusal targets remain readable at narrow widths.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "schedule-editor",
+            "react": "<SchedulingAuthoringEditor />",
+            "blazor": "<HarborlineSchedulingAuthoringEditor />",
+            "rationale": "Controlled producer body; server admission remains authoritative."
+          }
+        ],
+        "footer": []
+      }
     }
   ]
 }
