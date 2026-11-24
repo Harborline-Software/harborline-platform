@@ -58,7 +58,7 @@
         <fieldset><legend>Solver binding</legend>
             @Pick("Backend", Text(Solver["backend_id"]), Catalogue.Backends, next => Nested("solver", "backend_id", next))
             @Pick("Guarantee", Text(Solver["guarantee"]), Words(Catalogue.Backends.FirstOrDefault(backend => backend.Id == Text(Solver["backend_id"]))?.Guarantees ?? []), next => Nested("solver", "guarantee", next))
-            @NumberInput("Work budget", Solver["work_budget"], next => Nested("solver", "work_budget", next))
+            @NumberInput("Work budget", Solver["work_budget"], next => Nested("solver", "work_budget", next), true)
             @Parameters("Backend parameters", Solver["parameters"], next => Nested("solver", "parameters", next))
         </fieldset>
         <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>
@@ -107,7 +107,19 @@
     private JsonArray Modules => Value["modules"] as JsonArray ?? new();
     private static JsonObject Object(JsonNode? node) => node as JsonObject ?? new();
     private static string Text(JsonNode? node) => node is JsonValue value ? value.ToString() : "";
-    private static JsonNode? Number(string value) => decimal.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) ? JsonValue.Create(number) : null;
+    private static JsonNode? Number(string value, bool integer)
+    {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\z")) return null;
+        var parts = value.TrimStart('+', '-').Split('.');
+        var whole = parts[0].TrimStart('0');
+        var fraction = parts.Length > 1 ? parts[1] : "";
+        const string maximum = "79228162514264337593543950335";
+        if (whole.Length > maximum.Length || (whole.Length == maximum.Length && (string.CompareOrdinal(whole, maximum) > 0 || (whole == maximum && fraction.Any(digit => digit != '0'))))) return null;
+        if (integer && fraction.Any(digit => digit != '0')) return null;
+        if (!decimal.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var number)) return null;
+        if (!integer) return JsonValue.Create(number);
+        return number is >= int.MinValue and <= int.MaxValue ? JsonValue.Create((int)number) : null;
+    }
     private static IReadOnlyList<ScheduleOption> Words(IEnumerable<string> values) => values.Select(value => new ScheduleOption(value, value)).ToArray();
     private Task Set(string member, JsonNode? next) { var body = (JsonObject)Value.DeepClone(); body[member] = next?.DeepClone(); return ValueChanged.InvokeAsync(body); }
     private Task RemoveWindow() { var body = (JsonObject)Value.DeepClone(); body.Remove("window"); return ValueChanged.InvokeAsync(body); }
@@ -129,10 +141,11 @@
     private Task RemoveNode(int index) { var nodes = (JsonArray)Nodes.DeepClone(); nodes.RemoveAt(index); return Nested("basis", "nodes", nodes); }
     private Task ToggleModule(string id, bool selected) { var modules = new JsonArray(Modules.Where(entry => Text(Object(entry)["module"]) != id).Select(entry => entry?.DeepClone()).ToArray()); if (selected) modules.Add(new JsonObject { ["module"] = id, ["parameters"] = new JsonObject() }); return Set("modules", modules); }
     private Task ModuleParameters(string id, JsonObject parameters) { var modules = (JsonArray)Modules.DeepClone(); foreach (var entry in modules) if (Text(Object(entry)["module"]) == id) Object(entry)["parameters"] = parameters.DeepClone(); return Set("modules", modules); }
-    private RenderFragment NumberInput(string label, JsonNode? value, Func<JsonNode?, Task> changed) => Input(label, value, async raw => {
+    private RenderFragment NumberInput(string label, JsonNode? value, Func<JsonNode?, Task> changed, bool integer = false) => Input(label, value, async raw => {
         if (raw == Text(value)) { _numberError = ""; return; }
-        var parsed = Number(raw);
-        if (!string.IsNullOrWhiteSpace(raw) && parsed is null) { _numberError = label + " must be a finite number."; return; }
+        var trimmed = raw.Trim(' ', '\t', '\r', '\n', '\f', '\v');
+        var parsed = trimmed.Length == 0 ? null : Number(trimmed, integer);
+        if (trimmed.Length != 0 && parsed is null) { _numberError = integer ? label + " must be a 32-bit integer in plain decimal notation." : label + " must be a plain decimal number within the decimal range."; return; }
         _numberError = "";
         await changed(parsed);
     });

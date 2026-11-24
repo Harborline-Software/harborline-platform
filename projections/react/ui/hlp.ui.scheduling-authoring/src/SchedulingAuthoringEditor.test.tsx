@@ -110,7 +110,7 @@ describe('Schedule authoring', () => {
     const edited = screen.getByLabelText('Work budget')
     await user.clear(edited); await user.type(edited, 'abc'); await user.tab()
     expect(actual).toEqual({ solver: { parameters: {}, work_budget: -1 } })
-    expect(screen.getByRole('alert')).toHaveTextContent('Work budget must be a finite number.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Work budget must be a 32-bit integer in plain decimal notation.')
   })
   it.each([['12.5', 12.5], ['-12.5', -12.5]])('scheduling-auth-2: review R2 preserves keyboard threshold text %s', async (typed, expected) => {
     let actual: ScheduleBody = { basis: { kind: 'threshold', reading: 'meter.hours', crossing: 'above' } }
@@ -183,7 +183,7 @@ describe('Schedule authoring', () => {
     expect(screen.getByText(/shared availability runtime/)).toHaveTextContent("each Resource's own availability source")
     expect(screen.queryByLabelText('Availability source')).toBeNull()
   })
-  // Oracle: literal fixture bodies, optional producer members and the specified finite-number error text.
+  // Oracle: literal fixture bodies, optional producer members and the specified numeric-input error text.
   it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string }) => {
     let actual: ScheduleBody = entry.initial ?? {}
     let changes = 0

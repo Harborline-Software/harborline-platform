@@ -30,6 +30,18 @@ const object = (value: ScheduleJson | undefined): ScheduleBody => isObject(value
 const text = (value: ScheduleJson | undefined): string => typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 const list = (value: ScheduleJson | undefined): readonly ScheduleJson[] => Array.isArray(value) ? value : []
 const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Project', 'JobShop', 'Mobility', 'CompositeRecovery']
+const parseNumber = (value: string, integer: boolean): number | undefined => {
+  if (/^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$/.exec(value)?.[0] !== value) return undefined
+  const [digits, fraction = ''] = value.replace(/^[+-]/, '').split('.')
+  const whole = digits.replace(/^0+/, '')
+  // Compare decimal text before Number can round a value just beyond System.Decimal's bound.
+  const maximum = '79228162514264337593543950335'
+  if (whole.length > maximum.length || (whole.length === maximum.length && (whole > maximum || (whole === maximum && /[1-9]/.test(fraction))))) return undefined
+  if (integer && /[1-9]/.test(fraction)) return undefined
+  const parsed = Number(value)
+  if (integer && (parsed < -2147483648 || parsed > 2147483647)) return undefined
+  return parsed === 0 ? 0 : parsed
+}
 
 /** Controlled Schedule body editor. The host supplies authoritative refusals for this value before publishing. */
 export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = [], readOnly, onChange, onCreate }: SchedulingAuthoringEditorProps) {
@@ -51,11 +63,12 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     change(member, member === 'escalation' && !text(group.after) && !text(group.to) ? undefined : group)
   }
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
-  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
+  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
     const raw = event.currentTarget.value
     if (raw === text(current)) { setNumberError(''); return }
-    const parsed = raw.trim() === '' ? null : Number(raw)
-    if (parsed !== null && !Number.isFinite(parsed)) { setNumberError(`${label} must be a finite number.`); return }
+    const trimmed = raw.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '')
+    const parsed = trimmed === '' ? null : parseNumber(trimmed, integer)
+    if (parsed === undefined) { setNumberError(integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be a plain decimal number within the decimal range.`); return }
     setNumberError(''); update(parsed)
   }} /></label>
   const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<select id={fieldId(label)} aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
@@ -121,7 +134,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       <fieldset><legend>Solver binding</legend>
         {pick('Backend', text(solver.backend_id), catalogue.backends ?? [], next => nested('solver', 'backend_id', next))}
         {pick('Guarantee', text(solver.guarantee), words(catalogue.backends?.find(backend => backend.id === solver.backend_id)?.guarantees ?? []), next => nested('solver', 'guarantee', next))}
-        {numberInput('Work budget', solver.work_budget, next => nested('solver', 'work_budget', next))}
+        {numberInput('Work budget', solver.work_budget, next => nested('solver', 'work_budget', next), true)}
         {parameters('Backend parameters', solver.parameters, next => nested('solver', 'parameters', next))}
       </fieldset>
       <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>

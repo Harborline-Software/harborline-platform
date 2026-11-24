@@ -40,6 +40,27 @@
     },
     {
       "id": "scheduling-authoring.invalid-work-budget"
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-rejections"
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-rejections"
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-empty"
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-empty"
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-whitespace"
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-whitespace"
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-minimum"
     }
   ],
   "errors": []

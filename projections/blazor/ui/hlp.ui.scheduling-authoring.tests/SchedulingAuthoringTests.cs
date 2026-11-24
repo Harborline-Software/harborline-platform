@@ -146,7 +146,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
     {
-        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); Module(); Refusals(); return; }
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); Module(); Refusals(); return; }
         switch (caseId)
         {
             case "scheduling-authoring.from-empty": LaneParity(0); break;
@@ -156,6 +156,13 @@ public sealed class SchedulingAuthoringTests : BunitContext
             case "scheduling-authoring.remove-tolerance": LaneParity(4); break;
             case "scheduling-authoring.invalid-threshold": LaneParity(5); break;
             case "scheduling-authoring.invalid-work-budget": LaneParity(6); break;
+            case "scheduling-authoring.numeric-threshold-rejections": LaneParity(7); break;
+            case "scheduling-authoring.numeric-work-budget-rejections": LaneParity(8); break;
+            case "scheduling-authoring.numeric-threshold-empty": LaneParity(9); break;
+            case "scheduling-authoring.numeric-work-budget-empty": LaneParity(10); break;
+            case "scheduling-authoring.numeric-threshold-whitespace": LaneParity(11); break;
+            case "scheduling-authoring.numeric-work-budget-whitespace": LaneParity(12); break;
+            case "scheduling-authoring.numeric-work-budget-minimum": LaneParity(13); break;
             default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
         }
     });
@@ -192,9 +199,10 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.Equal(value, actual["basis"]![member]!.GetValue<string>());
     }
 
-    // Oracle: literal fixture bodies, optional producer members and the specified finite-number error text.
+    // Oracle: literal fixture bodies, optional producer members and the specified numeric-input error text.
     [Theory(DisplayName = "scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-12 scheduling-auth-13 scheduling-auth-15 scheduling-eng-19 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity literal body")]
     [InlineData(0)] [InlineData(1)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)]
+    [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)] [InlineData(12)] [InlineData(13)]
     public void LaneParity(int index)
     {
         var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;
