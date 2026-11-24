@@ -6,10 +6,8 @@ using Harborline.Foundation.Definitions;
 namespace Harborline.Foundation.DataExchange;
 
 /// <summary>Data exchange's additive pack wire identity; the catalogue namespace is the host's concern.</summary>
-public static class DataExchangePackIdentity
+public static partial class DataExchangePackIdentity
 {
-    /// <summary>Content kind 12, <c>DataExchangeDefinition</c>: the api's <c>PackContentKind.DataExchangeDefinition</c>. 11 is <c>ScheduleDefinition</c> and was a collision (T-724 ruling 51).</summary>
-    public const int ContentKind = 12;
 }
 
 /// <summary>How a rerun treats source records the target may already hold.</summary>
