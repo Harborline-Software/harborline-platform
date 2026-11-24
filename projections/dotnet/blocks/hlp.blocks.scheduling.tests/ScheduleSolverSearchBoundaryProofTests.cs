@@ -4,7 +4,7 @@ namespace Harborline.Blocks.Scheduling.Tests;
 
 public sealed class ScheduleSolverSearchBoundaryProofTests
 {
-    [Theory]
+    [Theory(DisplayName = "scheduling-eng-10, scheduling-ck-18: solver-boundary budget exhaustion and feasibility")]
     [InlineData(0, "Indeterminate", "WORK_BUDGET_EXHAUSTED", 0)]
     [InlineData(1, "Indeterminate", "WORK_BUDGET_EXHAUSTED", 1)]
     [InlineData(2, "Feasible", "ALL_HARD_CONSTRAINTS_SATISFIED", 2)]
@@ -19,7 +19,7 @@ public sealed class ScheduleSolverSearchBoundaryProofTests
         else Assert.Empty(result.Assignments);
     }
 
-    [Fact]
+    [Fact(DisplayName = "scheduling-eng-10, scheduling-ck-18: solver-boundary incomplete resources")]
     public void scheduling_eng_10_scheduling_ck_18_solver_boundary_incomplete_resources()
     {
         var result = new DeterministicExhaustiveProofSolver().Solve(Single(false), 2);
@@ -31,7 +31,7 @@ public sealed class ScheduleSolverSearchBoundaryProofTests
         Assert.Empty(result.Assignments);
     }
 
-    [Theory]
+    [Theory(DisplayName = "scheduling-eng-10, scheduling-ck-18: solver-boundary half-open resource assignments")]
     [InlineData(1, "Feasible", "ALL_HARD_CONSTRAINTS_SATISFIED")]
     [InlineData(0, "ProvenInfeasible", "SEARCH_SPACE_EXHAUSTED")]
     public void scheduling_eng_10_scheduling_ck_18_solver_boundary_half_open(int bStart, string status, string reason)
