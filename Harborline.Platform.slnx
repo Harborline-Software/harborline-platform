@@ -73,4 +73,6 @@
   <Project Path="projections/dotnet/foundation/hlp.ui.button/Harborline.Foundation.csproj" />
   <Project Path="projections/dotnet/foundation/hlp.ui.support.tests/Harborline.Foundation.UI.Tests.csproj" />
   <Project Path="projections/dotnet/architecture/hlp.architecture.tests/Harborline.Architecture.Tests.csproj" />
+  <Project Path="tooling/content-kind-export/ContentKindExport.csproj" />
+  <Project Path="tooling/content-kind-export.tests/ContentKindExport.Tests.csproj" />
 </Solution>
