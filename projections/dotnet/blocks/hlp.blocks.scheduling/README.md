@@ -13,7 +13,7 @@ Harborline compatibility module for lease-serialized slot reservations and deter
 
 ## Authoring refusals (T-491/schedule-refusals, interface revision 9)
 
-The shared catalogue validator refuses before storing a draft. Unsupported JSON configurations retain `scheduling.definition.body_invalid`; unadmitted modules retain `scheduling.definition.module_unsupported`. A `fixed_calendar` rule is checked at save by the recurrence producer's own `ValidateRule` parser (DES-0057 ck-1/cc-1).
+The shared catalogue validator refuses before storing a draft. An unsupported string `basis.kind` refuses as `scheduling.definition.basis_unsupported` at `/basis/kind`, with `detail.observed` naming the authored generator and `detail.required` listing the four declared wire names in ordinal order; `Target` is absent. Other malformed or unmapped JSON shapes retain `scheduling.definition.body_invalid`; unadmitted modules retain `scheduling.definition.module_unsupported`. A `fixed_calendar` rule is checked at save by the recurrence producer's own `ValidateRule` parser (DES-0057 ck-1/cc-1).
 
 `ScheduleDefinition.Solver` keeps the backend id, parameters object, guarantee and work budget with the pinned definition. Planning requires this binding; a schedule without a problem class does not. Static admission checks its shape, while the catalogue checks the registered internal solver declarations on save and publish. `AddHarborlineSchedulingPlanRuns` gives the catalogue and internal planner the same built-in solver set over the shared definition store. `PlanRun.PlanAsync` retains its explicit planning arguments.
 
