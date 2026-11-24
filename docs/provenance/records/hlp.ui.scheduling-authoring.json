@@ -20,7 +20,7 @@
     "specs/modules/ui/hlp.ui.scheduling-authoring/interface.yaml": "680a5285c8c247584ff1f4ceb6a51195e4901f25125d77306da4f269dcb29edc",
     "specs/modules/ui/hlp.ui.scheduling-authoring/quality.yaml": "7fedc8ea9ca17d377298746d6840d4365871d13d176ad30989433260f0a19e8a",
     "specs/modules/ui/hlp.ui.scheduling-authoring/scenarios.json": "b050eb856138bffb6c2b3ed7bc6d8b1b2fd405783d0d063918e9ffd61fa9bf02",
-    "specs/modules/ui/hlp.ui.scheduling-authoring/style.css": "b7f9a14de009c7ef0a3c008c442fdfaeefe75813c3f5b7fc2ac2365cbb6b173e",
+    "specs/modules/ui/hlp.ui.scheduling-authoring/style.css": "da1d3023bfc67e9a22c4b2e204227c9483e8d2e536d37cdbf9ffe830173c6d1d",
     "conformance/hlp.ui.scheduling-authoring/mutation-evidence.json": "b1f2e4d83aafead4a094e17f7dbe422a1b78813144f6d05bdcb7edb8a3fb5458"
   },
   "nextGate": "Full check, gallery and provenance on the Mac mini against the final head."
