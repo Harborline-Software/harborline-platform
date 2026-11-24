@@ -158,6 +158,24 @@
     },
     {
       "id": "scheduling-authoring.work-budget-whitespace-only"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-integer"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-integer-exponent"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-decimal-maximum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-fraction"
+    },
+    {
+      "id": "scheduling-authoring.remove-threshold-error"
+    },
+    {
+      "id": "scheduling-authoring.remove-module-parameter-error"
     }
   ],
   "errors": []

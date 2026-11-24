@@ -1,8 +1,9 @@
-import { Fragment, useId, useRef, useState } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 
 // This adapter edits the producer's JSON body. Admission remains server-owned;
 // unknown members are preserved, including host-owned envelope metadata.
-export type ScheduleJson = null | boolean | number | string | ScheduleBody | readonly ScheduleJson[]
+export interface ScheduleNumberToken { readonly rawJSON: string }
+export type ScheduleJson = null | boolean | number | string | ScheduleNumberToken | ScheduleBody | readonly ScheduleJson[]
 export interface ScheduleBody { readonly [member: string]: ScheduleJson | undefined }
 export interface ScheduleOption { readonly id: string; readonly label: string }
 export interface ScheduleBackend extends ScheduleOption { readonly guarantees: readonly string[] }
@@ -17,7 +18,8 @@ export interface ScheduleCatalogue {
 }
 export interface ScheduleRefusal { readonly code: string; readonly pointer: string; readonly detail?: ScheduleJson; readonly target?: string }
 export interface SchedulingAuthoringEditorProps {
-  readonly value: ScheduleBody
+  /** Pass producer JSON text before JSON.parse can round its numeric tokens; serialize emitted bodies with JSON.stringify. */
+  readonly value: ScheduleBody | string
   readonly catalogue?: ScheduleCatalogue
   readonly refusals?: readonly ScheduleRefusal[]
   readonly readOnly?: boolean
@@ -25,14 +27,29 @@ export interface SchedulingAuthoringEditorProps {
   readonly onCreate?: (value: ScheduleBody) => void
 }
 export const emptyScheduleDraft = (): ScheduleBody => ({})
-const isObject = (value: ScheduleJson | undefined): value is ScheduleBody => value !== null && typeof value === 'object' && !Array.isArray(value)
+// Native JSON source access/raw JSON keeps numeric tokens atomic across immutable body edits.
+const tokenJson = JSON as JSON & {
+  rawJSON: (source: string) => ScheduleNumberToken
+  isRawJSON: (value: unknown) => value is ScheduleNumberToken
+}
+const isNumberToken = (value: unknown): value is ScheduleNumberToken => tokenJson.isRawJSON?.(value) ?? false
+const parseBody = (source: string): ScheduleBody => {
+  if (typeof tokenJson.rawJSON !== 'function' || typeof tokenJson.isRawJSON !== 'function') throw new Error('Exact Schedule JSON requires native JSON source access and rawJSON support.')
+  const body: ScheduleJson = JSON.parse(source, (_key: string, value: ScheduleJson, context?: { source?: string }) => {
+    if (typeof value !== 'number') return value
+    if (context?.source === undefined) throw new Error('Exact Schedule JSON requires native JSON source access and rawJSON support.')
+    return tokenJson.rawJSON(context.source)
+  })
+  if (!isObject(body)) throw new TypeError('Schedule JSON must be an object.')
+  return body
+}
+const isObject = (value: ScheduleJson | undefined): value is ScheduleBody => value !== null && typeof value === 'object' && !Array.isArray(value) && !isNumberToken(value)
 const object = (value: ScheduleJson | undefined): ScheduleBody => isObject(value) ? value : {}
-const text = (value: ScheduleJson | undefined): string => typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+const text = (value: ScheduleJson | undefined): string => isNumberToken(value) ? value.rawJSON : typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 const numberText = (value: ScheduleJson | undefined): string => {
   const raw = text(value)
-  if (typeof value !== 'number') return raw
-  const [mantissa, exponent] = raw.split('e')
-  if (exponent === undefined) return raw
+  if (typeof value !== 'number' && !isNumberToken(value)) return raw
+  const [mantissa, exponent = '0'] = raw.split(/[eE]/)
   const sign = mantissa.startsWith('-') ? '-' : ''
   const [whole, fraction = ''] = mantissa.replace('-', '').split('.')
   const digits = whole + fraction
@@ -40,7 +57,11 @@ const numberText = (value: ScheduleJson | undefined): string => {
   const plain = point <= 0 ? '0.' + '0'.repeat(-point) + digits
     : point >= digits.length ? digits + '0'.repeat(point - digits.length)
     : digits.slice(0, point) + '.' + digits.slice(point)
-  return sign + plain
+  const [integer, decimal = ''] = plain.split('.')
+  const normalizedWhole = integer.replace(/^0+/, '')
+  const normalizedFraction = decimal.replace(/0+$/, '')
+  if (!normalizedWhole && !normalizedFraction) return '0'
+  return sign + (normalizedWhole || '0') + (normalizedFraction ? '.' + normalizedFraction : '')
 }
 const list = (value: ScheduleJson | undefined): readonly ScheduleJson[] => Array.isArray(value) ? value : []
 const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Project', 'JobShop', 'Mobility', 'CompositeRecovery']
@@ -71,7 +92,8 @@ const parseNumber = (value: string, integer: boolean): number | undefined => {
 }
 
 /** Controlled Schedule body editor. The host supplies authoritative refusals for this value before publishing. */
-export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = [], readOnly, onChange, onCreate }: SchedulingAuthoringEditorProps) {
+export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}, refusals = [], readOnly, onChange, onCreate }: SchedulingAuthoringEditorProps) {
+  const value = typeof suppliedValue === 'string' ? parseBody(suppliedValue) : suppliedValue
   const id = useId()
   const fieldId = (key: string) => `${id}-${encodeURIComponent(key)}`
   const latest = useRef(value)
@@ -106,6 +128,13 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const solver = object(value.solver)
   const nodes = list(basis.nodes)
   const modules = list(value.modules)
+  const errorControls = new Set(['Backend parameters', 'Work budget',
+    ...(basis.kind === 'threshold' ? ['Threshold'] : []),
+    ...(catalogue.modules ?? []).filter(module => modules.some(entry => object(entry).module === module.id)).map(module => `module.parameters.${module.id}`)])
+  useEffect(() => {
+    if (Object.keys(errors).some(key => !errorControls.has(key)))
+      setErrors(previous => Object.fromEntries(Object.entries(previous).filter(([key]) => errorControls.has(key))))
+  })
   const updateNode = (index: number, key: string, next: ScheduleJson | undefined) => nested('basis', 'nodes', nodes.map((node, position) => {
     if (position !== index) return node
     const updated = { ...object(node) }
@@ -173,7 +202,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       </fieldset>
     </fieldset>
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
-    {Object.entries(errors).map(([key, message]) => message && <p key={key} role="alert">{message}</p>)}
+    {Object.entries(errors).map(([key, message]) => errorControls.has(key) && message && <p key={key} role="alert">{message}</p>)}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
       {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{JSON.stringify(refusal.detail, null, 2)}</pre>}</li>)}</ul>}
     </section>

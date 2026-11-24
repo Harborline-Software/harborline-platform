@@ -238,7 +238,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
     {
-        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); LaneParity(30); LaneParity(31); LaneParity(32); LaneParity(33); LaneParity(34); LaneParity(35); LaneParity(36); LaneParity(37); LaneParity(38); LaneParity(39); LaneParity(40); LaneParity(41); LaneParity(42); LaneParity(43); LaneParity(44); LaneParity(45); Module(); Refusals(); return; }
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); LaneParity(30); LaneParity(31); LaneParity(32); LaneParity(33); LaneParity(34); LaneParity(35); LaneParity(36); LaneParity(37); LaneParity(38); LaneParity(39); LaneParity(40); LaneParity(41); LaneParity(42); LaneParity(43); LaneParity(44); LaneParity(45); LaneParity(46); LaneParity(47); LaneParity(48); LaneParity(49); LaneParity(50); LaneParity(51); Module(); Refusals(); return; }
         switch (caseId)
         {
             case "scheduling-authoring.from-empty": LaneParity(0); break;
@@ -287,6 +287,12 @@ public sealed class SchedulingAuthoringTests : BunitContext
             case "scheduling-authoring.work-budget-negative-infinity": LaneParity(43); break;
             case "scheduling-authoring.threshold-whitespace-only": LaneParity(44); break;
             case "scheduling-authoring.work-budget-whitespace-only": LaneParity(45); break;
+            case "scheduling-authoring.threshold-host-exact-integer": LaneParity(46); break;
+            case "scheduling-authoring.threshold-host-exact-integer-exponent": LaneParity(47); break;
+            case "scheduling-authoring.threshold-host-exact-decimal-maximum": LaneParity(48); break;
+            case "scheduling-authoring.threshold-host-exact-fraction": LaneParity(49); break;
+            case "scheduling-authoring.remove-threshold-error": LaneParity(50); break;
+            case "scheduling-authoring.remove-module-parameter-error": LaneParity(51); break;
             default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
         }
     });
@@ -332,10 +338,16 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [InlineData(30)] [InlineData(31)] [InlineData(32)] [InlineData(33)] [InlineData(34)] [InlineData(35)]
     [InlineData(36)] [InlineData(37)] [InlineData(38)] [InlineData(39)]
     [InlineData(40)] [InlineData(41)] [InlineData(42)] [InlineData(43)] [InlineData(44)] [InlineData(45)]
+    [InlineData(46)] [InlineData(47)] [InlineData(48)] [InlineData(49)] [InlineData(50)] [InlineData(51)]
     public void LaneParity(int index)
     {
         var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;
-        JsonObject actual = fixture["initial"]?.DeepClone().AsObject() ?? new();
+        JsonObject actual = fixture["initialJson"] is { } initialJson ? JsonNode.Parse(initialJson.GetValue<string>())!.AsObject() : fixture["initial"]?.DeepClone().AsObject() ?? new();
+        void AssertBody()
+        {
+            if (fixture["expectedJson"] is { } expectedJson) Assert.Equal(expectedJson.GetValue<string>(), actual.ToJsonString());
+            else Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+        }
         var changes = 0;
         var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue)
             .Add(x => x.ValueChanged, next => { changes++; actual = next; }));
@@ -344,31 +356,42 @@ public sealed class SchedulingAuthoringTests : BunitContext
         foreach (var step in fixture["steps"]!.AsArray())
         {
             var label = step![0]!.GetValue<string>(); var value = step[1]!.GetValue<string>();
-            if (step.AsArray().Count > 2 && step[2]?.GetValue<string>() == "click") cut.FindAll("button").Single(button => button.TextContent == label).Click();
+            var action = step.AsArray().Count > 2 ? step[2]?.GetValue<string>() : null;
+            if (action == "expect-error") { Assert.Equal(value, cut.Find("[role='alert']").TextContent); continue; }
+            if (action == "expect-no-errors") { Assert.Empty(cut.FindAll("[role='alert']")); continue; }
+            if (action == "toggle") cut.FindAll("label").Single(element => element.TextContent == label).QuerySelector("input")!.Change(value == "true");
+            else if (action == "click") cut.FindAll("button").Single(button => button.TextContent == label).Click();
             else cut.Find($"[aria-label='{label}']").Change(value);
             cut.Render(p => p.Add(x => x.Value, actual));
             if (fixture["error"] is { } error)
             {
                 Assert.Equal(error.GetValue<string>(), cut.Find("[role='alert']").TextContent);
-                Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+                AssertBody();
                 Assert.Equal(0, changes);
             }
         }
-        Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+        AssertBody();
         if (fixture["expectedThresholdDisplay"] is { } displayed) {
             var text = displayed.GetValue<string>();
             Assert.Equal(text, cut.Find("[aria-label='Threshold']").GetAttribute("value"));
-            if (fixture["unchangedThresholdEdit"]?.GetValue<bool>() == true) Assert.Equal(0, changes);
+            if (fixture["unchangedThresholdEdit"]?.GetValue<bool>() == true) Assert.Equal(fixture["expectedChanges"]?.GetValue<int>() ?? 0, changes);
             else {
                 cut.Find("[aria-label='Threshold']").Change(text + (text.Contains('.') ? "0" : ".0"));
                 cut.Render(p => p.Add(x => x.Value, actual));
             }
             Assert.Empty(cut.FindAll("[role='alert']"));
             Assert.Equal(text, cut.Find("[aria-label='Threshold']").GetAttribute("value"));
-            Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+            AssertBody();
         }
         if (fixture["expectedThresholdWire"] is JsonArray tokens)
             Assert.Contains(actual["basis"]!["value"]!.ToJsonString(), tokens.Select(token => token!.GetValue<string>()));
+        if (fixture["expectedEditedThresholdJson"] is { } editedJson)
+        {
+            cut.Find("[aria-label='Threshold']").Change("25"); cut.Render(p => p.Add(x => x.Value, actual));
+            Assert.Equal("25", cut.Find("[aria-label='Threshold']").GetAttribute("value"));
+            Assert.Equal(editedJson.GetValue<string>(), actual.ToJsonString());
+            Assert.Empty(cut.FindAll("[role='alert']"));
+        }
     }
 
     [Fact(DisplayName = "scheduling-bound-6: supply is read-only and no availability member is written")]

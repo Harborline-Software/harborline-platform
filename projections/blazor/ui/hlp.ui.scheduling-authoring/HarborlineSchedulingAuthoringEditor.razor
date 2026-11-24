@@ -105,6 +105,14 @@
     private JsonArray Modules => Value["modules"] as JsonArray ?? new();
     private static JsonObject Object(JsonNode? node) => node as JsonObject ?? new();
     private static string Text(JsonNode? node) => node is JsonValue value ? value.ToString() : "";
+    protected override void OnParametersSet()
+    {
+        var controls = new HashSet<string>(StringComparer.Ordinal) { "Backend parameters", "Work budget" };
+        if (Text(Basis["kind"]) == "threshold") controls.Add("Threshold");
+        foreach (var module in Catalogue.Modules)
+            if (Modules.Any(entry => Text(Object(entry)["module"]) == module.Id)) controls.Add("module.parameters." + module.Id);
+        foreach (var key in _errors.Keys.Where(key => !controls.Contains(key)).ToArray()) _errors.Remove(key);
+    }
     private static string NumberText(JsonNode? node)
     {
         if (node is not JsonValue || node.GetValueKind() != System.Text.Json.JsonValueKind.Number) return Text(node);

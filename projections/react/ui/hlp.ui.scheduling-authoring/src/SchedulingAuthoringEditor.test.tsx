@@ -231,14 +231,17 @@ describe('Schedule authoring', () => {
     expect(screen.queryByLabelText('Availability source')).toBeNull()
   })
   // Oracle: literal fixture bodies, optional producer members and the specified numeric-input error text.
-  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string; expectedThresholdWire?: string[]; expectedThresholdDisplay?: string; unchangedThresholdEdit?: boolean }) => {
-    let actual: ScheduleBody = entry.initial ?? {}
+  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; initialJson?: string; steps: string[][]; expected?: ScheduleBody; expectedJson?: string; expectedChanges?: number; expectedEditedThresholdJson?: string; error?: string; expectedThresholdWire?: string[]; expectedThresholdDisplay?: string; unchangedThresholdEdit?: boolean }) => {
+    let actual: ScheduleBody | string = entry.initialJson ?? entry.initial ?? {}
     let changes = 0
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { changes++; actual = next; setBody(next) }} /> }
     render(<Host />)
     if (entry.unchangedThresholdEdit) expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
     for (const [label, value, action] of entry.steps) {
-      if (action === 'click') fireEvent.click(screen.getByRole('button', { name: label }))
+      if (action === 'expect-error') { expect(screen.getByRole('alert')).toHaveTextContent(value); continue }
+      if (action === 'expect-no-errors') { expect(screen.queryByRole('alert')).toBeNull(); continue }
+      if (action === 'toggle') fireEvent.click(screen.getByLabelText(label))
+      else if (action === 'click') fireEvent.click(screen.getByRole('button', { name: label }))
       else { fireEvent.change(screen.getByLabelText(label), { target: { value } }); fireEvent.blur(screen.getByLabelText(label)) }
       if (entry.error) {
         expect(screen.getByRole('alert')).toHaveTextContent(entry.error)
@@ -246,10 +249,11 @@ describe('Schedule authoring', () => {
         expect(changes).toBe(0)
       }
     }
-    expect(actual).toStrictEqual(entry.expected)
+    if (entry.expectedJson) expect(JSON.stringify(actual)).toBe(entry.expectedJson)
+    else expect(actual).toStrictEqual(entry.expected)
     if (entry.expectedThresholdDisplay) {
       expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
-      if (entry.unchangedThresholdEdit) expect(changes).toBe(0)
+      if (entry.unchangedThresholdEdit) expect(changes).toBe(entry.expectedChanges ?? 0)
       else {
         const edit = entry.expectedThresholdDisplay + (entry.expectedThresholdDisplay.includes('.') ? '0' : '.0')
         fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: edit } })
@@ -257,9 +261,16 @@ describe('Schedule authoring', () => {
       }
       expect(screen.queryByRole('alert')).toBeNull()
       expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
-      expect(actual).toStrictEqual(entry.expected)
+      if (entry.expectedJson) expect(JSON.stringify(actual)).toBe(entry.expectedJson)
+      else expect(actual).toStrictEqual(entry.expected)
     }
-    if (entry.expectedThresholdWire) expect(entry.expectedThresholdWire).toContain(JSON.stringify((actual.basis as ScheduleBody).value))
+    if (entry.expectedThresholdWire) expect(entry.expectedThresholdWire).toContain(JSON.stringify(((actual as ScheduleBody).basis as ScheduleBody).value))
+    if (entry.expectedEditedThresholdJson) {
+      fireEvent.change(screen.getByLabelText('Threshold'), { target: { value: '25' } }); fireEvent.blur(screen.getByLabelText('Threshold'))
+      expect(screen.getByLabelText('Threshold')).toHaveValue('25')
+      expect(JSON.stringify(actual)).toBe(entry.expectedEditedThresholdJson)
+      expect(screen.queryByRole('alert')).toBeNull()
+    }
   })
   it('scheduling-auth-2 scheduling-auth-6: authors a chain with per-node tolerance then replaces the basis', () => {
     let actual: ScheduleBody = {}
