@@ -14,6 +14,33 @@ namespace Harborline.Blocks.BuilderDefinitions.Tests;
 /// <summary>Literal accepted vectors and genuine original corpus through the actual journal's complete dispatch.</summary>
 public sealed class FileJournalRecordTemporalTests
 {
+    [Theory]
+    [InlineData("Row")]
+    [InlineData("Audit")]
+    public async Task T616_reaction_identity_tampering_fails_temporal_binding(string member)
+    {
+        using var path = new JournalPath();
+        var entry = Event("r1").GetProperty("entry");
+        var evidence = Evidence(entry.GetProperty("Temporal"));
+        var store = new FileJournalRecordWriteStore(path.FileName, new Clock(evidence.AuthorityRecordedAt));
+        var actor = new KernelDelegatedActor("wf.follow-up", "1.0.0");
+        var row = Row(entry) with { DelegatedActor = actor };
+        var operation = entry.GetProperty("Operation");
+        await using (var tx = await ((IRecordTemporalWritePort)store).BeginAsync())
+        {
+            await tx.StageOperationAsync(new(operation.GetProperty("CommandId").GetString()!, operation.GetProperty("IdempotencyKey").GetString()!, operation.GetProperty("Fingerprint").GetString()!));
+            await tx.StageRecordAsync(new(RecordTemporalCommandKind.Create, row, null, evidence.EffectiveFrom, evidence.EffectiveTo, null));
+            await tx.StageAuditAsync(Audit(entry) with { DelegatedActor = actor });
+            await tx.CommitAsync();
+        }
+        var json = JsonNode.Parse(File.ReadAllText(path.FileName))!;
+        json["Entries"]![0]![member]!["DelegatedActor"]!["DefinitionVersion"] = "2.0.0";
+        File.WriteAllText(path.FileName, json.ToJsonString());
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.ReadCommittedAsync(row.Tenant, 0).AsTask());
+        json["Entries"]![0]![member == "Row" ? "Audit" : "Row"]!["DelegatedActor"]!["DefinitionVersion"] = "2.0.0";
+        File.WriteAllText(path.FileName, json.ToJsonString());
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.ReadCommittedAsync(row.Tenant, 0).AsTask());
+    }
     internal static JsonDocument Vectors() => JsonDocument.Parse(VectorJson);
     internal static JsonElement Event(string id)
     {

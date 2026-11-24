@@ -72,7 +72,7 @@ internal static class FormSubmissionStoreModel
     {
         ArgumentNullException.ThrowIfNull(audit);
         audit.Validate();
-        if (audit.OriginatorId is not null)
+        if (audit.OriginatorId is not null || audit.DelegatedActor is not null)
             throw new ArgumentException("A Forms lifecycle audit names its actor only.", nameof(audit));
         if (snapshotRequired && audit.AuthoritySnapshot.IsEmpty)
             throw new ArgumentException("A cancellation audit carries the cancel decision's authority snapshot.", nameof(audit));
