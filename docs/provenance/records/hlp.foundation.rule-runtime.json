@@ -39,7 +39,7 @@
     "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/LayoutBoundRegisterTests.cs": "23c34494ec01ef048ff43701fdb1a16c448520ebcc277f2cf1818e10fea2ac7f",
     "projections/dotnet/blocks/hlp.blocks.builder-definitions.tests/LayoutDefinitionProducerTests.cs": "6266ea46c90cc7fe569d4b5f2e6945e279468c84f2afcbd92f52417d95bf645c",
     "projections/dotnet/blocks/hlp.blocks.builder-definitions/LayoutDefinitionAdmission.cs": "9c6ecb847bdd7bc8f37fdc96e1ff7c93810641782d9d95b28ea858bd1d1468b8",
-    "tooling/stryker-baselines.json": "d5f027d36014daaebe44c32f85bcf34c39e99ae474338db889ba965003f2678a"
+    "tooling/stryker-baselines.json": "f364a5054066aed8f480a4bf79b02b3d9e30bdbb4fb07abd059b3fe587b006b5"
   },
   "nextGate": "Extract the complete caller-backed Forms definition/version/draft/reuse state, then the executable Forms Engine, against this runtime."
 }
