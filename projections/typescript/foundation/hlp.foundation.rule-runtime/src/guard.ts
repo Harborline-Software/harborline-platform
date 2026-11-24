@@ -3,7 +3,7 @@
  * transition guard / action condition (a one-node graph) over a flat context bag.
  * Fail-closed: a pending/errored guard does not let a transition fire.
  */
-import { admissionRefusal, type EvaluationAdmission } from './environment.js'
+import { admissionRefusal, fenceResolver, type EvaluationAdmission } from './environment.js'
 import { CodingSubsumptionSnapshot, requireCodingSnapshot } from './coding-subsumption.js'
 import { deriveGraphWork } from './core-work.js'
 import { Codes } from './codes.js'
@@ -30,6 +30,7 @@ class ContextBagResolver implements ValueResolver {
   resolveVar(path: string): RefValue {
     if (path.startsWith('row.')) return refError(err(Codes.badReference, 'path', path))
     const name = path.startsWith('field.') ? path.slice('field.'.length) : path
+    if (path.startsWith('field.') && name.includes('.')) return refResolved(null)
     if (Object.hasOwn(this.bag, name)) {
       const v = this.bag[name]
       return isPendingSentinel(v) ? refPending : refResolved(v)
@@ -108,7 +109,7 @@ export class GuardEvaluator {
     return this.run<Validity>(
       compiled.rules[0].ast as Json,
       rule.id,
-      snapshot,
+      fenceResolver(admission!, new ContextBagResolver(snapshot)),
       (v) => (isTruthy(v) ? { ok: true } : { ok: false, error: err(rule.id) }),
       (e) => ({ ok: false, error: e }),
       () => ({ ok: false, error: err(Codes.pendingAtSave) }),
@@ -135,7 +136,7 @@ export class GuardEvaluator {
     return this.run<ComputedValue>(
       compiled.rules[0].ast as Json,
       rule.id,
-      snapshot,
+      fenceResolver(admission!, new ContextBagResolver(snapshot)),
       (v) => ({ state: 'Resolved', value: detachJson(v) }),
       (e) => ({ state: 'Error', error: e }),
       () => ({ state: 'Pending' }),
@@ -146,13 +147,13 @@ export class GuardEvaluator {
   private run<T>(
     ast: Json,
     ruleId: string,
-    context: Record<string, Json>,
+    resolver: ValueResolver,
     onValue: (v: Json) => T,
     onError: (e: ReturnType<typeof err>) => T,
     onPending: () => T,
     signal?: AbortSignal,
   ): T {
-    const ctx: EvalContext = { resolver: new ContextBagResolver(context), now: this.clock(), budget: new EvalBudget(this.limits, signal), coding: this.#coding }
+    const ctx: EvalContext = { resolver, now: this.clock(), budget: new EvalBudget(this.limits, signal), coding: this.#coding }
     try {
       return onValue(evaluate(ast, ctx))
     } catch (e) {

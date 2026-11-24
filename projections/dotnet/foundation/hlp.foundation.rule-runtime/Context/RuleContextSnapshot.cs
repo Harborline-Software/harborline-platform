@@ -96,8 +96,9 @@ internal sealed class SnapshotResolver(
             return Read(row, path["row.".Length..], path);
         }
         var name = path.StartsWith("field.", StringComparison.Ordinal) ? path["field.".Length..] : path;
-        if (!path.StartsWith("field.", StringComparison.Ordinal) && row is not null && row.TryGetValue(name, out var local))
-            return PendingSentinel.Is(local) ? RefValue.Pending : RefValue.Resolved(local);
+        if (path.StartsWith("field.", StringComparison.Ordinal) && name.Contains('.')) return RefValue.Resolved(null);
+        // Only an explicit row. path reads the row bag. A bare key, a field. path and a dotted
+        // path such as candidate.x, wf.x or timer.x read the root alone (T-1232).
         return root.TryGetValue(name, out var value)
             ? (PendingSentinel.Is(value) ? RefValue.Pending : RefValue.Resolved(value))
             : RefValue.Resolved(null);

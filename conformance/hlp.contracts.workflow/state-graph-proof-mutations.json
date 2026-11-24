@@ -1,0 +1,112 @@
+{
+  "slice": "T-488/admission-state-graph-proof",
+  "date": "2026-11-21",
+  "host": "PC",
+  "controlRecord": "221d9269:tickets/T-488-workflows-authored-and-bound-in-the-domain-builder/slices/admission-state-graph-proof.md",
+  "base": "82abe40ac3802798c87c83503cb242d84432d024",
+  "candidate": {
+    "head": "7839b2889a225eb846bc38b5b95ff0ccc0c3db97",
+    "workingTree": "Only the new proof tests were added during all test runs; each independent temporary production mutation was restored before the next. Receipt/provenance added afterward. LF normalization after runs is whitespace only.",
+    "proofFile": "projections/dotnet/contracts/hlp.contracts.identities.tests/WorkflowFixtureConformanceTests.cs",
+    "proofSha256": "4d0243d5a7124c386c05cf0a2e746871cdef5d81f60e3faac1bba67037f1c4c3"
+  },
+  "sdk": "11.0.100",
+  "node": "v24.14.1",
+  "environment": {
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1"
+  },
+  "lane": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-488-state-graph --workload <label> --candidate 7839b2889a225eb846bc38b5b95ff0ccc0c3db97 -- <command>",
+  "focusedCommand": "dotnet test projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj --no-restore --filter FullyQualifiedName~WorkflowFixtureConformanceTests -m:1 -nr:false",
+  "oracle": "Owned literal Draft graph and exact wire codes from control 221d9269 slice acceptance 1/2; DES-0019 workflows-ck-4 and workflows-auth-22 supply verdicts and state locators; interface stable-code invariant and frozen terminal-outgoing-refused row pin code spelling. No production constants used as expected values.",
+  "closure": {
+    "command": "git -C C:\\Projects\\Harborline\\harborline-platform diff --stat 6e851512 origin/main -- projections/dotnet/contracts Directory.Build.props Directory.Build.targets Directory.Packages.props global.json NuGet.config",
+    "exit": 0,
+    "output": "",
+    "additionalCommand": "git -C C:\\Projects\\Harborline\\harborline-platform diff --stat 6e851512 origin/main -- projections/dotnet/Harborline.PackageTargetFramework.props",
+    "additionalExit": 0,
+    "additionalOutput": ""
+  },
+  "source": "projections/dotnet/contracts/hlp.contracts.identities/Workflow/WorkflowSupport.cs",
+  "mutants": [
+    {
+      "id": "remove-reached-normal-refusal",
+      "line": 496,
+      "original": "else if (state.Kind != WorkflowStateKind.Terminal && !outgoing.Contains(state.Id)) Add(WorkflowAdmissionCodes.DeadEndState, \"state is a dead end\", state.Id);",
+      "replacement": "",
+      "killingTest": "Reached_normal_dead_end_names_B",
+      "assertion": "Assert.False(result.IsValid), line 96: expected false, actual true",
+      "additionalKillingTest": "Combined_graph_defects_name_both_states: exact two-pair Assert.Equal, line 123",
+      "red": {
+        "failed": 2,
+        "passed": 4,
+        "exit": 1,
+        "total": 6,
+        "skipped": 0
+      },
+      "restoredGreen": {
+        "failed": 0,
+        "passed": 6,
+        "exit": 0,
+        "total": 6,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "remove-terminal-outgoing-refusal",
+      "line": 497,
+      "original": "if (state.Kind == WorkflowStateKind.Terminal && outgoing.Contains(state.Id)) Add(WorkflowAdmissionCodes.TerminalHasOutgoing, \"terminal state has outgoing transition\", state.Id);",
+      "replacement": "",
+      "killingTest": "Terminal_outgoing_edge_names_A",
+      "assertion": "Assert.False(result.IsValid), line 107: expected false, actual true",
+      "additionalKillingTest": "Combined_graph_defects_name_both_states: exact two-pair Assert.Equal, line 123",
+      "red": {
+        "failed": 3,
+        "passed": 3,
+        "exit": 1,
+        "total": 6,
+        "skipped": 0
+      },
+      "restoredGreen": {
+        "failed": 0,
+        "passed": 6,
+        "exit": 0,
+        "total": 6,
+        "skipped": 0
+      }
+    },
+    {
+      "id": "dead-end-locator-initial-state",
+      "line": 496,
+      "original": "Add(WorkflowAdmissionCodes.DeadEndState, \"state is a dead end\", state.Id)",
+      "replacement": "Add(WorkflowAdmissionCodes.DeadEndState, \"state is a dead end\", definition.InitialState)",
+      "killingTest": "Reached_normal_dead_end_names_B",
+      "assertion": "Assert.Equal((\"workflow.admission.dead_end_state\", \"B\"), (violation.Code, violation.Locator)), line 98: actual locator A",
+      "additionalKillingTest": "Combined_graph_defects_name_both_states: exact two-pair Assert.Equal, line 123",
+      "red": {
+        "failed": 2,
+        "passed": 4,
+        "exit": 1,
+        "total": 6,
+        "skipped": 0
+      },
+      "restoredGreen": {
+        "failed": 0,
+        "passed": 6,
+        "exit": 0,
+        "total": 6,
+        "skipped": 0
+      }
+    }
+  ],
+  "fullProject": {
+    "skipped": 0,
+    "exit": 0,
+    "command": "dotnet test projections/dotnet/contracts/hlp.contracts.identities.tests/Harborline.Contracts.Tests.csproj --no-restore -m:1 -nr:false",
+    "passed": 173,
+    "failed": 0,
+    "total": 173
+  },
+  "productionRestoration": "git diff --exit-code -- WorkflowSupport.cs: exit 0, no output",
+  "preliminaryAttempt": "First dead-end lane attempt exited 1 before compilation: PowerShell split unquoted -m:1 and -nr:false. Quoted switches thereafter. Not counted as mutation evidence."
+}

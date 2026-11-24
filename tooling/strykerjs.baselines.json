@@ -935,6 +935,16 @@
       ],
       "report": "C:/hl-ab/rb-reports/platform/hlp.foundation.rule-runtime/run1.json",
       "measured": "2026-09-30, winbox, T-1020 full run at e381df5a (every mutable file, StrykerJS 10.0.0, default concurrency), 3898 Killed / 13 Timeout / 1234 Survived / 275 NoCoverage / 2 RuntimeError; break raised 59 to 72 with 8 mutants of headroom (ruling T-724 95). The 2026-09-26 observations above are the older, lower floor."
+    },
+    "projections/react/ui/hlp.ui.report-authoring": {
+      "baseline": 70,
+      "break": 70,
+      "score": 81.51,
+      "tested": 501,
+      "observed": [
+        81.51
+      ],
+      "measured": "2026-11-21, DESKTOP-UMT08RN (PC), commit 37ed624282e66c690b02bc668a858e4372d96630, tree 5c169bab6400d9195f99bcc23d7739c624fb04f5; StrykerJS 10.0.0, --concurrency 2, full package through host-lane session pc-536; 503 generated: 410 Killed / 91 Survived / 2 NoCoverage / 0 Timeout / 0 RuntimeError / 0 CompileError; 501 tested, score 81.51%. Final baseline-only head rechecked on the PC; head and result recorded in PR #536."
     }
   }
 }

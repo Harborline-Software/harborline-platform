@@ -79,6 +79,149 @@ public sealed class WorkflowFixtureConformanceTests
             violation => violation.Code == WorkflowAdmissionCodes.DuplicateId);
     }
 
+    [Fact(DisplayName = "workflows-ck-4 workflows-auth-22: Normal A reaches Terminal B")]
+    public void Normal_to_terminal_graph_is_valid()
+    {
+        var result = ValidateGraph(GraphDefinition());
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Violations);
+    }
+
+    [Fact(DisplayName = "workflows-ck-4 workflows-auth-22: reached Normal B is a dead end")]
+    public void Reached_normal_dead_end_names_B()
+    {
+        var graph = GraphDefinition();
+        graph["states"]![1]!["kind"] = "Normal";
+        var result = ValidateGraph(graph);
+        Assert.False(result.IsValid);
+        var violation = Assert.Single(result.Violations);
+        Assert.Equal(("workflow.admission.dead_end_state", "B"), (violation.Code, violation.Locator));
+    }
+
+    [Fact(DisplayName = "workflows-ck-4 workflows-auth-22: Terminal A cannot have an outgoing edge")]
+    public void Terminal_outgoing_edge_names_A()
+    {
+        var graph = GraphDefinition();
+        graph["states"]![0]!["kind"] = "Terminal";
+        var result = ValidateGraph(graph);
+        Assert.False(result.IsValid);
+        var violation = Assert.Single(result.Violations);
+        Assert.Equal(("workflow.admission.terminal_has_outgoing", "A"), (violation.Code, violation.Locator));
+    }
+
+    [Fact(DisplayName = "workflows-ck-4 workflows-auth-22: both graph refusals are reported exactly")]
+    public void Combined_graph_defects_name_both_states()
+    {
+        var graph = GraphDefinition();
+        graph["states"]![0]!["kind"] = "Terminal";
+        graph["states"]![1]!["kind"] = "Normal";
+        var result = ValidateGraph(graph);
+        Assert.False(result.IsValid);
+        // Compare the set in ordinal code/locator order; admission ordering is not part of the contract.
+        var actual = result.Violations.OrderBy(v => v.Code, StringComparer.Ordinal)
+            .ThenBy(v => v.Locator, StringComparer.Ordinal).Select(v => (v.Code, v.Locator)).ToArray();
+        Assert.Equal(new[] { ("workflow.admission.dead_end_state", "B"), ("workflow.admission.terminal_has_outgoing", "A") }, actual);
+    }
+
+    [Fact(DisplayName = "workflows-ck-4 workflows-auth-22: lone Terminal A admits an effect-free graph")]
+    public void Lone_terminal_without_transitions_is_valid()
+    {
+        var graph = GraphDefinition();
+        graph["states"]![0]!["kind"] = "Terminal";
+        graph["states"]!.AsArray().RemoveAt(1);
+        graph["transitions"] = new JsonArray();
+        var result = ValidateGraph(graph);
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Violations);
+    }
+
+    // Independent literal oracles: control 2d1da430, T-488/classification-admission-proof acceptance 1–3.
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: classification wire is closed")]
+    public void Classification_wire_accepts_only_CP_and_AP()
+    {
+        Assert.Equal(ActionClassification.CP, WorkflowWire.Deserialize("ActionClassification", "\"CP\""));
+        Assert.Equal(ActionClassification.AP, WorkflowWire.Deserialize("ActionClassification", "\"AP\""));
+        foreach (var json in new[] { "\"Unspecified\"", "\"not-a-member\"", "0" })
+        {
+            var error = Assert.Throws<WorkflowWireException>(() => WorkflowWire.Deserialize("ActionClassification", json));
+            Assert.Equal(("unknown-closed-value", "ActionClassification"), (error.Code, error.WireType));
+        }
+    }
+
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: declaration must match registry in both directions")]
+    public void Classification_admission_requires_matching_registry()
+    {
+        var graph = ClassificationGraph();
+        var admitted = ValidateClassification(graph, ActionClassification.AP);
+        Assert.True(admitted.IsValid);
+        Assert.Empty(admitted.Violations);
+
+        graph["actions"]![0]!["classification"] = "CP";
+        var declarationMismatch = ValidateClassification(graph, ActionClassification.AP);
+        Assert.False(declarationMismatch.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.classification_mismatch", "act") },
+            declarationMismatch.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+
+        graph["actions"]![0]!["classification"] = "AP";
+        var registryMismatch = ValidateClassification(graph, ActionClassification.CP);
+        Assert.False(registryMismatch.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.classification_mismatch", "act") },
+            registryMismatch.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+    }
+
+    [Fact(DisplayName = "workflows-ck-9 workflows-eng-3 workflows-auth-9: matching CP requires a human task")]
+    public void Classification_CP_admission_requires_human_task()
+    {
+        var graph = ClassificationGraph();
+        graph["actions"]![0]!["classification"] = "CP";
+        var autonomous = ValidateClassification(graph, ActionClassification.CP);
+        Assert.False(autonomous.IsValid);
+        Assert.Equal(new[] { ("workflow.admission.cp_reachable_without_human_task", "act") },
+            autonomous.Violations.Select(v => (v.Code, v.Locator)).ToArray());
+
+        graph["triggers"]![0] = new JsonObject { ["id"] = "issued", ["kind"] = "HumanAction", ["task"] = "review" };
+        var human = ValidateClassification(graph, ActionClassification.CP);
+        Assert.True(human.IsValid);
+        Assert.Empty(human.Violations);
+    }
+
+    private static JsonObject ClassificationGraph()
+    {
+        var graph = GraphDefinition();
+        graph["actions"] = JsonNode.Parse("""
+            [{"id":"act","on":{"transition":"t-ab"},"kind":"EmitEvent",
+              "capabilityRef":"fixture.emit","classification":"AP","params":{}}]
+            """);
+        return graph;
+    }
+
+    private static WorkflowAdmissionResult ValidateClassification(JsonObject graph, ActionClassification registered) =>
+        WorkflowAdmissionValidator.Validate(
+            (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", graph.ToJsonString()),
+            new ImmutableWorkflowAuthorityResolver(new Dictionary<string, ActionClassification> { ["fixture.emit"] = registered }));
+
+    private static WorkflowAdmissionResult ValidateGraph(JsonObject graph) => WorkflowAdmissionValidator.Validate(
+        (WorkflowDefinition)WorkflowWire.Deserialize("WorkflowDefinition", graph.ToJsonString()),
+        new ImmutableWorkflowAuthorityResolver(new Dictionary<string, ActionClassification>()));
+
+    // Owned literal from control 221d9269, T-488/admission-state-graph-proof; independent of the corpus.
+    private static JsonObject GraphDefinition() => JsonNode.Parse("""
+        {
+          "key":"graph-proof","version":"1.0.0","status":"Draft","tenant":"tenant:graph",
+          "owner":{"scheme":"user","value":"author"},
+          "title":{"defaultLocale":"en","values":{"en":"Graph proof"}},
+          "subject":{"record":{"recordType":"invoice"}},"mutability":"Locked","initialState":"A",
+          "states":[
+            {"id":"A","label":{"defaultLocale":"en","values":{"en":"A"}},"kind":"Normal"},
+            {"id":"B","label":{"defaultLocale":"en","values":{"en":"B"}},"kind":"Terminal"}
+          ],
+          "triggers":[{"id":"issued","kind":"Event","eventType":"Issued"}],
+          "transitions":[{"id":"t-ab","from":"A","on":"issued","to":"B"}],
+          "actions":[],"guards":[],
+          "createdAt":"2026-11-21T00:00:00.000Z","updatedAt":"2026-11-21T00:00:00.000Z"
+        }
+        """)!.AsObject();
+
     private static void AssertWire(JsonElement row, string input)
     {
         var type = row.GetProperty("type").GetString()!;

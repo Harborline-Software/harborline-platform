@@ -1,0 +1,272 @@
+{
+  "slice": "T-493/wire-literal-proof",
+  "kind": "bounded reversible hand mutations; not Stryker",
+  "date": "2026-11-21",
+  "machine": "PC; moved from MacBook queue",
+  "controlSha": "2d1da43057c6c2204025155f11bda360570194cc",
+  "controlRecord": "tickets/T-493-taxonomy-authored-and-bound-in-the-domain-builder/slices/wire-literal-proof.md",
+  "baseSha": "d575f4908fbc0562f153f455bd3e4b3eb21dddcb",
+  "sourceSha": "ed98cd59c39df48fb55462245d5784ccbeb68429",
+  "sourceTree": "e012095621162154980ccc0e9a64d5347926672b",
+  "producerBlob": "111ebe7fc8015567763a48d920c235d4e22fc955",
+  "testBlob": "eb605a3a602d3774823f3810b36d44c156f193f7",
+  "environment": {
+    "node": "24.14.1",
+    "sdk": "11.0.100",
+    "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+    "MSBUILDDISABLENODEREUSE": "1"
+  },
+  "restore": {
+    "exitCode": 0,
+    "command": "dotnet restore projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -m:1 -nr:false",
+    "nuCodes": []
+  },
+  "oracle": "Control slice acceptance 1 literal copied directly, plus exactly one LF: 654 UTF-8 bytes, no BOM. Interface revision 4, DES-0024 ck-1/2/9/18/21, ADR-0006, T-738 content kind 8. Deserialization expectations are literal fields/enums from the record; Publish expects the empty refusal list. Neither direction derives expectations from production output or symbols.",
+  "executionOrder": [
+    "mutant-collections (red first)",
+    "baseline (stale mutant binary)",
+    "baseline-rebuilt (green)",
+    "mutant-sorting",
+    "mutant-newline",
+    "mutant-nodes",
+    "restored-selection",
+    "record-named-command",
+    "whole-project"
+  ],
+  "staleBuild": {
+    "run": {
+      "workload": "baseline",
+      "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload baseline --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=baseline.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+      "exitCode": 1,
+      "total": 2,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0,
+      "failures": [
+        {
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Literal_bytes_deserialize_publish_and_export() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 74\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+          "name": "taxonomy-ck-1, taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: literal bytes deserialize, publish and export independently",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 100, 101, 102, ···]\r\n                    ↑ (pos 2)"
+        },
+        {
+          "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Constructors_serialize_to_literal_bytes() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+          "name": "taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: public constructors serialize to independent literal bytes",
+          "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 100, 101, 102, ···]\r\n                    ↑ (pos 2)"
+        }
+      ],
+      "logSha256": "9dab361b32b55fbd0ba2988e1a44940f1db9b38efb1d93ff7f73400ca2b498be",
+      "trxSha256": "13f30dfebf4ffe381936da0a65c06df9b5498cd392b3c28e499487ef93803c04"
+    },
+    "reason": "Copy-Item restored original bytes with an old timestamp, so incremental MSBuild reused the prior mutant binary. Touched source timestamp; rebuilt baseline passes. This run is not evidence of a producer defect."
+  },
+  "baseline": {
+    "workload": "baseline-rebuilt",
+    "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload baseline-rebuilt --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=baseline-rebuilt.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+    "exitCode": 0,
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "failures": [],
+    "logSha256": "7e79c477ef0534d676e3d30656bd915fe8747022cf4c3779c81647a2964a76d6",
+    "trxSha256": "1c7ead958c1b73a7e4de9d25c8975bd6029748d7d39dd909a83a5bbb638a0dcc"
+  },
+  "mutations": [
+    {
+      "run": {
+        "workload": "mutant-collections",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload mutant-collections --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=mutant-collections.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+        "exitCode": 1,
+        "total": 2,
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "failures": [
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Constructors_serialize_to_literal_bytes() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: public constructors serialize to independent literal bytes",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 100, 101, 102, ···]\r\n                    ↑ (pos 2)"
+          },
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Literal_bytes_deserialize_publish_and_export() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 74\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-1, taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: literal bytes deserialize, publish and export independently",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 100, 101, 102, ···]\r\n                    ↑ (pos 2)"
+          }
+        ],
+        "logSha256": "5d6352f14aea9b1a106aa4ee5c0b30c8fe6c553919788964b6c5805f1f640dde",
+        "trxSha256": "3621088477d7e5988f5d88953fc7c6e47a5fad8a390123a3c7802f70d86cce86"
+      },
+      "killingAssertions": [
+        "line 28: literal UTF-8 bytes equal SerializeCanonical(public constructor fixture)",
+        "line 74: literal UTF-8 bytes equal Export(Deserialize(literal bytes)).Content"
+      ],
+      "killingTests": [
+        "Constructors_serialize_to_literal_bytes",
+        "Literal_bytes_deserialize_publish_and_export"
+      ],
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "id": "collections",
+      "restoration": "Original source bytes rewritten with a new timestamp before subsequent mutations/restored runs; no production diff remains.",
+      "edit": "diff --git a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\nindex 111ebe7f..d3caf643 100644\n--- a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n+++ b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n@@ -133,7 +133,7 @@ public static class TaxonomyDefinitionJson\n     public static byte[] SerializeCanonical(TaxonomyDefinition definition)\n     {\n         ArgumentNullException.ThrowIfNull(definition);\n-        var source = JsonSerializer.SerializeToNode(definition, Options) ?? throw new JsonException(\"The Taxonomy definition serialized to no JSON value.\");\n+        var source = JsonSerializer.SerializeToNode(definition with { Collections = null }, Options) ?? throw new JsonException(\"The Taxonomy definition serialized to no JSON value.\");\n         using var stream = new MemoryStream();\n         using (var writer = new Utf8JsonWriter(stream)) Canonicalize(source).WriteTo(writer, Options);\n         stream.WriteByte((byte)'\\n'); return stream.ToArray();\n"
+    },
+    {
+      "run": {
+        "workload": "mutant-sorting",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload mutant-sorting --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=mutant-sorting.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+        "exitCode": 1,
+        "total": 2,
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "failures": [
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Constructors_serialize_to_literal_bytes() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: public constructors serialize to independent literal bytes",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 116, 101, 110, ···]\r\n                    ↑ (pos 2)"
+          },
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Literal_bytes_deserialize_publish_and_export() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 74\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-1, taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: literal bytes deserialize, publish and export independently",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                    ↓ (pos 2)\r\nExpected: [123, 34, 99, 111, 108, ···]\r\nActual:   [123, 34, 116, 101, 110, ···]\r\n                    ↑ (pos 2)"
+          }
+        ],
+        "logSha256": "011f9f7e8f14a59ab9d0f6325419b3570b665999fbd8f00a0bf7543f5dcc4ffb",
+        "trxSha256": "77367971136ba3919a6b290f75b1c516d826dc6b279885f26ddb8cb30a182b82"
+      },
+      "killingAssertions": [
+        "line 28: literal UTF-8 bytes equal SerializeCanonical(public constructor fixture)",
+        "line 74: literal UTF-8 bytes equal Export(Deserialize(literal bytes)).Content"
+      ],
+      "killingTests": [
+        "Constructors_serialize_to_literal_bytes",
+        "Literal_bytes_deserialize_publish_and_export"
+      ],
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "id": "sorting",
+      "restoration": "Original source bytes rewritten with a new timestamp before subsequent mutations/restored runs; no production diff remains.",
+      "edit": "diff --git a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\nindex 111ebe7f..4a3669e9 100644\n--- a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n+++ b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n@@ -157,7 +157,7 @@ public static class TaxonomyDefinitionJson\n     }\n     private static JsonNode Canonicalize(JsonNode node) => node switch\n     {\n-        JsonObject value => new JsonObject(value.OrderBy(property => property.Key, StringComparer.Ordinal).Select(property => KeyValuePair.Create(property.Key, property.Value is null ? null : Canonicalize(property.Value)))),\n+        JsonObject value => new JsonObject(value.Select(property => KeyValuePair.Create(property.Key, property.Value is null ? null : Canonicalize(property.Value)))),\n         JsonArray value => new JsonArray(value.Select(item => item is null ? null : Canonicalize(item)).ToArray()),\n         _ => node.DeepClone(),\n     };\n"
+    },
+    {
+      "run": {
+        "workload": "mutant-newline",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload mutant-newline --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=mutant-newline.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+        "exitCode": 1,
+        "total": 2,
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "failures": [
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Constructors_serialize_to_literal_bytes() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: public constructors serialize to independent literal bytes",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                                 ↓ (pos 653)\r\nExpected: [···, 46, 51, 34, 125, 10]\r\nActual:   [···, 46, 51, 34, 125]"
+          },
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Literal_bytes_deserialize_publish_and_export() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 74\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-1, taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: literal bytes deserialize, publish and export independently",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                                 ↓ (pos 653)\r\nExpected: [···, 46, 51, 34, 125, 10]\r\nActual:   [···, 46, 51, 34, 125]"
+          }
+        ],
+        "logSha256": "ec38becbe3c923e1464465a1c9203b67494563467ba71b5d1f3dd77ed93d7854",
+        "trxSha256": "3269b09788314b4570b6d4e38c06d39f8389d7ca627c008bf56d709e7e9b340b"
+      },
+      "killingAssertions": [
+        "line 28: literal UTF-8 bytes equal SerializeCanonical(public constructor fixture)",
+        "line 74: literal UTF-8 bytes equal Export(Deserialize(literal bytes)).Content"
+      ],
+      "killingTests": [
+        "Constructors_serialize_to_literal_bytes",
+        "Literal_bytes_deserialize_publish_and_export"
+      ],
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "id": "newline",
+      "restoration": "Original source bytes rewritten with a new timestamp before subsequent mutations/restored runs; no production diff remains.",
+      "edit": "diff --git a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\nindex 111ebe7f..d34122bf 100644\n--- a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n+++ b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n@@ -136,7 +136,7 @@ public static class TaxonomyDefinitionJson\n         var source = JsonSerializer.SerializeToNode(definition, Options) ?? throw new JsonException(\"The Taxonomy definition serialized to no JSON value.\");\n         using var stream = new MemoryStream();\n         using (var writer = new Utf8JsonWriter(stream)) Canonicalize(source).WriteTo(writer, Options);\n-        stream.WriteByte((byte)'\\n'); return stream.ToArray();\n+        return stream.ToArray();\n     }\n     /// <summary>Deserializes UTF-8 JSON and rejects a null payload.</summary>\n     public static TaxonomyDefinition Deserialize(ReadOnlySpan<byte> json) => JsonSerializer.Deserialize<TaxonomyDefinition>(json, Options) ?? throw new JsonException(\"The Taxonomy definition payload is null.\");\n"
+    },
+    {
+      "run": {
+        "workload": "mutant-nodes",
+        "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload mutant-nodes --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=mutant-nodes.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+        "exitCode": 1,
+        "total": 2,
+        "passed": 0,
+        "failed": 2,
+        "skipped": 0,
+        "failures": [
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Literal_bytes_deserialize_publish_and_export() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 74\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-1, taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: literal bytes deserialize, publish and export independently",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                        ↓ (pos 367)\r\nExpected: [···, 58, 34, 122, 34, 44, ···]\r\nActual:   [···, 58, 34, 97, 34, 44, ···]\r\n                        ↑ (pos 367)"
+          },
+          {
+            "stack": "   at Harborline.Foundation.Taxonomy.Tests.TaxonomyWireLiteralProofTests.Constructors_serialize_to_literal_bytes() in C:\\Projects\\Harborline\\harborline-platform\\projections\\dotnet\\foundation\\hlp.foundation.taxonomy.tests\\TaxonomyWireLiteralProofTests.cs:line 28\r\n   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)\r\n   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)",
+            "name": "taxonomy-ck-2, taxonomy-ck-9, taxonomy-ck-18, taxonomy-ck-21: public constructors serialize to independent literal bytes",
+            "message": "Assert.Equal() Failure: Collections differ\r\n                        ↓ (pos 367)\r\nExpected: [···, 58, 34, 122, 34, 44, ···]\r\nActual:   [···, 58, 34, 97, 34, 44, ···]\r\n                        ↑ (pos 367)"
+          }
+        ],
+        "logSha256": "bf324b421226ab05f4f384c91938dd0dae5aad87d434ee2afdd81cb0388ac8db",
+        "trxSha256": "62ec915ce6be2ad837cf85542937828d29af7ce5c0e11cac54a30046d02ac21f"
+      },
+      "killingAssertions": [
+        "line 28: literal UTF-8 bytes equal SerializeCanonical(public constructor fixture)",
+        "line 74: literal UTF-8 bytes equal Export(Deserialize(literal bytes)).Content"
+      ],
+      "killingTests": [
+        "Constructors_serialize_to_literal_bytes",
+        "Literal_bytes_deserialize_publish_and_export"
+      ],
+      "source": "projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs",
+      "id": "nodes",
+      "restoration": "Original source bytes rewritten with a new timestamp before subsequent mutations/restored runs; no production diff remains.",
+      "edit": "diff --git a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\nindex 111ebe7f..f1aff9cd 100644\n--- a/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n+++ b/projections/dotnet/foundation/hlp.foundation.taxonomy/TaxonomyDefinition.cs\n@@ -133,7 +133,7 @@ public static class TaxonomyDefinitionJson\n     public static byte[] SerializeCanonical(TaxonomyDefinition definition)\n     {\n         ArgumentNullException.ThrowIfNull(definition);\n-        var source = JsonSerializer.SerializeToNode(definition, Options) ?? throw new JsonException(\"The Taxonomy definition serialized to no JSON value.\");\n+        var source = JsonSerializer.SerializeToNode(definition with { Nodes = definition.Nodes.Reverse().ToArray() }, Options) ?? throw new JsonException(\"The Taxonomy definition serialized to no JSON value.\");\n         using var stream = new MemoryStream();\n         using (var writer = new Utf8JsonWriter(stream)) Canonicalize(source).WriteTo(writer, Options);\n         stream.WriteByte((byte)'\\n'); return stream.ToArray();\n"
+    }
+  ],
+  "restored": {
+    "workload": "restored-selection",
+    "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload restored-selection --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=restored-selection.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+    "exitCode": 0,
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "failures": [],
+    "logSha256": "3a160b640e18d20b6409d733fe78765ff09c31c397bcbcc25f2ed6ed0996e95b",
+    "trxSha256": "e5c59576cb4a7826cf2778e9a93457021a092b972486712701f068a52c59308a"
+  },
+  "namedCommand": {
+    "workload": "record-named-command",
+    "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload record-named-command --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --filter FullyQualifiedName~TaxonomyWireLiteralProofTests --logger \"trx;LogFileName=record-named-command.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+    "exitCode": 0,
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "failures": [],
+    "logSha256": "840ff4c59c759a788f0f33988538a0b86181f83b757473d8e38f601934add414",
+    "trxSha256": "085ca2a006b1b3abe704f0ed0b80c13bda43a966de615bb21a700eff562e172f"
+  },
+  "producerValidation": {
+    "workload": "whole-project",
+    "command": "Set-Location C:\\Projects\\Harborline\\harborline-platform; & 'C:\\Program Files\\Git\\bin\\bash.exe' C:\\Projects\\Harborline\\harborline-control\\tools\\ci\\host-lane.sh run --holder writer --session pc-493-wire --workload whole-project --candidate ed98cd59 -- dotnet test projections/dotnet/foundation/hlp.foundation.taxonomy.tests/Harborline.Foundation.Taxonomy.Tests.csproj -c Release --no-restore -m:1 -nr:false --logger \"trx;LogFileName=whole-project.trx\" --results-directory C:/Users/Chris/AppData/Local/Temp/harborline/t493-wire-literal",
+    "exitCode": 0,
+    "total": 137,
+    "passed": 137,
+    "failed": 0,
+    "skipped": 0,
+    "failures": [],
+    "logSha256": "2a3e19e0e04483a5ef544d404afda53cd4ac83d49ea59f2375477efeefe2b7b8",
+    "trxSha256": "d6423f38cd5503dc31702a33536f2641d31f4138fbc9be551fa0a04c1c47be0b"
+  },
+  "provenance": {
+    "catalogLoaded": true,
+    "owners": [],
+    "records": 98,
+    "checkCommand": "node tooling/refresh-provenance-hashes.mjs --changed-from origin/main --check",
+    "meaning": "Ownership check, not module-specific hash proof. Exact successful output is in the PR.",
+    "scan": "loadProvenance and loadModuleCatalog from tooling/module-catalog.mjs; inspect contentHashes for both delivery paths",
+    "output": "0 record(s) read, 0 stale hash(es)",
+    "exitCode": 0,
+    "productionDiffExitCode": 0
+  },
+  "limits": "Whole Taxonomy project is the existing foundation-taxonomy-native registration. No full platform gate, Stryker baseline, API migration, or proof of all optional lineage/history/succession members."
+}
