@@ -28,6 +28,18 @@
     },
     {
       "id": "scheduling-authoring.refusals"
+    },
+    {
+      "id": "scheduling-authoring.remove-node-window"
+    },
+    {
+      "id": "scheduling-authoring.remove-tolerance"
+    },
+    {
+      "id": "scheduling-authoring.invalid-threshold"
+    },
+    {
+      "id": "scheduling-authoring.invalid-work-budget"
     }
   ],
   "errors": []

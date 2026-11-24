@@ -146,12 +146,16 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
     {
-        if (rawFixture is null) { LaneParity(0); LaneParity(1); Module(); Refusals(); return; }
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); Module(); Refusals(); return; }
         switch (caseId)
         {
             case "scheduling-authoring.from-empty": LaneParity(0); break;
             case "scheduling-authoring.bound": LaneParity(1); Module(); break;
             case "scheduling-authoring.refusals": Refusals(); break;
+            case "scheduling-authoring.remove-node-window": LaneParity(3); break;
+            case "scheduling-authoring.remove-tolerance": LaneParity(4); break;
+            case "scheduling-authoring.invalid-threshold": LaneParity(5); break;
+            case "scheduling-authoring.invalid-work-budget": LaneParity(6); break;
             default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
         }
     });
@@ -188,19 +192,28 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.Equal(value, actual["basis"]![member]!.GetValue<string>());
     }
 
-    [Theory(DisplayName = "scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-11 scheduling-auth-12 scheduling-auth-13 scheduling-auth-15 scheduling-eng-19 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity literal body")]
-    [InlineData(0)] [InlineData(1)]
+    // Oracle: literal fixture bodies, optional producer members and the specified finite-number error text.
+    [Theory(DisplayName = "scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-12 scheduling-auth-13 scheduling-auth-15 scheduling-eng-19 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity literal body")]
+    [InlineData(0)] [InlineData(1)] [InlineData(3)] [InlineData(4)] [InlineData(5)] [InlineData(6)]
     public void LaneParity(int index)
     {
         var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;
-        JsonObject actual = new();
+        JsonObject actual = fixture["initial"]?.DeepClone().AsObject() ?? new();
+        var changes = 0;
         var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue)
-            .Add(x => x.ValueChanged, next => actual = next));
+            .Add(x => x.ValueChanged, next => { changes++; actual = next; }));
         foreach (var step in fixture["steps"]!.AsArray())
         {
             var label = step![0]!.GetValue<string>(); var value = step[1]!.GetValue<string>();
-            cut.Find($"[aria-label='{label}']").Change(value);
+            if (step.AsArray().Count > 2 && step[2]?.GetValue<string>() == "click") cut.FindAll("button").Single(button => button.TextContent == label).Click();
+            else cut.Find($"[aria-label='{label}']").Change(value);
             cut.Render(p => p.Add(x => x.Value, actual));
+            if (fixture["error"] is { } error)
+            {
+                Assert.Equal(error.GetValue<string>(), cut.Find("[role='alert']").TextContent);
+                Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+                Assert.Equal(0, changes);
+            }
         }
         Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
     }

@@ -65,7 +65,13 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const solver = object(value.solver)
   const nodes = list(basis.nodes)
   const modules = list(value.modules)
-  const updateNode = (index: number, key: string, next: ScheduleJson) => nested('basis', 'nodes', nodes.map((node, position) => position === index ? { ...object(node), [key]: next } : node))
+  const updateNode = (index: number, key: string, next: ScheduleJson | undefined) => nested('basis', 'nodes', nodes.map((node, position) => {
+    if (position !== index) return node
+    const updated = { ...object(node) }
+    if (next === undefined) delete updated[key]
+    else updated[key] = next
+    return updated
+  }))
   const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
     if (event.currentTarget.value === event.currentTarget.defaultValue) { setParameterError(''); return }
     try {
@@ -99,12 +105,13 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
           {input(`Node ${index + 1} offset`, node.offset, next => updateNode(index, 'offset', next))}
           {['early', 'late'].map(side => <Fragment key={side}>{input(`Node ${index + 1} tolerance ${side}`, object(node.tolerance)[side], next => updateNode(index, 'tolerance', { ...object(node.tolerance), [side]: next }))}</Fragment>)}
           {['earliest', 'latest'].map(side => <Fragment key={side}>{input(`Node ${index + 1} ${side}`, object(node.window)[side], next => updateNode(index, 'window', { ...object(node.window), [side]: next }))}</Fragment>)}
+          {Object.hasOwn(node, 'window') && <button type="button" onClick={() => updateNode(index, 'window', undefined)}>Remove node {index + 1} window</button>}
           <button type="button" onClick={() => nested('basis', 'nodes', nodes.filter((_, position) => position !== index))}>Remove node {index + 1}</button>
         </fieldset> })}
         <button type="button" onClick={() => nested('basis', 'nodes', [...nodes, { node_id: '', after_node_id: null, offset: '', tolerance: { early: '', late: '' } }])}>Add node</button>
       </fieldset>}
       <fieldset><legend>Validity window</legend>{['earliest', 'latest'].map(side => <Fragment key={side}>{input(`Window ${side}`, object(value.window)[side], next => nested('window', side, next))}</Fragment>)}{Object.hasOwn(value, 'window') && <button type="button" onClick={() => change('window', undefined)}>Remove validity window</button>}</fieldset>
-      <fieldset><legend>On-time tolerance</legend>{['early', 'late'].map(side => <Fragment key={side}>{input(`Tolerance ${side}`, object(value.tolerance)[side], next => nested('tolerance', side, next))}</Fragment>)}</fieldset>
+      <fieldset><legend>On-time tolerance</legend>{['early', 'late'].map(side => <Fragment key={side}>{input(`Tolerance ${side}`, object(value.tolerance)[side], next => nested('tolerance', side, next))}</Fragment>)}{Object.hasOwn(value, 'tolerance') && <button type="button" onClick={() => change('tolerance', undefined)}>Remove tolerance</button>}</fieldset>
       {input('Grace', value.grace, next => change('grace', next || undefined))}
       {pick('Missed behaviour', text(value.missed_behaviour), words(['record_and_replan', 'window_closed']), next => change('missed_behaviour', next || undefined))}
       {input('Escalation after', object(value.escalation).after, next => nested('escalation', 'after', next))}

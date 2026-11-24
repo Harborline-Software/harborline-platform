@@ -13,6 +13,32 @@
       "steps": [["Problem class", "Project"], ["Backend", "prototype.exhaustive-proof.v2"], ["Guarantee", "feasible_proof"], ["Work budget", "10"]],
       "expected": {"problem_class":"Project","solver":{"parameters":{},"backend_id":"prototype.exhaustive-proof.v2","guarantee":"feasible_proof","work_budget":10}}
     },
-    {"id": "scheduling-authoring.refusals"}
+    {"id": "scheduling-authoring.refusals"},
+    {
+      "id": "scheduling-authoring.remove-node-window",
+      "initial": {"name":"Inspection","basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"},"window":{"earliest":"PT0S","latest":"P1D"}},{"node_id":"followup","after_node_id":"check","offset":"P2D","tolerance":{"early":"PT0S","late":"PT1H"}}]},"host_note":"preserve"},
+      "steps": [["Remove node 1 window", "", "click"]],
+      "expected": {"name":"Inspection","basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"}},{"node_id":"followup","after_node_id":"check","offset":"P2D","tolerance":{"early":"PT0S","late":"PT1H"}}]},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.remove-tolerance",
+      "initial": {"name":"Inspection","tolerance":{"early":"PT1H","late":"PT2H"},"grace":"PT3H","host_note":"preserve"},
+      "steps": [["Remove tolerance", "", "click"]],
+      "expected": {"name":"Inspection","grace":"PT3H","host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.invalid-threshold",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold", "abc"], ["Threshold", "NaN"], ["Threshold", "Infinity"], ["Threshold", "1e400"]],
+      "error": "Threshold must be a finite number.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.invalid-work-budget",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget", "abc"], ["Work budget", "NaN"], ["Work budget", "Infinity"], ["Work budget", "1e400"]],
+      "error": "Work budget must be a finite number.",
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"}
+    }
   ]
 }
