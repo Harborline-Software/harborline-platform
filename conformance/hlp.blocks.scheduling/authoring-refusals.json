@@ -82,8 +82,12 @@
       },
       "refusals": [
         {
-          "code": "scheduling.definition.body_invalid",
-          "pointer": ""
+          "code": "scheduling.definition.basis_unsupported",
+          "pointer": "/basis/kind",
+          "detail": {
+            "observed": "unsupported_generator",
+            "required": ["completion_offset", "event_anchored_chain", "fixed_calendar", "threshold"]
+          }
         }
       ],
       "missing": "An admitted schedule configuration",

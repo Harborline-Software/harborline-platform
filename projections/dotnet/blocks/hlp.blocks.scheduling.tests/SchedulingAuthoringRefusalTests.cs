@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Harborline.Blocks.BuilderDefinitions;
 using Harborline.Blocks.Scheduling.Definitions;
@@ -58,8 +59,46 @@ public sealed class SchedulingAuthoringRefusalTests
     }
 
     [Theory(DisplayName = "scheduling-auth-17: unsupported configuration refuses before storage")]
-    [InlineData("unsupported-configuration")]
-    public Task UnsupportedConfiguration(string id) => CheckWriteAsync(id);
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnsupportedConfiguration(bool mixedDueDate)
+    {
+        // Oracle: T-491/generator-refusal-detail Cases A/B, DES-0022 ck-4 and DES-0014 C3.
+        var body = mixedDueDate ? Case("unsupported-configuration").GetProperty("definition").GetRawText()
+            : """{"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"basis":{"kind":"unsupported_generator"}}""";
+        var expected = new DefinitionRefusal("scheduling.definition.basis_unsupported", "/basis/kind")
+        {
+            Detail = JsonNode.Parse("""{"observed":"unsupported_generator","required":["completion_offset","event_anchored_chain","fixed_calendar","threshold"]}""")!.AsObject(),
+        };
+        var key = new DefinitionKey("tenant-a", DefinitionKind.Schedules, "inspection");
+        var document = new DefinitionDocument(key, "inspection@1.0.0", "1.0.0", body);
+        foreach (var phase in new[] { DefinitionAdmissionPhase.Author, DefinitionAdmissionPhase.Publish, DefinitionAdmissionPhase.Install })
+            Assert.Equal(expected, Assert.Single(ScheduleDefinitionCatalogue.Admission(document, phase)));
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Schedules] = ScheduleDefinitionCatalogue.Admission,
+        });
+        var refusal = await Assert.ThrowsAsync<DefinitionRefusalException>(() => store.SaveDraftAsync(document, 0, "draft").AsTask());
+        Assert.Equal(DefinitionAdmissionPhase.Author, refusal.Stage);
+        Assert.Equal(expected, Assert.Single(refusal.Refusals));
+        Assert.Null(refusal.Refusals[0].Target);
+        Assert.Empty(await store.ListHistoryAsync(key));
+        Assert.Null(await store.GetPublishedHeadAsync(key));
+        if (mixedDueDate)
+        {
+            Assert.Equal(expected, Assert.Single(Expected(Case("unsupported-configuration"))));
+            Reasons(Case("unsupported-configuration"));
+        }
+        else
+        {
+            var positive = JsonNode.Parse(body)!.AsObject();
+            positive["basis"] = JsonNode.Parse("""{"kind":"completion_offset","offset":"P1D"}""");
+            var admitted = document with { BodyJson = positive.ToJsonString() };
+            Assert.Empty(ScheduleDefinitionCatalogue.Admission(admitted, DefinitionAdmissionPhase.Author));
+            await store.SaveDraftAsync(admitted, 0, "positive");
+            Assert.Single(await store.ListHistoryAsync(key));
+        }
+    }
 
     [Theory(DisplayName = "scheduling-auth-18: authoring reads the engine's admitted module set")]
     [InlineData("unadmitted-module")]

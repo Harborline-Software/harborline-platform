@@ -3,7 +3,7 @@
   "module": {
     "interface": {
       "path": "specs/modules/blocks/hlp.blocks.scheduling/interface.yaml",
-      "revision": 15
+      "revision": 16
     },
     "moduleKind": "runtime",
     "presentation": {
