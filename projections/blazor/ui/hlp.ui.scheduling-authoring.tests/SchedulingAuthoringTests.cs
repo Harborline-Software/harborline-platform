@@ -10,6 +10,17 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    // Oracle: literal word separator and supplied target; the pointer and target remain separate text tokens.
+    [Fact(DisplayName = "scheduling-eng-19: long refusal targets retain the separator after their pointer")]
+    public void LongRefusalTargetSeparator()
+    {
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, new JsonObject())
+            .Add(x => x.Refusals, new ScheduleRefusal[] { new("scheduling.definition.name_required", "/name",
+                Target: "ResourceTargetABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ") }));
+
+        Assert.Equal(" ResourceTargetABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ", cut.Find("li span").TextContent);
+    }
+
     [Fact(DisplayName = "scheduling-eng-19: repeated module labels retain unique control identities and exactly one own label")]
     public void RepeatedModuleLabels()
     {
