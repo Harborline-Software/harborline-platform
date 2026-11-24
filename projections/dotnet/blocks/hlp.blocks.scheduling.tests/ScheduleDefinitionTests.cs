@@ -119,6 +119,21 @@ public sealed class ScheduleDefinitionTests
         Assert.Equal(expected, Assert.Single(await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}"""))));
     }
 
+    [Theory(DisplayName = "scheduling-auth-17: duplicate basis members refuse as an invalid body in every admission phase")]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Author)]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Publish)]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Install)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Author)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Publish)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Install)]
+    public void DuplicateBasisMembersRefuse(string body, DefinitionAdmissionPhase phase)
+    {
+        // Oracle: malformed-body contract (NonObjectBodyRefuses), DES-0014 C3.
+        var document = new DefinitionDocument(Key, "inspection.quarterly@1.0.0", "1.0.0", body);
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")],
+            ScheduleDefinitionCatalogue.Admission(document, phase));
+    }
+
     [Theory(DisplayName = "scheduling-ck-4: a generator missing what it needs refuses at its member")]
     [InlineData("""{"kind":"fixed_calendar"}""", "scheduling.definition.basis_invalid", "/basis/rrule")]
     [InlineData("""{"kind":"fixed_calendar","rrule":" "}""", "scheduling.definition.basis_invalid", "/basis/rrule")]

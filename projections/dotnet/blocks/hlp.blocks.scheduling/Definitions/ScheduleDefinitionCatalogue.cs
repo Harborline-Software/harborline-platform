@@ -260,16 +260,28 @@ public sealed class ScheduleDefinitionCatalogue
         return ScheduleDefinitionAdmission.Validate(definition, document, phase, PlatformPackageSeed.ContractWindow);
     }
 
-    // The store has already parsed the body; a duplicate member is the one shape JsonObject still refuses.
+    // JsonObject members are lazy: visit every nested object before validation reads any member.
     private static JsonObject? Parse(string json)
     {
         try
         {
             var body = JsonNode.Parse(json) as JsonObject;
-            _ = body?.Count;
+            Materialize(body);
             return body;
         }
         catch (ArgumentException) { return null; }
+
+        static void Materialize(JsonNode? node)
+        {
+            if (node is JsonObject obj)
+            {
+                foreach (var member in obj) Materialize(member.Value);
+            }
+            else if (node is JsonArray array)
+            {
+                foreach (var item in array) Materialize(item);
+            }
+        }
     }
 
     // L491's integer revision is refused wherever a body still carries it; a repeated semantic version must agree.
