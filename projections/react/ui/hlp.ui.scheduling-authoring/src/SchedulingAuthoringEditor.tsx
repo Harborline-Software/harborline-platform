@@ -30,6 +30,14 @@ const object = (value: ScheduleJson | undefined): ScheduleBody => isObject(value
 const text = (value: ScheduleJson | undefined): string => typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 const list = (value: ScheduleJson | undefined): readonly ScheduleJson[] => Array.isArray(value) ? value : []
 const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Project', 'JobShop', 'Mobility', 'CompositeRecovery']
+const exactDecimalWire = (whole: string, fraction: string, parsed: number): boolean => {
+  const [mantissa, exponent = '0'] = Math.abs(parsed).toString().split('e')
+  const places = (mantissa.split('.')[1] ?? '').length
+  const actual = BigInt(mantissa.replace('.', ''))
+  const expected = BigInt(whole + fraction || '0')
+  const shift = fraction.length + Number(exponent) - places
+  return shift >= 0 ? actual * 10n ** BigInt(shift) === expected : actual === expected * 10n ** BigInt(-shift)
+}
 const parseNumber = (value: string, integer: boolean): number | undefined => {
   if (/^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$/.exec(value)?.[0] !== value) return undefined
   const [digits, fraction = ''] = value.replace(/^[+-]/, '').split('.')
@@ -38,8 +46,13 @@ const parseNumber = (value: string, integer: boolean): number | undefined => {
   const maximum = '79228162514264337593543950335'
   if (whole.length > maximum.length || (whole.length === maximum.length && (whole > maximum || (whole === maximum && /[1-9]/.test(fraction))))) return undefined
   if (integer && /[1-9]/.test(fraction)) return undefined
+  const normalizedFraction = fraction.replace(/0+$/, '')
+  const significant = (whole + normalizedFraction).replace(/^0+/, '').replace(/0+$/, '')
+  if (!integer && (significant.length > 15 || normalizedFraction.length > 28)) return undefined
   const parsed = Number(value)
   if (integer && (parsed < -2147483648 || parsed > 2147483647)) return undefined
+  // Compare integer coefficients, so the JSON token must retain the entered decimal value exactly.
+  if (!integer && !exactDecimalWire(whole, normalizedFraction, parsed)) return undefined
   return parsed === 0 ? 0 : parsed
 }
 
@@ -68,7 +81,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     if (raw === text(current)) { setNumberError(''); return }
     const trimmed = raw.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '')
     const parsed = trimmed === '' ? null : parseNumber(trimmed, integer)
-    if (parsed === undefined) { setNumberError(integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be a plain decimal number within the decimal range.`); return }
+    if (parsed === undefined) { setNumberError(integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be an exact decimal with at most 15 significant digits and scale 28.`); return }
     setNumberError(''); update(parsed)
   }} /></label>
   const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<select id={fieldId(label)} aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>

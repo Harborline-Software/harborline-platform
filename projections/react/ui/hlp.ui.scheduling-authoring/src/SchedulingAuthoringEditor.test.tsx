@@ -184,7 +184,7 @@ describe('Schedule authoring', () => {
     expect(screen.queryByLabelText('Availability source')).toBeNull()
   })
   // Oracle: literal fixture bodies, optional producer members and the specified numeric-input error text.
-  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string }) => {
+  it.each(fixtures.cases.filter((entry: { steps?: unknown }) => entry.steps))('scheduling-auth-1 scheduling-auth-3 scheduling-auth-4 scheduling-auth-5 scheduling-auth-6 scheduling-auth-11 scheduling-auth-13 scheduling-bound-1 scheduling-bound-3 scheduling-bound-4: lane-parity $id', (entry: { initial?: ScheduleBody; steps: string[][]; expected: ScheduleBody; error?: string; expectedThresholdWire?: string[] }) => {
     let actual: ScheduleBody = entry.initial ?? {}
     let changes = 0
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { changes++; actual = next; setBody(next) }} /> }
@@ -199,6 +199,7 @@ describe('Schedule authoring', () => {
       }
     }
     expect(actual).toStrictEqual(entry.expected)
+    if (entry.expectedThresholdWire) expect(entry.expectedThresholdWire).toContain(JSON.stringify((actual.basis as ScheduleBody).value))
   })
   it('scheduling-auth-2 scheduling-auth-6: authors a chain with per-node tolerance then replaces the basis', () => {
     let actual: ScheduleBody = {}

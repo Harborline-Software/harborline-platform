@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.scheduling-authoring",
-  "interfaceRevision": 1,
+  "interfaceRevision": 2,
   "semantics": {
     "operation": "Edit a producer-owned Schedule body and render supplied server refusals before publish. The host validates and owns storage and lifecycle.",
     "availability": "Read-only shared availability runtime; configuration belongs to Booking per Resource.",
-    "valueDomains": "Resource, capability and calendar resolver binding is carried to workshop-mount: this editor selects references from host catalogues, while the app host owns resolver wiring. No resolver selection is persisted in ScheduleDefinition."
+    "valueDomains": "Resource, capability and calendar resolver binding is carried to workshop-mount: this editor selects references from host catalogues, while the app host owns resolver wiring. No resolver selection is persisted in ScheduleDefinition.",
+    "numericInput": "Threshold text uses plain signed decimal notation within System.Decimal bounds, with at most 15 significant digits and normalized scale at most 28, and must retain its exact decimal value on the JSON number wire. Insignificant zeros and negative zero are normalized. Surrounding ASCII whitespace is trimmed and empty input clears to null. Work budget uses integral plain decimal notation within signed Int32 bounds. Invalid or inexact text leaves the body unchanged and presents an error; server admission remains authoritative."
   },
   "dependencies": [
     "hlp.ui.button"
@@ -61,6 +62,54 @@
     },
     {
       "id": "scheduling-authoring.numeric-work-budget-minimum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-negative-zero"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-zero"
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-point"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-point"
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-space"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-space"
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-minimum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-maximum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-before-decimal-minimum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-after-decimal-maximum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-unsafe-integer"
+    },
+    {
+      "id": "scheduling-authoring.threshold-minimum-positive"
+    },
+    {
+      "id": "scheduling-authoring.threshold-below-scale"
+    },
+    {
+      "id": "scheduling-authoring.threshold-precision-boundary"
+    },
+    {
+      "id": "scheduling-authoring.threshold-excess-precision"
+    },
+    {
+      "id": "scheduling-authoring.threshold-fraction-precision-boundary"
     }
   ],
   "errors": []

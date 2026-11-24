@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.ui.scheduling-authoring",
+  "interfaceRevision": 2,
   "authority": "DES-0022 section 4; ScheduleDefinition wire grammar",
   "cases": [
     {
@@ -30,7 +31,7 @@
       "id": "scheduling-authoring.invalid-threshold",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold", "abc"], ["Threshold", "NaN"], ["Threshold", "Infinity"], ["Threshold", "1e400"]],
-      "error": "Threshold must be a plain decimal number within the decimal range.",
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
     },
     {
@@ -44,7 +45,7 @@
       "id": "scheduling-authoring.numeric-threshold-rejections",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","1e30"],["Threshold","1e3"],["Threshold","0x10"],["Threshold","Infinity"],["Threshold","NaN"],["Threshold","79228162514264337593543950336"],["Threshold","-79228162514264337593543950336"],["Threshold","79228162514264337593543950335.1"]],
-      "error": "Threshold must be a plain decimal number within the decimal range.",
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
     },
     {
@@ -83,6 +84,118 @@
       "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
       "steps": [["Work budget","-2147483648"]],
       "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":-2147483648},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-negative-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-0"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0},"host_note":"preserve"},
+      "expectedThresholdWire": ["0"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1.50"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.5},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.5"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-point",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold",".5"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.5},"host_note":"preserve"},
+      "expectedThresholdWire": ["0.5"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-point",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","5."]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-space",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold"," 5"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-space",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","5 "]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264337593543950335"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264337593543950335"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-before-decimal-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264337593543950336"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-after-decimal-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264337593543950336"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-unsafe-integer",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","9007199254740993"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-minimum-positive",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000000000000000000000000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-28},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-28","1E-28","0.0000000000000000000000000001"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-below-scale",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.00000000000000000000000000001"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-precision-boundary",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":123456789012345},"host_note":"preserve"},
+      "expectedThresholdWire": ["123456789012345"]
+    },
+    {
+      "id": "scheduling-authoring.threshold-excess-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1.234567890123456"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-fraction-precision-boundary",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.123456789012345},"host_note":"preserve"},
+      "expectedThresholdWire": ["0.123456789012345"]
     }
   ]
 }

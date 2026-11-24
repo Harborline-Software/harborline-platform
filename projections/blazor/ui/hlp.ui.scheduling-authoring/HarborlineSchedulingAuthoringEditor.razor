@@ -116,8 +116,16 @@
         const string maximum = "79228162514264337593543950335";
         if (whole.Length > maximum.Length || (whole.Length == maximum.Length && (string.CompareOrdinal(whole, maximum) > 0 || (whole == maximum && fraction.Any(digit => digit != '0'))))) return null;
         if (integer && fraction.Any(digit => digit != '0')) return null;
+        var normalizedFraction = fraction.TrimEnd('0');
+        var significant = (whole + normalizedFraction).TrimStart('0').TrimEnd('0');
+        if (!integer && (significant.Length > 15 || normalizedFraction.Length > 28)) return null;
         if (!decimal.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var number)) return null;
-        if (!integer) return JsonValue.Create(number);
+        if (!integer)
+        {
+            var wire = double.Parse(value, System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            if (!decimal.TryParse(wire, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var roundTrip) || roundTrip != number) return null;
+            return JsonValue.Create(number == 0 ? 0m : decimal.Parse(number.ToString("G29", System.Globalization.CultureInfo.InvariantCulture), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture));
+        }
         return number is >= int.MinValue and <= int.MaxValue ? JsonValue.Create((int)number) : null;
     }
     private static IReadOnlyList<ScheduleOption> Words(IEnumerable<string> values) => values.Select(value => new ScheduleOption(value, value)).ToArray();
@@ -145,7 +153,7 @@
         if (raw == Text(value)) { _numberError = ""; return; }
         var trimmed = raw.Trim(' ', '\t', '\r', '\n', '\f', '\v');
         var parsed = trimmed.Length == 0 ? null : Number(trimmed, integer);
-        if (trimmed.Length != 0 && parsed is null) { _numberError = integer ? label + " must be a 32-bit integer in plain decimal notation." : label + " must be a plain decimal number within the decimal range."; return; }
+        if (trimmed.Length != 0 && parsed is null) { _numberError = integer ? label + " must be a 32-bit integer in plain decimal notation." : label + " must be an exact decimal with at most 15 significant digits and scale 28."; return; }
         _numberError = "";
         await changed(parsed);
     });
