@@ -140,6 +140,24 @@
     },
     {
       "id": "scheduling-authoring.threshold-host-preserve-scale-29"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-negative-zero"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-trailing-zero"
+    },
+    {
+      "id": "scheduling-authoring.threshold-negative-infinity"
+    },
+    {
+      "id": "scheduling-authoring.work-budget-negative-infinity"
+    },
+    {
+      "id": "scheduling-authoring.threshold-whitespace-only"
+    },
+    {
+      "id": "scheduling-authoring.work-budget-whitespace-only"
     }
   ],
   "errors": []
