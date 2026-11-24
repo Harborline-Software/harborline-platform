@@ -18,7 +18,7 @@ export interface ScheduleCatalogue {
 }
 export interface ScheduleRefusal { readonly code: string; readonly pointer: string; readonly detail?: ScheduleJson; readonly target?: string }
 export interface SchedulingAuthoringEditorProps {
-  /** Pass producer JSON text before JSON.parse can round its numeric tokens; serialize emitted bodies with JSON.stringify. */
+  /** Pass producer JSON text before JSON.parse can round its numeric tokens; serialize emitted bodies with stringifyScheduleBody for portable exact-number support. */
   readonly value: ScheduleBody | string
   readonly catalogue?: ScheduleCatalogue
   readonly refusals?: readonly ScheduleRefusal[]
@@ -27,21 +27,62 @@ export interface SchedulingAuthoringEditorProps {
   readonly onCreate?: (value: ScheduleBody) => void
 }
 export const emptyScheduleDraft = (): ScheduleBody => ({})
-// Native JSON source access/raw JSON keeps numeric tokens atomic across immutable body edits.
+// Keep exact JSON number lexemes atomic; the fallback uses JSON.parse for all syntax validation.
 const tokenJson = JSON as JSON & {
   rawJSON: (source: string) => ScheduleNumberToken
   isRawJSON: (value: unknown) => value is ScheduleNumberToken
 }
-const isNumberToken = (value: unknown): value is ScheduleNumberToken => tokenJson.isRawJSON?.(value) ?? false
+const numberTokenBrand = Symbol('Schedule number token')
+const isNumberToken = (value: unknown): value is ScheduleNumberToken => (tokenJson.isRawJSON?.(value) ?? false)
+  || (value !== null && typeof value === 'object' && Object.hasOwn(value, numberTokenBrand))
+const numberToken = (source: string): number | ScheduleNumberToken => {
+  const number = Number(source)
+  if (JSON.stringify(number) === source) return number
+  if (typeof tokenJson.rawJSON === 'function' && typeof tokenJson.isRawJSON === 'function') return tokenJson.rawJSON(source)
+  return Object.freeze({ rawJSON: source, [numberTokenBrand]: true, toJSON() {
+    if (typeof tokenJson.rawJSON === 'function') return tokenJson.rawJSON(source)
+    throw new TypeError('Use stringifyScheduleBody to serialize exact Schedule numbers on this runtime.')
+  } })
+}
+const jsonLiteral = /"(?:\\.|[^"\\])*"|-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g
 const parseBody = (source: string): ScheduleBody => {
-  if (typeof tokenJson.rawJSON !== 'function' || typeof tokenJson.isRawJSON !== 'function') throw new Error('Exact Schedule JSON requires native JSON source access and rawJSON support.')
-  const body: ScheduleJson = JSON.parse(source, (_key: string, value: ScheduleJson, context?: { source?: string }) => {
+  let hasSource = true
+  let body: ScheduleJson = JSON.parse(source, (_key: string, value: ScheduleJson, context?: { source?: string }) => {
     if (typeof value !== 'number') return value
-    if (context?.source === undefined) throw new Error('Exact Schedule JSON requires native JSON source access and rawJSON support.')
-    return tokenJson.rawJSON(context.source)
+    if (context?.source === undefined) { hasSource = false; return value }
+    return numberToken(context.source)
   })
+  if (!hasSource) {
+    // Choose a key absent even from escaped input strings, so host objects cannot impersonate tokens.
+    const names = new Set((source.match(jsonLiteral) ?? []).filter(literal => literal.startsWith('"')).map(literal => JSON.parse(literal) as string))
+    let marker = '$schedule.number'
+    while (names.has(marker)) marker += '_'
+    const protectedSource = source.replace(jsonLiteral, literal => literal.startsWith('"') ? literal : `{${JSON.stringify(marker)}:${JSON.stringify(literal)}}`)
+    body = JSON.parse(protectedSource, (_key: string, value: ScheduleJson) => isObject(value) && Object.hasOwn(value, marker) ? numberToken(value[marker] as string) : value)
+  }
   if (!isObject(body)) throw new TypeError('Schedule JSON must be an object.')
   return body
+}
+/** Serialize controlled Schedule bodies without rounding exact tokens, including without JSON.rawJSON. */
+export function stringifyScheduleBody(value: ScheduleJson | undefined, space = 0): string | undefined {
+  if (typeof tokenJson.rawJSON === 'function') return JSON.stringify(value, null, space)
+  const indent = ' '.repeat(Math.max(0, Math.min(10, Math.trunc(space))))
+  const ancestors = new Set<object>()
+  const encode = (current: ScheduleJson | undefined, depth: number): string | undefined => {
+    if (isNumberToken(current)) return current.rawJSON
+    if (current === null || typeof current !== 'object') return JSON.stringify(current)
+    if (ancestors.has(current)) throw new TypeError('Schedule JSON must not contain cycles.')
+    ancestors.add(current)
+    const array = Array.isArray(current)
+    const parts = array ? current.map(child => encode(child, depth + 1) ?? 'null')
+      : Object.entries(current).filter(([, child]) => child !== undefined).map(([key, child]) => `${JSON.stringify(key)}:${indent ? ' ' : ''}${encode(child, depth + 1)}`)
+    ancestors.delete(current)
+    const open = array ? '[' : '{'; const close = array ? ']' : '}'
+    if (!parts.length) return open + close
+    const next = indent.repeat(depth + 1)
+    return open + (indent ? '\n' + next : '') + parts.join(indent ? ',\n' + next : ',') + (indent ? '\n' + indent.repeat(depth) : '') + close
+  }
+  return encode(value, 0)
 }
 const isObject = (value: ScheduleJson | undefined): value is ScheduleBody => value !== null && typeof value === 'object' && !Array.isArray(value) && !isNumberToken(value)
 const object = (value: ScheduleJson | undefined): ScheduleBody => isObject(value) ? value : {}
@@ -142,12 +183,11 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
     else updated[key] = next
     return updated
   }))
-  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
+  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={stringifyScheduleBody(current)} defaultValue={stringifyScheduleBody(current ?? {}, 2)} onBlur={event => {
     if (event.currentTarget.value === event.currentTarget.defaultValue) { setError(controlKey, ''); return }
     try {
-      const parsed: ScheduleJson = JSON.parse(event.currentTarget.value)
-      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) { setError(controlKey, `${label} must be a JSON object.`); return }
-      setError(controlKey, ''); update(object(parsed))
+      const parsed = parseBody(event.currentTarget.value)
+      setError(controlKey, ''); update(parsed)
     } catch { setError(controlKey, `${label} must be a JSON object.`) }
   }} /></label>
   return <form className="hl-scheduling-authoring" aria-label="Schedule editor" onSubmit={event => event.preventDefault()}>
@@ -204,7 +244,7 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
     {Object.entries(errors).map(([key, message]) => errorControls.has(key) && message && <p key={key} role="alert">{message}</p>)}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
-      {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{JSON.stringify(refusal.detail, null, 2)}</pre>}</li>)}</ul>}
+      {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{stringifyScheduleBody(refusal.detail, 2)}</pre>}</li>)}</ul>}
     </section>
   </form>
 }

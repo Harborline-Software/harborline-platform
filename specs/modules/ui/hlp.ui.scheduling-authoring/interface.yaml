@@ -6,7 +6,8 @@
     "operation": "Edit a producer-owned Schedule body and render supplied server refusals before publish. The host validates and owns storage and lifecycle.",
     "availability": "Read-only shared availability runtime; configuration belongs to Booking per Resource.",
     "valueDomains": "Resource, capability and calendar resolver binding is carried to workshop-mount: this editor selects references from host catalogues, while the app host owns resolver wiring. No resolver selection is persisted in ScheduleDefinition.",
-    "numericInput": "Threshold text uses plain signed decimal notation within System.Decimal bounds, with at most 15 significant digits and normalized scale at most 28, and must retain its exact decimal value on the JSON number wire. Insignificant zeros and negative zero are normalized. Surrounding ASCII whitespace is trimmed and empty input clears to null. Work budget uses integral plain decimal notation within signed Int32 bounds. Invalid or inexact text leaves the body unchanged and presents an error; server admission remains authoritative."
+    "numericInput": "Threshold text uses plain signed decimal notation within System.Decimal bounds, with at most 15 significant digits and normalized scale at most 28, and must retain its exact decimal value on the JSON number wire. Insignificant zeros and negative zero are normalized. Surrounding ASCII whitespace is trimmed and empty input clears to null. Work budget uses integral plain decimal notation within signed Int32 bounds. Invalid or inexact text leaves the body unchanged and presents an error; server admission remains authoritative.",
+    "jsonTransport": "React hosts pass producer JSON text before numeric conversion and serialize emitted bodies with stringifyScheduleBody. Exact host and parameter number tokens survive untouched fields and unrelated edits, including on runtimes without JSON.rawJSON or JSON.parse source-text access. These native features are optional optimizations, not a runtime prerequisite. The fallback delegates JSON syntax validation to JSON.parse, preserves number lexemes and refuses unsafe ordinary JSON.stringify of fallback tokens rather than rounding. Blazor uses JsonObject/JsonNode for the same exact-token behavior."
   },
   "dependencies": [
     "hlp.ui.button"
@@ -176,6 +177,12 @@
     },
     {
       "id": "scheduling-authoring.remove-module-parameter-error"
+    },
+    {
+      "id": "scheduling-authoring.backend-parameter-preserves-number-token"
+    },
+    {
+      "id": "scheduling-authoring.module-parameter-preserves-number-token"
     }
   ],
   "errors": []

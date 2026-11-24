@@ -238,7 +238,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
     {
-        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); LaneParity(30); LaneParity(31); LaneParity(32); LaneParity(33); LaneParity(34); LaneParity(35); LaneParity(36); LaneParity(37); LaneParity(38); LaneParity(39); LaneParity(40); LaneParity(41); LaneParity(42); LaneParity(43); LaneParity(44); LaneParity(45); LaneParity(46); LaneParity(47); LaneParity(48); LaneParity(49); LaneParity(50); LaneParity(51); Module(); Refusals(); return; }
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); LaneParity(30); LaneParity(31); LaneParity(32); LaneParity(33); LaneParity(34); LaneParity(35); LaneParity(36); LaneParity(37); LaneParity(38); LaneParity(39); LaneParity(40); LaneParity(41); LaneParity(42); LaneParity(43); LaneParity(44); LaneParity(45); LaneParity(46); LaneParity(47); LaneParity(48); LaneParity(49); LaneParity(50); LaneParity(51); LaneParity(52); LaneParity(53); Module(); Refusals(); return; }
         switch (caseId)
         {
             case "scheduling-authoring.from-empty": LaneParity(0); break;
@@ -293,6 +293,8 @@ public sealed class SchedulingAuthoringTests : BunitContext
             case "scheduling-authoring.threshold-host-exact-fraction": LaneParity(49); break;
             case "scheduling-authoring.remove-threshold-error": LaneParity(50); break;
             case "scheduling-authoring.remove-module-parameter-error": LaneParity(51); break;
+            case "scheduling-authoring.backend-parameter-preserves-number-token": LaneParity(52); break;
+            case "scheduling-authoring.module-parameter-preserves-number-token": LaneParity(53); break;
             default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
         }
     });
@@ -339,6 +341,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [InlineData(36)] [InlineData(37)] [InlineData(38)] [InlineData(39)]
     [InlineData(40)] [InlineData(41)] [InlineData(42)] [InlineData(43)] [InlineData(44)] [InlineData(45)]
     [InlineData(46)] [InlineData(47)] [InlineData(48)] [InlineData(49)] [InlineData(50)] [InlineData(51)]
+    [InlineData(52)] [InlineData(53)]
     public void LaneParity(int index)
     {
         var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;

@@ -502,6 +502,28 @@
           }
         ]
       }
+    },
+    {
+      "id": "scheduling-authoring.backend-parameter-preserves-number-token",
+      "initialJson": "{\"solver\":{\"parameters\":{\"limit\":9007199254740993,\"seed\":7}}}",
+      "steps": [
+        [
+          "Backend parameters",
+          "{\"limit\":9007199254740993,\"seed\":8}"
+        ]
+      ],
+      "expectedJson": "{\"solver\":{\"parameters\":{\"limit\":9007199254740993,\"seed\":8}}}"
+    },
+    {
+      "id": "scheduling-authoring.module-parameter-preserves-number-token",
+      "initialJson": "{\"modules\":[{\"module\":\"precedence\",\"parameters\":{\"limit\":0.1234567890123456789012345678,\"seed\":7}}]}",
+      "steps": [
+        [
+          "Precedence parameters",
+          "{\"limit\":0.1234567890123456789012345678,\"seed\":8}"
+        ]
+      ],
+      "expectedJson": "{\"modules\":[{\"module\":\"precedence\",\"parameters\":{\"limit\":0.1234567890123456789012345678,\"seed\":8}}]}"
     }
   ]
 }

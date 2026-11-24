@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { SchedulingAuthoringEditor, emptyScheduleDraft, type ScheduleBody } from './index'
+import * as scheduling from './index'
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -11,6 +12,50 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  // Oracle: literal producer JSON, exact JSON number grammar and the existing numeric-input normalization rule.
+  it.each(['no rawJSON', 'no source text', 'neither'])('preserves exact JSON without native support: %s', mode => {
+    const nativeParse = JSON.parse
+    const raw = Object.getOwnPropertyDescriptor(JSON, 'rawJSON')!
+    const isRaw = Object.getOwnPropertyDescriptor(JSON, 'isRawJSON')!
+    let actual: ScheduleBody | string = '{"name":"Inspection","basis":{"kind":"threshold","value":9007199254740993},"solver":{"parameters":{"limit":79228162514264337593543950335,"seed":7,"$schedule.number":"keep","quoted":"1e30 9007199254740993","nested":[9007199254740993,true,null,{"rawJSON":"9007199254740993"}]}}}'
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    try {
+      if (mode !== 'no source text') {
+        Object.defineProperty(JSON, 'rawJSON', { ...raw, value: undefined })
+        Object.defineProperty(JSON, 'isRawJSON', { ...isRaw, value: undefined })
+      }
+      if (mode !== 'no rawJSON') vi.spyOn(JSON, 'parse').mockImplementation((source, reviver) => nativeParse(source, reviver ? function (key, value) { return reviver.call(this, key, value) } : undefined))
+      render(<Host />)
+      expect(screen.getByLabelText('Threshold')).toHaveValue('9007199254740993')
+      expect(screen.getByLabelText('Backend parameters')).toHaveValue(`{
+  "limit": 79228162514264337593543950335,
+  "seed": 7,
+  "$schedule.number": "keep",
+  "quoted": "1e30 9007199254740993",
+  "nested": [
+    9007199254740993,
+    true,
+    null,
+    {
+      "rawJSON": "9007199254740993"
+    }
+  ]
+}`)
+      fireEvent.change(screen.getByLabelText('Schedule name'), { target: { value: 'Updated' } })
+      fireEvent.change(screen.getByLabelText('Backend parameters'), { target: { value: '{"limit":79228162514264337593543950335,"seed":8,"$schedule.number":"keep","quoted":"1e30 9007199254740993","nested":[9007199254740993,true,null,{"rawJSON":"9007199254740993"}]}' } }); fireEvent.blur(screen.getByLabelText('Backend parameters'))
+      expect(scheduling.stringifyScheduleBody(actual as ScheduleBody)).toBe('{"name":"Updated","basis":{"kind":"threshold","value":9007199254740993},"solver":{"parameters":{"limit":79228162514264337593543950335,"seed":8,"$schedule.number":"keep","quoted":"1e30 9007199254740993","nested":[9007199254740993,true,null,{"rawJSON":"9007199254740993"}]}}}')
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(scheduling.stringifyScheduleBody({ omitted: undefined, zero: 0, empty: [] }, 2)).toBe('{\n  "zero": 0,\n  "empty": []\n}')
+      const cyclic: Record<string, ScheduleBody> = {}; cyclic.self = cyclic
+      expect(() => scheduling.stringifyScheduleBody(cyclic)).toThrow(TypeError)
+      if (mode !== 'no source text') expect(() => JSON.stringify(actual)).toThrow('Use stringifyScheduleBody to serialize exact Schedule numbers on this runtime.')
+    } finally {
+      vi.restoreAllMocks()
+      Object.defineProperty(JSON, 'rawJSON', raw)
+      Object.defineProperty(JSON, 'isRawJSON', isRaw)
+    }
+  })
+
   // Oracle: interface numericInput keeps rejected edits uncommitted; literal field errors and bodies.
   it.each([
     ['Threshold', 'Work budget', 'Threshold must be an exact decimal with at most 15 significant digits and scale 28.', 'Work budget must be a 32-bit integer in plain decimal notation.', '25', '20'],
