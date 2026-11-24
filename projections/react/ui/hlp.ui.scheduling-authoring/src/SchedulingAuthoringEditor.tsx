@@ -28,6 +28,20 @@ export const emptyScheduleDraft = (): ScheduleBody => ({})
 const isObject = (value: ScheduleJson | undefined): value is ScheduleBody => value !== null && typeof value === 'object' && !Array.isArray(value)
 const object = (value: ScheduleJson | undefined): ScheduleBody => isObject(value) ? value : {}
 const text = (value: ScheduleJson | undefined): string => typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+const numberText = (value: ScheduleJson | undefined): string => {
+  const raw = text(value)
+  if (typeof value !== 'number') return raw
+  const [mantissa, exponent] = raw.split('e')
+  if (exponent === undefined) return raw
+  const sign = mantissa.startsWith('-') ? '-' : ''
+  const [whole, fraction = ''] = mantissa.replace('-', '').split('.')
+  const digits = whole + fraction
+  const point = whole.length + Number(exponent)
+  const plain = point <= 0 ? '0.' + '0'.repeat(-point) + digits
+    : point >= digits.length ? digits + '0'.repeat(point - digits.length)
+    : digits.slice(0, point) + '.' + digits.slice(point)
+  return sign + plain
+}
 const list = (value: ScheduleJson | undefined): readonly ScheduleJson[] => Array.isArray(value) ? value : []
 const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Project', 'JobShop', 'Mobility', 'CompositeRecovery']
 const exactDecimalWire = (whole: string, fraction: string, parsed: number): boolean => {
@@ -76,12 +90,13 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     change(member, member === 'escalation' && !text(group.after) && !text(group.to) ? undefined : group)
   }
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
-  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
+  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={numberText(current)} aria-label={label} inputMode="decimal" defaultValue={numberText(current)} onBlur={event => {
     const raw = event.currentTarget.value
-    if (raw === text(current)) { setNumberError(''); return }
+    if (raw === numberText(current)) { setNumberError(''); return }
     const trimmed = raw.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '')
     const parsed = trimmed === '' ? null : parseNumber(trimmed, integer)
     if (parsed === undefined) { setNumberError(integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be an exact decimal with at most 15 significant digits and scale 28.`); return }
+    event.currentTarget.value = numberText(parsed)
     setNumberError(''); update(parsed)
   }} /></label>
   const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<select id={fieldId(label)} aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>

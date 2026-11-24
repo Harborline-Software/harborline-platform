@@ -110,6 +110,24 @@
     },
     {
       "id": "scheduling-authoring.threshold-fraction-precision-boundary"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-small"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large-precision"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-maximum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-maximum"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-minimum"
     }
   ],
   "errors": []

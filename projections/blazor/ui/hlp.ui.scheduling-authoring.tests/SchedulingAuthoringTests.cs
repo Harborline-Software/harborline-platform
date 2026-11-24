@@ -10,6 +10,34 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    // Oracles: interface revision 2 numericInput, literal decimal values and JSON number tokens.
+    public static TheoryData<string, decimal> ProducerThresholdWireCases => new()
+    {
+        { "1e-28", 0.0000000000000000000000000001m },
+        { "0.0000000000000000000000000001", 0.0000000000000000000000000001m },
+        { "-1e-28", -0.0000000000000000000000000001m },
+        { "-0.0000000000000000000000000001", -0.0000000000000000000000000001m },
+        { "7.92281625142643e+28", 79228162514264300000000000000m },
+        { "79228162514264300000000000000", 79228162514264300000000000000m },
+        { "-7.92281625142643e+28", -79228162514264300000000000000m },
+        { "-79228162514264300000000000000", -79228162514264300000000000000m },
+        { "0", 0m },
+        { "1e-7", 0.0000001m },
+        { "0.0000001", 0.0000001m },
+        { "1e+21", 1000000000000000000000m },
+        { "1000000000000000000000", 1000000000000000000000m },
+        { "1.23456789012345e+28", 12345678901234500000000000000m },
+        { "12345678901234500000000000000", 12345678901234500000000000000m },
+    };
+
+    [Theory(DisplayName = "scheduling-auth-2: producer codec accepts threshold wire edges as exact decimals")]
+    [MemberData(nameof(ProducerThresholdWireCases))]
+    public void ProducerAcceptsThresholdWire(string wire, decimal expected)
+    {
+        var definition = ScheduleDefinitionJson.Deserialize("""{"envelope":null,"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":STAR}}""".Replace("STAR", wire, StringComparison.Ordinal));
+        Assert.Equal(expected, Assert.IsType<ThresholdBasis>(definition.Basis).Value);
+    }
+
     // Oracle: optional ScheduleDefinition.Escalation; a present escalation requires both after and to.
     [Theory(DisplayName = "scheduling-auth-5: clearing the last escalation value removes the optional object")]
     [InlineData("""{"after":"PT1H","to":"team.operations"}""", "Escalation after", "Escalation to", """{"name":"Inspection","escalation":{"after":"","to":"team.operations"}}""")]
@@ -146,7 +174,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
     {
-        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); Module(); Refusals(); return; }
+        if (rawFixture is null) { LaneParity(0); LaneParity(1); LaneParity(3); LaneParity(4); LaneParity(5); LaneParity(6); LaneParity(7); LaneParity(8); LaneParity(9); LaneParity(10); LaneParity(11); LaneParity(12); LaneParity(13); LaneParity(14); LaneParity(15); LaneParity(16); LaneParity(17); LaneParity(18); LaneParity(19); LaneParity(20); LaneParity(21); LaneParity(22); LaneParity(23); LaneParity(24); LaneParity(25); LaneParity(26); LaneParity(27); LaneParity(28); LaneParity(29); LaneParity(30); LaneParity(31); LaneParity(32); LaneParity(33); LaneParity(34); LaneParity(35); Module(); Refusals(); return; }
         switch (caseId)
         {
             case "scheduling-authoring.from-empty": LaneParity(0); break;
@@ -179,6 +207,12 @@ public sealed class SchedulingAuthoringTests : BunitContext
             case "scheduling-authoring.threshold-precision-boundary": LaneParity(27); break;
             case "scheduling-authoring.threshold-excess-precision": LaneParity(28); break;
             case "scheduling-authoring.threshold-fraction-precision-boundary": LaneParity(29); break;
+            case "scheduling-authoring.threshold-display-small": LaneParity(30); break;
+            case "scheduling-authoring.threshold-display-large": LaneParity(31); break;
+            case "scheduling-authoring.threshold-display-large-precision": LaneParity(32); break;
+            case "scheduling-authoring.threshold-display-maximum": LaneParity(33); break;
+            case "scheduling-authoring.threshold-display-negative-maximum": LaneParity(34); break;
+            case "scheduling-authoring.threshold-display-negative-minimum": LaneParity(35); break;
             default: Assert.Fail("Unknown Scheduling fixture: " + caseId); break;
         }
     });
@@ -221,6 +255,7 @@ public sealed class SchedulingAuthoringTests : BunitContext
     [InlineData(7)] [InlineData(8)] [InlineData(9)] [InlineData(10)] [InlineData(11)] [InlineData(12)] [InlineData(13)]
     [InlineData(14)] [InlineData(15)] [InlineData(16)] [InlineData(17)] [InlineData(18)] [InlineData(19)] [InlineData(20)] [InlineData(21)]
     [InlineData(22)] [InlineData(23)] [InlineData(24)] [InlineData(25)] [InlineData(26)] [InlineData(27)] [InlineData(28)] [InlineData(29)]
+    [InlineData(30)] [InlineData(31)] [InlineData(32)] [InlineData(33)] [InlineData(34)] [InlineData(35)]
     public void LaneParity(int index)
     {
         var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!["cases"]![index]!;
@@ -242,6 +277,15 @@ public sealed class SchedulingAuthoringTests : BunitContext
             }
         }
         Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+        if (fixture["expectedThresholdDisplay"] is { } displayed) {
+            var text = displayed.GetValue<string>();
+            Assert.Equal(text, cut.Find("[aria-label='Threshold']").GetAttribute("value"));
+            cut.Find("[aria-label='Threshold']").Change(text + (text.Contains('.') ? "0" : ".0"));
+            cut.Render(p => p.Add(x => x.Value, actual));
+            Assert.Empty(cut.FindAll("[role='alert']"));
+            Assert.Equal(text, cut.Find("[aria-label='Threshold']").GetAttribute("value"));
+            Assert.True(JsonNode.DeepEquals(fixture["expected"], actual), actual.ToJsonString());
+        }
         if (fixture["expectedThresholdWire"] is JsonArray tokens)
             Assert.Contains(actual["basis"]!["value"]!.ToJsonString(), tokens.Select(token => token!.GetValue<string>()));
     }

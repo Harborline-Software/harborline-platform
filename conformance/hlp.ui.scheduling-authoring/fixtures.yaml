@@ -90,42 +90,48 @@
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","-0"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0},"host_note":"preserve"},
-      "expectedThresholdWire": ["0"]
+      "expectedThresholdWire": ["0"],
+      "expectedThresholdDisplay": "0"
     },
     {
       "id": "scheduling-authoring.threshold-trailing-zero",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","1.50"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.5},"host_note":"preserve"},
-      "expectedThresholdWire": ["1.5"]
+      "expectedThresholdWire": ["1.5"],
+      "expectedThresholdDisplay": "1.5"
     },
     {
       "id": "scheduling-authoring.threshold-leading-point",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold",".5"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.5},"host_note":"preserve"},
-      "expectedThresholdWire": ["0.5"]
+      "expectedThresholdWire": ["0.5"],
+      "expectedThresholdDisplay": "0.5"
     },
     {
       "id": "scheduling-authoring.threshold-trailing-point",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","5."]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
-      "expectedThresholdWire": ["5"]
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
     },
     {
       "id": "scheduling-authoring.threshold-leading-space",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold"," 5"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
-      "expectedThresholdWire": ["5"]
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
     },
     {
       "id": "scheduling-authoring.threshold-trailing-space",
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","5 "]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
-      "expectedThresholdWire": ["5"]
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
     },
     {
       "id": "scheduling-authoring.threshold-decimal-minimum",
@@ -167,7 +173,8 @@
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","0.0000000000000000000000000001"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-28},"host_note":"preserve"},
-      "expectedThresholdWire": ["1e-28","1E-28","0.0000000000000000000000000001"]
+      "expectedThresholdWire": ["1e-28","1E-28","0.0000000000000000000000000001"],
+      "expectedThresholdDisplay": "0.0000000000000000000000000001"
     },
     {
       "id": "scheduling-authoring.threshold-below-scale",
@@ -181,7 +188,8 @@
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","123456789012345"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":123456789012345},"host_note":"preserve"},
-      "expectedThresholdWire": ["123456789012345"]
+      "expectedThresholdWire": ["123456789012345"],
+      "expectedThresholdDisplay": "123456789012345"
     },
     {
       "id": "scheduling-authoring.threshold-excess-precision",
@@ -195,7 +203,56 @@
       "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
       "steps": [["Threshold","0.123456789012345"]],
       "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.123456789012345},"host_note":"preserve"},
-      "expectedThresholdWire": ["0.123456789012345"]
+      "expectedThresholdWire": ["0.123456789012345"],
+      "expectedThresholdDisplay": "0.123456789012345"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-small",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-07},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-7","0.0000001"],
+      "expectedThresholdDisplay": "0.0000001"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1000000000000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1000000000000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e+21","1000000000000000000000"],
+      "expectedThresholdDisplay": "1000000000000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","12345678901234500000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12345678901234500000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e+28","12345678901234500000000000000"],
+      "expectedThresholdDisplay": "12345678901234500000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264300000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":79228162514264300000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["7.92281625142643e+28","79228162514264300000000000000"],
+      "expectedThresholdDisplay": "79228162514264300000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264300000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-79228162514264300000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["-7.92281625142643e+28","-79228162514264300000000000000"],
+      "expectedThresholdDisplay": "-79228162514264300000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-0.0000000000000000000000000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-1e-28},"host_note":"preserve"},
+      "expectedThresholdWire": ["-1e-28","-0.0000000000000000000000000001"],
+      "expectedThresholdDisplay": "-0.0000000000000000000000000001"
     }
   ]
 }
