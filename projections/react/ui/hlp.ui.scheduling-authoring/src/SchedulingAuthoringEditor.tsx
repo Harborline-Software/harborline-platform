@@ -45,7 +45,11 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     else body[member] = next
     onChange(body)
   }
-  const nested = (member: string, key: string, next: ScheduleJson) => change(member, { ...(member === 'solver' ? { parameters: {} } : {}), ...object(latest.current[member]), [key]: next })
+  const nested = (member: string, key: string, next: ScheduleJson) => {
+    if (member === 'solver' && key === 'backend_id' && next === '') return change(member, undefined)
+    const group: ScheduleBody = { ...(member === 'solver' ? { parameters: {} } : {}), ...object(latest.current[member]), [key]: next }
+    change(member, member === 'escalation' && !text(group.after) && !text(group.to) ? undefined : group)
+  }
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
   const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
     const raw = event.currentTarget.value

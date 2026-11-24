@@ -10,6 +10,40 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    // Oracle: optional ScheduleDefinition.Escalation; a present escalation requires both after and to.
+    [Theory(DisplayName = "scheduling-auth-5: clearing the last escalation value removes the optional object")]
+    [InlineData("""{"after":"PT1H","to":"team.operations"}""", "Escalation after", "Escalation to", """{"name":"Inspection","escalation":{"after":"","to":"team.operations"}}""")]
+    [InlineData("""{"after":"PT1H","to":"team.operations"}""", "Escalation to", "Escalation after", """{"name":"Inspection","escalation":{"after":"PT1H","to":""}}""")]
+    [InlineData("""{"after":"PT1H"}""", "Escalation after", null, null)]
+    [InlineData("""{"to":"team.operations"}""", "Escalation to", null, null)]
+    public void RemoveEscalation(string initial, string first, string? last, string? partial)
+    {
+        JsonObject actual = new() { ["name"] = "Inspection", ["escalation"] = JsonNode.Parse(initial) };
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+
+        cut.Find($"[aria-label='{first}']").Change(""); cut.Render(p => p.Add(x => x.Value, actual));
+        if (last is not null)
+        {
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(partial!), actual));
+            cut.Find($"[aria-label='{last}']").Change("");
+        }
+
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"name":"Inspection"}"""), actual));
+    }
+
+    // Oracle: ScheduleDefinition.Solver is optional; None names no planner (schedule interface revision 12).
+    [Fact(DisplayName = "scheduling-bound-1: clearing Backend removes the solver binding for a no-planner Schedule")]
+    public void RemoveSolverBinding()
+    {
+        JsonObject actual = JsonNode.Parse("""{"name":"Inspection","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10}}""")!.AsObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue).Add(x => x.ValueChanged, next => actual = next));
+
+        cut.Find("[aria-label='Problem class']").Change("None"); cut.Render(p => p.Add(x => x.Value, actual));
+        cut.Find("[aria-label='Backend']").Change("");
+
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"name":"Inspection","problem_class":"None"}"""), actual));
+    }
+
     // Oracle: literal word separator and supplied target; the pointer and target remain separate text tokens.
     [Fact(DisplayName = "scheduling-eng-19: long refusal targets retain the separator after their pointer")]
     public void LongRefusalTargetSeparator()

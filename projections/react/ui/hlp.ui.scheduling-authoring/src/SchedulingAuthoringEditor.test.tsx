@@ -11,6 +11,38 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  // Oracle: optional ScheduleDefinition.Escalation; a present escalation requires both after and to.
+  it.each([
+    { initial: { after: 'PT1H', to: 'team.operations' }, first: 'Escalation after', last: 'Escalation to', partial: { name: 'Inspection', escalation: { after: '', to: 'team.operations' } } },
+    { initial: { after: 'PT1H', to: 'team.operations' }, first: 'Escalation to', last: 'Escalation after', partial: { name: 'Inspection', escalation: { after: 'PT1H', to: '' } } },
+    { initial: { after: 'PT1H' }, first: 'Escalation after', last: null, partial: null },
+    { initial: { to: 'team.operations' }, first: 'Escalation to', last: null, partial: null },
+  ])('scheduling-auth-5: clearing the last escalation value removes the optional object ($first then $last)', ({ initial, first, last, partial }) => {
+    let actual: ScheduleBody = { name: 'Inspection', escalation: initial }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+
+    fireEvent.change(screen.getByLabelText(first), { target: { value: '' } })
+    if (last !== null) {
+      expect(actual).toEqual(partial)
+      fireEvent.change(screen.getByLabelText(last), { target: { value: '' } })
+    }
+
+    expect(actual).toEqual({ name: 'Inspection' })
+  })
+
+  // Oracle: ScheduleDefinition.Solver is optional; None names no planner (schedule interface revision 12).
+  it('scheduling-bound-1: clearing Backend removes the solver binding for a no-planner Schedule', () => {
+    let actual: ScheduleBody = { name: 'Inspection', problem_class: 'Project', solver: { backend_id: 'prototype.exhaustive-proof.v2', parameters: { seed: 7 }, guarantee: 'feasible_proof', work_budget: 10 } }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+
+    fireEvent.change(screen.getByLabelText('Problem class'), { target: { value: 'None' } })
+    fireEvent.change(screen.getByLabelText('Backend'), { target: { value: '' } })
+
+    expect(actual).toEqual({ name: 'Inspection', problem_class: 'None' })
+  })
+
   it('scheduling-eng-19: repeated module labels retain unique control identities and exactly one own label', () => {
     const modules = [{ id: 'one', label: 'Shared', scope: 'chain' as const }, { id: 'two', label: 'Shared', scope: 'chain' as const }, { id: 'three', label: 'Backend', scope: 'chain' as const }]
     const view = render(<SchedulingAuthoringEditor value={{ solver: { backend_id: 'prototype.exhaustive-proof.v2', parameters: {}, guarantee: 'feasible_proof', work_budget: 10 }, modules: [{ module: 'one', parameters: {} }, { module: 'two', parameters: {} }, { module: 'three', parameters: {} }], basis: { kind: 'event_anchored_chain', nodes: [{ node_id: 'same' }, { node_id: 'same' }] } }} catalogue={{ modules }} onChange={() => {}} />)
