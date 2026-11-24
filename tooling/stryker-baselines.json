@@ -358,5 +358,15 @@
     "undetected": 166,
     "measured": "2026-09-26",
     "commit": "c09cfcacf303b1944afadf7e891428ecc9d737cb"
+  },
+  "tooling/content-kind-export.tests/ContentKindExport.Tests.csproj": {
+    "break": 96,
+    "score": 96.37,
+    "tested": 138,
+    "total": 163,
+    "detected": 133,
+    "undetected": 5,
+    "measured": "2026-11-23",
+    "commit": "11f0fef376391d55f433e44fa859511ed94a5736"
   }
 }

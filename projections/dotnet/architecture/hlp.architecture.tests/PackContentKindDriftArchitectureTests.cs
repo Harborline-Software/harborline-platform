@@ -46,6 +46,14 @@ public sealed class PackContentKindDriftArchitectureTests
         ("Harborline.Blocks.EntityViews.ViewsPackIdentity.Primitive", ViewsPackIdentity.Primitive, "ViewDefinition"),
     ];
 
+    [Fact(DisplayName = "T-738/platform-generated-pack-identities A7 fourteen compatibility literals")]
+    public void Generated_constants_keep_the_numbering_contract()
+    {
+        // Oracle: T-738 slice Scope at control 6649e0c3c, platform 4056e57c and numbering record.
+        Assert.Equal(new[] {7, 8, 12, 20, 17, 21, 18, 19, 9, 10}, ContentKinds.Select(row => row.Value));
+        Assert.Equal(new[] {12, 3, 13, 9}, Pillars.Select(row => row.Value));
+    }
+
     [Fact]
     public void Every_content_kind_constant_states_the_registry_value()
     {

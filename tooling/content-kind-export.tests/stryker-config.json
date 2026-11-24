@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/stryker-config",
+  "stryker-config": {
+    "project": "ContentKindExport.csproj",
+    "since": {
+      "enabled": true,
+      "target": "origin/main"
+    },
+    "thresholds": {
+      "high": 96,
+      "low": 96,
+      "break": 96
+    },
+    "reporters": [
+      "json"
+    ],
+    "concurrency": 1
+  }
+}
