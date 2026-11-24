@@ -13,6 +13,31 @@ public sealed class KernelAuditProvenanceTests
 {
     private static readonly DateTimeOffset At = new(2026, 10, 11, 9, 0, 0, TimeSpan.Zero);
 
+    // Oracle: T-616/reaction-write-identities acceptance 47 and ADR-0154 decision 4; literal identities and case id.
+    [Theory(DisplayName = "audit-evidence-keeps-every-identity")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Audit_evidence_keeps_every_identity(bool reaction)
+    {
+        var port = new RecordingPort();
+        var audit = Audit() with
+        {
+            OriginatorId = reaction ? "alice" : null,
+            DelegatedActor = reaction ? new("wf.follow-up", "1.0.0") : null,
+        };
+
+        var result = await KernelTransactionBoundary.ExecuteAsync([new KernelCommand<string>(Operation(), "record", audit)], port);
+
+        Assert.True(result.Committed);
+        Assert.Equal(["begin", "record", "audit", "commit", "dispose"], port.Events);
+        var staged = Assert.Single(port.StagedAudits);
+        Assert.Equal("sys.records-worker", staged.ActorId);
+        Assert.Equal(reaction ? "alice" : null, staged.OriginatorId);
+        Assert.Equal(reaction ? "wf.follow-up" : null, staged.DelegatedActor?.DefinitionKey);
+        Assert.Equal(reaction ? "1.0.0" : null, staged.DelegatedActor?.DefinitionVersion);
+        Assert.Contains("  - id: audit-evidence-keeps-every-identity", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task The_originator_is_staged_with_the_actor_and_snapshot_in_the_one_audit_call()
     {
