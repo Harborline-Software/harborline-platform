@@ -10,6 +10,31 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    // Oracle: HTML label element and WAI explicit-label guidance, not another renderer's output.
+    [Theory(DisplayName = "scheduling-eng-19: gallery scenarios have direct labels linked to controls")]
+    [InlineData("scheduling-authoring.from-empty")]
+    [InlineData("scheduling-authoring.bound")]
+    [InlineData("scheduling-authoring.refusals")]
+    public void GalleryLabels(string scenario)
+    {
+        var fixture = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!;
+        var body = scenario == "scheduling-authoring.bound" ? fixture["cases"]![1]!["expected"]!.DeepClone().AsObject() : new JsonObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, body).Add(x => x.Catalogue, Catalogue)
+            .Add(x => x.Refusals, scenario.EndsWith(".refusals", StringComparison.Ordinal) ? new ScheduleRefusal[] { new("scheduling.definition.name_required", "/name") } : []));
+        foreach (var title in new[] { "Validity window", "On-time tolerance" })
+        {
+            var group = cut.FindAll("fieldset").Single(field => field.Children.FirstOrDefault()?.TextContent == title);
+            Assert.Equal(new[] { "LABEL", "LABEL" }, group.Children.Where(child => child.TagName != "LEGEND").Select(child => child.TagName));
+        }
+        foreach (var control in cut.FindAll("input,select,textarea"))
+        {
+            var label = control.Closest("label");
+            Assert.NotNull(label);
+            Assert.False(string.IsNullOrEmpty(control.Id));
+            Assert.Equal(control.Id, label.GetAttribute("for"));
+            Assert.Same(control, cut.FindAll("[id]").Single(element => element.Id == label.GetAttribute("for")));
+        }
+    }
     [Fact(DisplayName = "scheduling-auth-2 scheduling-auth-3: review R3 removes the optional window after choosing a chain")]
     public void RemovesValidityWindowForChain()
     {

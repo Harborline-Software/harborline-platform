@@ -63,8 +63,9 @@
             @foreach (var module in Catalogue.Modules)
             {
                 var entry = Modules.FirstOrDefault(candidate => Text(Object(candidate)["module"]) == module.Id);
+                var controlId = FieldId("module." + module.Id);
                 <div data-scope="@module.Scope">
-                    <label><input type="checkbox" checked="@(entry is not null)" @onchange="args => ToggleModule(module.Id, args.Value is true)" />@module.Label — @module.Scope scope@(module.Scope == "chain" ? " (explicit opt-in)" : "")</label>
+                    <label for="@controlId"><input id="@controlId" type="checkbox" checked="@(entry is not null)" @onchange="args => ToggleModule(module.Id, args.Value is true)" />@module.Label — @module.Scope scope@(module.Scope == "chain" ? " (explicit opt-in)" : "")</label>
                     @if (entry is not null) { @Parameters($"{module.Label} parameters", Object(entry)["parameters"], next => ModuleParameters(module.Id, next)) }
                 </div>
             }
@@ -92,6 +93,7 @@
     /// <summary>Disables editing.</summary>
     [Parameter] public bool ReadOnly { get; set; }
     private readonly string _id = "schedule-" + Guid.NewGuid().ToString("N");
+    private string FieldId(string label) => _id + "-" + Uri.EscapeDataString(label);
     private string _parameterError = "";
     private static readonly System.Text.Json.JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
     private JsonObject Basis => Object(Value["basis"]);
@@ -115,18 +117,18 @@
     private Task ToggleModule(string id, bool selected) { var modules = new JsonArray(Modules.Where(entry => Text(Object(entry)["module"]) != id).Select(entry => entry?.DeepClone()).ToArray()); if (selected) modules.Add(new JsonObject { ["module"] = id, ["parameters"] = new JsonObject() }); return Set("modules", modules); }
     private Task ModuleParameters(string id, JsonObject parameters) { var modules = (JsonArray)Modules.DeepClone(); foreach (var entry in modules) if (Text(Object(entry)["module"]) == id) Object(entry)["parameters"] = parameters.DeepClone(); return Set("modules", modules); }
     private RenderFragment Input(string label, JsonNode? value, Func<string, Task> changed) => builder => {
-        builder.OpenElement(0, "label"); builder.AddContent(1, label); builder.OpenElement(2, "input"); builder.AddAttribute(3, "aria-label", label); builder.AddAttribute(4, "value", Text(value)); builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? ""))); builder.CloseElement(); builder.CloseElement();
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "input"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", Text(value)); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? ""))); builder.CloseElement(); builder.CloseElement();
     };
     private RenderFragment Pick(string label, string value, IEnumerable<ScheduleOption> offered, Func<string, Task> changed) => builder => {
         var options = offered.ToArray();
-        builder.OpenElement(0, "label"); builder.AddContent(1, label); builder.OpenElement(2, "select"); builder.AddAttribute(3, "aria-label", label); builder.AddAttribute(4, "value", value); builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? "")));
-        builder.OpenElement(6, "option"); builder.AddAttribute(7, "value", ""); builder.AddContent(8, "Choose…"); builder.CloseElement();
-        if (value.Length > 0 && !options.Any(option => option.Id == value)) { builder.OpenElement(9, "option"); builder.AddAttribute(10, "value", value); builder.AddContent(11, value + " (not offered)"); builder.CloseElement(); }
-        foreach (var option in options) { builder.OpenElement(12, "option"); builder.AddAttribute(13, "value", option.Id); builder.AddContent(14, option.Label); builder.CloseElement(); }
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "select"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? "")));
+        builder.OpenElement(8, "option"); builder.AddAttribute(9, "value", ""); builder.AddContent(10, "Choose…"); builder.CloseElement();
+        if (value.Length > 0 && !options.Any(option => option.Id == value)) { builder.OpenElement(11, "option"); builder.AddAttribute(12, "value", value); builder.AddContent(13, value + " (not offered)"); builder.CloseElement(); }
+        foreach (var option in options) { builder.OpenElement(14, "option"); builder.AddAttribute(15, "value", option.Id); builder.AddContent(16, option.Label); builder.CloseElement(); }
         builder.CloseElement(); builder.CloseElement();
     };
     private RenderFragment Parameters(string label, JsonNode? value, Func<JsonObject, Task> changed) => builder => {
-        builder.OpenElement(0, "label"); builder.AddContent(1, label); builder.OpenElement(2, "textarea"); builder.AddAttribute(3, "aria-label", label); builder.AddAttribute(4, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(5, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "textarea"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
             try { if (JsonNode.Parse(args.Value?.ToString() ?? "") is JsonObject parameters) { _parameterError = ""; await changed(parameters); } else _parameterError = label + " must be a JSON object."; }
             catch (System.Text.Json.JsonException) { _parameterError = label + " must be a JSON object."; }
         })); builder.CloseElement(); builder.CloseElement();

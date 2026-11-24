@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { Fragment, useId, useRef, useState } from 'react'
 
 // This adapter edits the producer's JSON body. Admission remains server-owned;
 // unknown members are preserved, including host-owned envelope metadata.
@@ -34,6 +34,7 @@ const classes = ['None', 'Workforce', 'Timetabling', 'ProtocolAdmission', 'Proje
 /** Controlled Schedule body editor. The host supplies authoritative refusals for this value before publishing. */
 export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = [], readOnly, onChange, onCreate }: SchedulingAuthoringEditorProps) {
   const id = useId()
+  const fieldId = (label: string) => `${id}-${encodeURIComponent(label)}`
   const latest = useRef(value)
   latest.current = value
   const [parameterError, setParameterError] = useState('')
@@ -45,15 +46,15 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     onChange(body)
   }
   const nested = (member: string, key: string, next: ScheduleJson) => change(member, { ...(member === 'solver' ? { parameters: {} } : {}), ...object(latest.current[member]), [key]: next })
-  const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label>{label}<input aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
-  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label>{label}<input key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
+  const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
+  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
     const raw = event.currentTarget.value
     if (raw === text(current)) { setNumberError(''); return }
     const parsed = raw.trim() === '' ? null : Number(raw)
     if (parsed !== null && !Number.isFinite(parsed)) { setNumberError(`${label} must be a finite number.`); return }
     setNumberError(''); update(parsed)
   }} /></label>
-  const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label>{label}<select aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
+  const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<select id={fieldId(label)} aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
   const words = (values: readonly string[]): ScheduleOption[] => values.map(word => ({ id: word, label: word }))
   const basis = object(value.basis)
   const starts = object(value.starts)
@@ -61,7 +62,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const nodes = list(basis.nodes)
   const modules = list(value.modules)
   const updateNode = (index: number, key: string, next: ScheduleJson) => nested('basis', 'nodes', nodes.map((node, position) => position === index ? { ...object(node), [key]: next } : node))
-  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void) => <label>{label}<textarea aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
+  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void) => <label htmlFor={fieldId(label)}>{label}<textarea id={fieldId(label)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
     if (event.currentTarget.value === event.currentTarget.defaultValue) { setParameterError(''); return }
     try {
       const parsed: ScheduleJson = JSON.parse(event.currentTarget.value)
@@ -92,14 +93,14 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
           {input(`Node ${index + 1} id`, node.node_id, next => updateNode(index, 'node_id', next))}
           {input(`Node ${index + 1} follows`, node.after_node_id, next => updateNode(index, 'after_node_id', next || null))}
           {input(`Node ${index + 1} offset`, node.offset, next => updateNode(index, 'offset', next))}
-          {['early', 'late'].map(side => <span key={side}>{input(`Node ${index + 1} tolerance ${side}`, object(node.tolerance)[side], next => updateNode(index, 'tolerance', { ...object(node.tolerance), [side]: next }))}</span>)}
-          {['earliest', 'latest'].map(side => <span key={side}>{input(`Node ${index + 1} ${side}`, object(node.window)[side], next => updateNode(index, 'window', { ...object(node.window), [side]: next }))}</span>)}
+          {['early', 'late'].map(side => <Fragment key={side}>{input(`Node ${index + 1} tolerance ${side}`, object(node.tolerance)[side], next => updateNode(index, 'tolerance', { ...object(node.tolerance), [side]: next }))}</Fragment>)}
+          {['earliest', 'latest'].map(side => <Fragment key={side}>{input(`Node ${index + 1} ${side}`, object(node.window)[side], next => updateNode(index, 'window', { ...object(node.window), [side]: next }))}</Fragment>)}
           <button type="button" onClick={() => nested('basis', 'nodes', nodes.filter((_, position) => position !== index))}>Remove node {index + 1}</button>
         </fieldset> })}
         <button type="button" onClick={() => nested('basis', 'nodes', [...nodes, { node_id: '', after_node_id: null, offset: '', tolerance: { early: '', late: '' } }])}>Add node</button>
       </fieldset>}
-      <fieldset><legend>Validity window</legend>{['earliest', 'latest'].map(side => <span key={side}>{input(`Window ${side}`, object(value.window)[side], next => nested('window', side, next))}</span>)}{Object.hasOwn(value, 'window') && <button type="button" onClick={() => change('window', undefined)}>Remove validity window</button>}</fieldset>
-      <fieldset><legend>On-time tolerance</legend>{['early', 'late'].map(side => <span key={side}>{input(`Tolerance ${side}`, object(value.tolerance)[side], next => nested('tolerance', side, next))}</span>)}</fieldset>
+      <fieldset><legend>Validity window</legend>{['earliest', 'latest'].map(side => <Fragment key={side}>{input(`Window ${side}`, object(value.window)[side], next => nested('window', side, next))}</Fragment>)}{Object.hasOwn(value, 'window') && <button type="button" onClick={() => change('window', undefined)}>Remove validity window</button>}</fieldset>
+      <fieldset><legend>On-time tolerance</legend>{['early', 'late'].map(side => <Fragment key={side}>{input(`Tolerance ${side}`, object(value.tolerance)[side], next => nested('tolerance', side, next))}</Fragment>)}</fieldset>
       {input('Grace', value.grace, next => change('grace', next || undefined))}
       {pick('Missed behaviour', text(value.missed_behaviour), words(['record_and_replan', 'window_closed']), next => change('missed_behaviour', next || undefined))}
       {input('Escalation after', object(value.escalation).after, next => nested('escalation', 'after', next))}
@@ -114,7 +115,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       </fieldset>
       <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>
         {(catalogue.modules ?? []).map(module => { const entry = modules.find(candidate => object(candidate).module === module.id); return <div key={module.id} data-scope={module.scope}>
-          <label><input type="checkbox" checked={entry !== undefined} onChange={event => change('modules', event.currentTarget.checked ? [...modules, { module: module.id, parameters: {} }] : modules.filter(candidate => object(candidate).module !== module.id))} />{module.label} — {module.scope} scope{module.scope === 'chain' ? ' (explicit opt-in)' : ''}</label>
+          <label htmlFor={fieldId(`module.${module.id}`)}><input id={fieldId(`module.${module.id}`)} type="checkbox" checked={entry !== undefined} onChange={event => change('modules', event.currentTarget.checked ? [...modules, { module: module.id, parameters: {} }] : modules.filter(candidate => object(candidate).module !== module.id))} />{module.label} — {module.scope} scope{module.scope === 'chain' ? ' (explicit opt-in)' : ''}</label>
           {entry && parameters(`${module.label} parameters`, object(entry).parameters, next => change('modules', modules.map(candidate => object(candidate).module === module.id ? { ...object(candidate), parameters: next } : candidate)))}
         </div> })}
       </fieldset>
