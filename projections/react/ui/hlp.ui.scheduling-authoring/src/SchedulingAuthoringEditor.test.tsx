@@ -11,6 +11,53 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  // Oracle: interface numericInput keeps rejected edits uncommitted; literal field errors and bodies.
+  it.each([
+    ['Threshold', 'Work budget', 'Threshold must be an exact decimal with at most 15 significant digits and scale 28.', 'Work budget must be a 32-bit integer in plain decimal notation.', '25', '20'],
+    ['Work budget', 'Threshold', 'Work budget must be a 32-bit integer in plain decimal notation.', 'Threshold must be an exact decimal with at most 15 significant digits and scale 28.', '20', '25'],
+  ])('numeric errors stay with their own field: %s', (first, second, firstError, secondError, firstValid, secondValid) => {
+    let actual: ScheduleBody = { basis: { kind: 'threshold', value: 12.5 }, solver: { parameters: {}, work_budget: 10 } }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+    fireEvent.change(screen.getByLabelText(first), { target: { value: 'abc' } }); fireEvent.blur(screen.getByLabelText(first))
+    fireEvent.blur(screen.getByLabelText(second))
+    expect(screen.getByRole('alert')).toHaveTextContent(firstError)
+    expect(screen.getByLabelText(first)).toHaveValue('abc')
+    expect(actual).toEqual({ basis: { kind: 'threshold', value: 12.5 }, solver: { parameters: {}, work_budget: 10 } })
+    fireEvent.change(screen.getByLabelText(second), { target: { value: 'bad' } }); fireEvent.blur(screen.getByLabelText(second))
+    expect(screen.getAllByRole('alert').map(alert => alert.textContent).sort()).toEqual([firstError, secondError].sort())
+    fireEvent.change(screen.getByLabelText(first), { target: { value: firstValid } }); fireEvent.blur(screen.getByLabelText(first))
+    expect(screen.getByRole('alert')).toHaveTextContent(secondError)
+    expect(screen.getByLabelText(second)).toHaveValue('bad')
+    fireEvent.change(screen.getByLabelText(second), { target: { value: secondValid } }); fireEvent.blur(screen.getByLabelText(second))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(actual).toEqual({ basis: { kind: 'threshold', value: 25 }, solver: { parameters: {}, work_budget: 20 } })
+  })
+
+  // Oracle: literal JSON-object errors and original body; duplicate labels still identify different controls.
+  it.each([0, 1, 2])('parameter errors stay with their own textarea: %s', first => {
+    let actual: ScheduleBody = { solver: { parameters: {} }, modules: [{ module: 'one', parameters: {} }, { module: 'two', parameters: {} }] }
+    const modules = [{ id: 'one', label: 'Shared', scope: 'chain' as const }, { id: 'two', label: 'Shared', scope: 'chain' as const }]
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={{ modules }} onChange={next => { actual = next; setBody(next) }} /> }
+    const view = render(<Host />)
+    const control = (index: number) => view.container.querySelectorAll('textarea')[index]
+    const second = (first + 1) % 3
+    const errors = ['Backend parameters must be a JSON object.', 'Shared parameters must be a JSON object.', 'Shared parameters must be a JSON object.']
+    fireEvent.change(control(first), { target: { value: '{' } }); fireEvent.blur(control(first))
+    fireEvent.blur(control(second))
+    expect(screen.getByRole('alert')).toHaveTextContent(errors[first])
+    expect(control(first)).toHaveValue('{')
+    expect(actual).toEqual({ solver: { parameters: {} }, modules: [{ module: 'one', parameters: {} }, { module: 'two', parameters: {} }] })
+    fireEvent.change(control(second), { target: { value: '[]' } }); fireEvent.blur(control(second))
+    expect(screen.getAllByRole('alert')).toHaveLength(2)
+    fireEvent.change(control(first), { target: { value: '{}' } }); fireEvent.blur(control(first))
+    expect(screen.getByRole('alert')).toHaveTextContent(errors[second])
+    expect(control(second)).toHaveValue('[]')
+    fireEvent.change(control(second), { target: { value: '{}' } }); fireEvent.blur(control(second))
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(actual).toEqual({ solver: { parameters: {} }, modules: [{ module: 'one', parameters: {} }, { module: 'two', parameters: {} }] })
+  })
+
   // Oracle: optional ScheduleDefinition.Escalation; a present escalation requires both after and to.
   it.each([
     { initial: { after: 'PT1H', to: 'team.operations' }, first: 'Escalation after', last: 'Escalation to', partial: { name: 'Inspection', escalation: { after: '', to: 'team.operations' } } },

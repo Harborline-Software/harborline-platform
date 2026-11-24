@@ -10,6 +10,68 @@ namespace Harborline.UIAdapters.Blazor.Tests;
 
 public sealed class SchedulingAuthoringTests : BunitContext
 {
+    // Oracles: literal host JSON tokens and decimal text; host display is independent of authoring precision limits.
+    [Theory(DisplayName = "host numeric display preserves exact decimal tokens")]
+    [InlineData("9007199254740993", "9007199254740993")]
+    [InlineData("9.007199254740993e15", "9007199254740993")]
+    [InlineData("79228162514264337593543950335", "79228162514264337593543950335")]
+    [InlineData("-79228162514264337593543950335", "-79228162514264337593543950335")]
+    public void HostNumericDisplayPreservesExactDecimalTokens(string token, string displayed)
+    {
+        var body = JsonNode.Parse("""{"basis":{"kind":"threshold","value":TOKEN}}""".Replace("TOKEN", token, StringComparison.Ordinal))!.AsObject();
+        var changes = 0;
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, body).Add(x => x.ValueChanged, _ => changes++));
+        Assert.Equal(displayed, cut.Find("[aria-label='Threshold']").GetAttribute("value"));
+        cut.Find("[aria-label='Threshold']").Change(displayed);
+        Assert.Equal(0, changes);
+        Assert.Equal(token, body["basis"]!["value"]!.ToJsonString());
+        Assert.Empty(cut.FindAll("[role='alert']"));
+    }
+
+    // Oracle: interface numericInput and literal errors/bodies, through native control events.
+    [Theory(DisplayName = "numeric errors stay with their own field")]
+    [InlineData("Threshold", "Work budget", "Threshold must be an exact decimal with at most 15 significant digits and scale 28.", "Work budget must be a 32-bit integer in plain decimal notation.", "25", "20")]
+    [InlineData("Work budget", "Threshold", "Work budget must be a 32-bit integer in plain decimal notation.", "Threshold must be an exact decimal with at most 15 significant digits and scale 28.", "20", "25")]
+    public void NumericErrorsStayWithTheirOwnField(string first, string second, string firstError, string secondError, string firstValid, string secondValid)
+    {
+        var actual = JsonNode.Parse("""{"basis":{"kind":"threshold","value":12.5},"solver":{"parameters":{},"work_budget":10}}""")!.AsObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+        cut.Find($"[aria-label='{first}']").Change("abc");
+        cut.Find($"[aria-label='{second}']").Change(second == "Threshold" ? "12.5" : "10");
+        Assert.Equal(firstError, cut.Find("[role='alert']").TextContent);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"basis":{"kind":"threshold","value":12.5},"solver":{"parameters":{},"work_budget":10}}"""), actual));
+        cut.Find($"[aria-label='{second}']").Change("bad");
+        Assert.Equal(new[] { firstError, secondError }.Order(), cut.FindAll("[role='alert']").Select(alert => alert.TextContent).Order());
+        cut.Find($"[aria-label='{first}']").Change(firstValid); cut.Render(p => p.Add(x => x.Value, actual));
+        Assert.Equal(secondError, cut.Find("[role='alert']").TextContent);
+        cut.Find($"[aria-label='{second}']").Change(secondValid); cut.Render(p => p.Add(x => x.Value, actual));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"basis":{"kind":"threshold","value":25},"solver":{"parameters":{},"work_budget":20}}"""), actual));
+    }
+
+    // Oracle: literal JSON-object errors/body; duplicate labels must not combine control identities.
+    [Theory(DisplayName = "parameter errors stay with their own textarea")]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)]
+    public void ParameterErrorsStayWithTheirOwnTextarea(int first)
+    {
+        var actual = JsonNode.Parse("""{"solver":{"parameters":{}},"modules":[{"module":"one","parameters":{}},{"module":"two","parameters":{}}]}""")!.AsObject();
+        var catalogue = new ScheduleCatalogue { Modules = [new("one", "Shared", "chain"), new("two", "Shared", "chain")] };
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, catalogue).Add(x => x.ValueChanged, next => actual = next));
+        var second = (first + 1) % 3;
+        string[] errors = ["Backend parameters must be a JSON object.", "Shared parameters must be a JSON object.", "Shared parameters must be a JSON object."];
+        cut.FindAll("textarea")[first].Change("{");
+        cut.FindAll("textarea")[second].Change("{}");
+        Assert.Equal(errors[first], cut.Find("[role='alert']").TextContent);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"solver":{"parameters":{}},"modules":[{"module":"one","parameters":{}},{"module":"two","parameters":{}}]}"""), actual));
+        cut.FindAll("textarea")[second].Change("[]");
+        Assert.Equal(2, cut.FindAll("[role='alert']").Count);
+        cut.FindAll("textarea")[first].Change("{}"); cut.Render(p => p.Add(x => x.Value, actual));
+        Assert.Equal(errors[second], cut.Find("[role='alert']").TextContent);
+        cut.FindAll("textarea")[second].Change("{}"); cut.Render(p => p.Add(x => x.Value, actual));
+        Assert.Empty(cut.FindAll("[role='alert']"));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"solver":{"parameters":{}},"modules":[{"module":"one","parameters":{}},{"module":"two","parameters":{}}]}"""), actual));
+    }
+
     // Oracles: interface revision 2 numericInput, literal decimal values and JSON number tokens.
     public static TheoryData<string, decimal> ProducerThresholdWireCases => new()
     {

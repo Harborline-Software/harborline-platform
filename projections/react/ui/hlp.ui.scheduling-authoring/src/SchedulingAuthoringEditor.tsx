@@ -76,8 +76,8 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const fieldId = (key: string) => `${id}-${encodeURIComponent(key)}`
   const latest = useRef(value)
   latest.current = value
-  const [parameterError, setParameterError] = useState('')
-  const [numberError, setNumberError] = useState('')
+  const [errors, setErrors] = useState<Readonly<Record<string, string>>>({})
+  const setError = (controlKey: string, message: string) => setErrors(previous => ({ ...previous, [controlKey]: message }))
   const change = (member: string, next: ScheduleJson | undefined) => {
     const body = { ...latest.current }
     if (next === undefined) delete body[member]
@@ -92,12 +92,12 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
   const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={numberText(current)} aria-label={label} inputMode="decimal" defaultValue={numberText(current)} onBlur={event => {
     const raw = event.currentTarget.value
-    if (raw === numberText(current)) { setNumberError(''); return }
+    if (raw === numberText(current)) { setError(label, ''); return }
     const trimmed = raw.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '')
     const parsed = trimmed === '' ? null : parseNumber(trimmed, integer)
-    if (parsed === undefined) { setNumberError(integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be an exact decimal with at most 15 significant digits and scale 28.`); return }
+    if (parsed === undefined) { setError(label, integer ? `${label} must be a 32-bit integer in plain decimal notation.` : `${label} must be an exact decimal with at most 15 significant digits and scale 28.`); return }
     event.currentTarget.value = numberText(parsed)
-    setNumberError(''); update(parsed)
+    setError(label, ''); update(parsed)
   }} /></label>
   const pick = (label: string, current: string, options: readonly ScheduleOption[], update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<select id={fieldId(label)} aria-label={label} value={current} onChange={event => update(event.currentTarget.value)}><option value="">Choose…</option>{current && !options.some(option => option.id === current) && <option value={current}>{current} (not offered)</option>}{options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
   const words = (values: readonly string[]): ScheduleOption[] => values.map(word => ({ id: word, label: word }))
@@ -114,12 +114,12 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     return updated
   }))
   const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={JSON.stringify(current)} defaultValue={JSON.stringify(current ?? {}, null, 2)} onBlur={event => {
-    if (event.currentTarget.value === event.currentTarget.defaultValue) { setParameterError(''); return }
+    if (event.currentTarget.value === event.currentTarget.defaultValue) { setError(controlKey, ''); return }
     try {
       const parsed: ScheduleJson = JSON.parse(event.currentTarget.value)
-      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) { setParameterError(`${label} must be a JSON object.`); return }
-      setParameterError(''); update(object(parsed))
-    } catch { setParameterError(`${label} must be a JSON object.`) }
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) { setError(controlKey, `${label} must be a JSON object.`); return }
+      setError(controlKey, ''); update(object(parsed))
+    } catch { setError(controlKey, `${label} must be a JSON object.`) }
   }} /></label>
   return <form className="hl-scheduling-authoring" aria-label="Schedule editor" onSubmit={event => event.preventDefault()}>
     <fieldset disabled={readOnly}><legend>Schedule</legend>
@@ -173,8 +173,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       </fieldset>
     </fieldset>
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
-    {parameterError && <p role="alert">{parameterError}</p>}
-    {numberError && <p role="alert">{numberError}</p>}
+    {Object.entries(errors).map(([key, message]) => message && <p key={key} role="alert">{message}</p>)}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
       {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{JSON.stringify(refusal.detail, null, 2)}</pre>}</li>)}</ul>}
     </section>
