@@ -44,7 +44,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
     else body[member] = next
     onChange(body)
   }
-  const nested = (member: string, key: string, next: ScheduleJson) => change(member, { ...object(latest.current[member]), [key]: next })
+  const nested = (member: string, key: string, next: ScheduleJson) => change(member, { ...(member === 'solver' ? { parameters: {} } : {}), ...object(latest.current[member]), [key]: next })
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label>{label}<input aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
   const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void) => <label>{label}<input key={text(current)} aria-label={label} inputMode="decimal" defaultValue={text(current)} onBlur={event => {
     const raw = event.currentTarget.value
@@ -109,7 +109,7 @@ export function SchedulingAuthoringEditor({ value, catalogue = {}, refusals = []
       <fieldset><legend>Solver binding</legend>
         {pick('Backend', text(solver.backend_id), catalogue.backends ?? [], next => nested('solver', 'backend_id', next))}
         {pick('Guarantee', text(solver.guarantee), words(catalogue.backends?.find(backend => backend.id === solver.backend_id)?.guarantees ?? []), next => nested('solver', 'guarantee', next))}
-        {input('Work budget', solver.work_budget, next => nested('solver', 'work_budget', next === '' ? null : Number(next)))}
+        {numberInput('Work budget', solver.work_budget, next => nested('solver', 'work_budget', next))}
         {parameters('Backend parameters', solver.parameters, next => nested('solver', 'parameters', next))}
       </fieldset>
       <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>

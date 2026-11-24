@@ -22,6 +22,31 @@ describe('Schedule authoring', () => {
     expect(actual).toEqual({ name: 'Inspection', starts: { kind: 'form', target_id: 'forms.inspection' }, due_date: '2027-01-01T00:00:00Z' })
     expect(changes).toBe(0)
   })
+  // Oracle: slice lines 28/38 and producer wire grammar require parameters to be an object.
+  it.each([['Backend', 'prototype.exhaustive-proof.v2', 'backend_id'], ['Guarantee', 'feasible_proof', 'guarantee'], ['Work budget', '10', 'work_budget']])('scheduling-bound-1: first %s edit materialises empty solver parameters', (label, typed, member) => {
+    let actual: ScheduleBody = label === 'Guarantee' ? { solver: { backend_id: 'prototype.exhaustive-proof.v2' } } : {}
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+    // Guarantee is available only after a backend is chosen; use a host-supplied partial binding.
+    fireEvent.change(screen.getByLabelText(label), { target: { value: typed } })
+    fireEvent.blur(screen.getByLabelText(label))
+    expect(actual.solver).toEqual({ ...(label === 'Guarantee' ? { backend_id: 'prototype.exhaustive-proof.v2' } : {}), parameters: {}, [member]: label === 'Work budget' ? 10 : typed })
+  })
+  it('scheduling-bound-4: work budget preserves negative keyboard input and refuses nonfinite text', async () => {
+    let actual: ScheduleBody = { solver: { parameters: {}, work_budget: 10 } }
+    function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
+    render(<Host />)
+    const user = userEvent.setup()
+    const budget = screen.getByLabelText('Work budget')
+    await user.clear(budget); await user.type(budget, '-1')
+    expect(budget).toHaveValue('-1')
+    await user.tab()
+    expect(actual).toEqual({ solver: { parameters: {}, work_budget: -1 } })
+    const edited = screen.getByLabelText('Work budget')
+    await user.clear(edited); await user.type(edited, 'abc'); await user.tab()
+    expect(actual).toEqual({ solver: { parameters: {}, work_budget: -1 } })
+    expect(screen.getByRole('alert')).toHaveTextContent('Work budget must be a finite number.')
+  })
   it.each([['12.5', 12.5], ['-12.5', -12.5]])('scheduling-auth-2: review R2 preserves keyboard threshold text %s', async (typed, expected) => {
     let actual: ScheduleBody = { basis: { kind: 'threshold', reading: 'meter.hours', crossing: 'above' } }
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} onChange={next => { actual = next; setBody(next) }} /> }
@@ -97,7 +122,7 @@ describe('Schedule authoring', () => {
     let actual: ScheduleBody = {}
     function Host() { const [body, setBody] = useState(actual); return <SchedulingAuthoringEditor value={body} catalogue={catalogue} onChange={next => { actual = next; setBody(next) }} /> }
     render(<Host />)
-    for (const [label, value] of entry.steps) fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    for (const [label, value] of entry.steps) { fireEvent.change(screen.getByLabelText(label), { target: { value } }); fireEvent.blur(screen.getByLabelText(label)) }
     expect(actual).toEqual(entry.expected)
   })
   it('scheduling-auth-2 scheduling-auth-6: authors a chain with per-node tolerance then replaces the basis', () => {
@@ -129,8 +154,15 @@ describe('Schedule authoring', () => {
     for (const entry of corpus.cases) {
       const view = render(<SchedulingAuthoringEditor value={{}} onChange={() => {}} refusals={entry.refusals} />)
       expect(view.container.querySelectorAll('li')).toHaveLength(entry.refusals.length)
-      // Generator detail is explicitly open under T-491/generator-refusal-detail.
-      if (entry.id !== 'unsupported-configuration') for (const refusal of entry.refusals) expect(view.container.textContent).toContain(refusal.code)
+      // Renderer oracle: supplied corpus payload, including the open generator case;
+      // this pins faithful display, not which refusal the producer should generate.
+      entry.refusals.forEach((refusal: { code: string; pointer: string; target?: string; detail?: unknown }, index: number) => {
+        const item = view.container.querySelectorAll('li')[index]
+        expect(item.querySelectorAll('code')[0]).toHaveTextContent(refusal.code)
+        expect(item.querySelectorAll('code')[1]).toHaveTextContent(refusal.pointer)
+        if (refusal.target) expect(item.querySelector('span')?.textContent?.trim()).toBe(refusal.target)
+        if (refusal.detail !== undefined) expect(JSON.parse(item.querySelector('pre')!.textContent!)).toEqual(refusal.detail)
+      })
       expect(view.container.querySelector('[aria-live="polite"]')).toHaveAttribute('aria-atomic', 'true')
       expect(view.queryByRole('button', { name: 'Publish' })).toBeNull()
       view.unmount()

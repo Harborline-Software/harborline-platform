@@ -106,7 +106,7 @@
     private Task Set(string member, JsonNode? next) { var body = (JsonObject)Value.DeepClone(); body[member] = next?.DeepClone(); return ValueChanged.InvokeAsync(body); }
     private Task RemoveWindow() { var body = (JsonObject)Value.DeepClone(); body.Remove("window"); return ValueChanged.InvokeAsync(body); }
     private Task SetOptional(string member, string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove(member); else body[member] = next; return ValueChanged.InvokeAsync(body); }
-    private Task Nested(string member, string key, JsonNode? next) { var group = (JsonObject)Object(Value[member]).DeepClone(); group[key] = next?.DeepClone(); return Set(member, group); }
+    private Task Nested(string member, string key, JsonNode? next) { var group = (JsonObject)Object(Value[member]).DeepClone(); if (member == "solver" && !group.ContainsKey("parameters")) group["parameters"] = new JsonObject(); group[key] = next?.DeepClone(); return Set(member, group); }
     private Task ChooseBasis(string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove("basis"); else { body["basis"] = new JsonObject { ["kind"] = next }; body.Remove("due_date"); } return ValueChanged.InvokeAsync(body); }
     private Task UpdateNode(int index, string key, JsonNode? next) { var nodes = (JsonArray)Nodes.DeepClone(); Object(nodes[index])[key] = next?.DeepClone(); return Nested("basis", "nodes", nodes); }
     private Task UpdateNodeGroup(int index, string group, string key, string next) { var node = Object(Nodes[index]); var values = (JsonObject)Object(node[group]).DeepClone(); values[key] = next; return UpdateNode(index, group, values); }

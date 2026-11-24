@@ -21,6 +21,37 @@ public sealed class SchedulingAuthoringTests : BunitContext
         Assert.Equal("", cut.Find("[aria-label='Window earliest']").GetAttribute("value"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent == "Remove validity window");
     }
+    // Oracle: slice lines 28/38, producer grammar and literal no-planner/solver bodies.
+    [Theory(DisplayName = "scheduling-bound-1: first solver edit materialises empty parameters")]
+    [InlineData("Backend", "prototype.exhaustive-proof.v2", "backend_id")]
+    [InlineData("Guarantee", "feasible_proof", "guarantee")]
+    [InlineData("Work budget", "10", "work_budget")]
+    public void EmptySolverParameters(string label, string typed, string member)
+    {
+        JsonObject actual = label == "Guarantee" ? JsonNode.Parse("""{"solver":{"backend_id":"prototype.exhaustive-proof.v2"}}""")!.AsObject() : new();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.Catalogue, Catalogue).Add(x => x.ValueChanged, next => actual = next));
+        cut.Find($"[aria-label='{label}']").Change(typed);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("{}"), actual["solver"]!["parameters"]));
+        Assert.Equal(typed, actual["solver"]![member]!.ToString());
+    }
+    [Fact(DisplayName = "scheduling-bound-1: untouched parameters blur leaves no solver")]
+    public void UntouchedParameters()
+    {
+        var changes = 0;
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, new JsonObject()).Add(x => x.ValueChanged, _ => changes++));
+        // bUnit refuses dispatch when there is no blur handler; a native blur then does nothing.
+        try { cut.Find("[aria-label='Backend parameters']").Blur(); }
+        catch (MissingEventHandlerException) { }
+        Assert.Equal(0, changes);
+    }
+    [Fact(DisplayName = "scheduling-bound-4: negative work budget remains available for server refusal")]
+    public void NegativeWorkBudget()
+    {
+        JsonObject actual = JsonNode.Parse("""{"solver":{"parameters":{},"work_budget":10}}""")!.AsObject();
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Value, actual).Add(x => x.ValueChanged, next => actual = next));
+        cut.Find("[aria-label='Work budget']").Change("-1");
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"solver":{"parameters":{},"work_budget":-1}}"""), actual));
+    }
     [Theory, Trait("ModuleConformance", "hlp.ui.scheduling-authoring")]
     [MemberData(nameof(SharedFixtureBatch.Cases), "hlp.ui.scheduling-authoring", MemberType = typeof(SharedFixtureBatch))]
     public void Shared(string caseId, string? rawFixture) => SharedFixtureBatch.Run(caseId, rawFixture, () =>
@@ -133,10 +164,19 @@ public sealed class SchedulingAuthoringTests : BunitContext
         var corpus = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/authoring-refusals.json")))!;
         foreach (var entry in corpus["cases"]!.AsArray())
         {
-            var refusals = entry!["refusals"]!.AsArray().Select(row => new ScheduleRefusal(row!["code"]!.GetValue<string>(), row["pointer"]!.GetValue<string>(), row["detail"]?.DeepClone())).ToArray();
+            var refusals = entry!["refusals"]!.AsArray().Select(row => new ScheduleRefusal(row!["code"]!.GetValue<string>(), row["pointer"]!.GetValue<string>(), row["detail"]?.DeepClone(), row["target"]?.GetValue<string>())).ToArray();
             var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Refusals, refusals));
             Assert.Equal(refusals.Length, cut.FindAll("li").Count);
-            if (entry["id"]!.GetValue<string>() != "unsupported-configuration") foreach (var refusal in refusals) Assert.Contains(refusal.Code, cut.Markup, StringComparison.Ordinal);
+            // Compare each rendered row to the independently supplied corpus, including generator payloads.
+            var items = cut.FindAll("li");
+            for (var index = 0; index < refusals.Length; index++)
+            {
+                var expected = entry["refusals"]![index]!;
+                Assert.Equal(expected["code"]!.GetValue<string>(), items[index].QuerySelectorAll("code")[0].TextContent);
+                Assert.Equal(expected["pointer"]!.GetValue<string>(), items[index].QuerySelectorAll("code")[1].TextContent);
+                if (expected["target"] is not null) Assert.Equal(expected["target"]!.GetValue<string>(), items[index].QuerySelector("span")!.TextContent.Trim());
+                if (expected["detail"] is not null) Assert.True(JsonNode.DeepEquals(expected["detail"], JsonNode.Parse(items[index].QuerySelector("pre")!.TextContent)));
+            }
             Assert.Equal("true", cut.Find("[aria-live='polite']").GetAttribute("aria-atomic"));
             Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent == "Publish");
             cut.Dispose();
