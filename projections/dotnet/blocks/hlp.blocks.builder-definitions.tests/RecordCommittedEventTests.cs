@@ -140,7 +140,7 @@ public sealed class RecordCommittedEventTests
         var events = await fixture.Storage.Inner.ReadCommittedAsync(Tenant, 0);
         Assert.Equal(2, events.Count);
         var reacted = events[1];
-        // Current two-identity shape. The ADR-0154 shape (principal, executor, Workflow as actor) is not built; T-616/postcommit-reactions acceptance stays open.
+        // ADR-0154: a direct source has no executor; the reaction keeps its principal.
         Assert.Equal(("records.record.created", outcome.Receipt.RecordId, "r1", "operator-7", (string?)null),
             (reacted.EventType, reacted.RecordId, reacted.OperationId, reacted.Principal, reacted.Executor));
         Assert.Equal("8:tenant-a10:operator-72:r1103:reaction:12:wf.follow-up5:1.0.010:on-created27:8:tenant-a10:operator-72:r15:run-11:09:follow-up6:create", reacted.EventId);
@@ -150,8 +150,9 @@ public sealed class RecordCommittedEventTests
         Assert.Equal(events[0], trigger);
         var stored = await fixture.Storage.FindAsync(Tenant, outcome.Receipt.RecordId);
         Assert.Equal("""{"status":"B","value":5}""", Encoding.UTF8.GetString(stored!.Body.Span));
-        // Current two-identity shape. The ADR-0154 shape (principal, executor, Workflow as actor) is not built; T-616/postcommit-reactions acceptance stays open.
         Assert.Equal(("r1", "operator-7"), (stored.OperationId, stored.ActorId));
+        Assert.Null(stored.OriginatorId);
+        Assert.Equal(("wf.follow-up", "1.0.0"), (stored.DelegatedActor!.DefinitionKey, stored.DelegatedActor.DefinitionVersion));
     }
 
     [Fact]

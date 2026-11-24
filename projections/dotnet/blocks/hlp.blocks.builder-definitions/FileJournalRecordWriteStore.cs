@@ -38,9 +38,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         var resolver = new DefaultJsonTypeInfoResolver();
         resolver.Modifiers.Add(info =>
         {
-            if (info.Type != typeof(RecordWriteRow)) return;
-            var property = info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId));
-            info.Properties.Remove(property);
+            if (info.Type == typeof(RecordWriteRow))
+                info.Properties.Remove(info.Properties.Single(item => item.Name == nameof(RecordWriteRow.PublicationVersionId)));
+            if (info.Type == typeof(RecordWriteRow) || info.Type == typeof(KernelAuditEvidence))
+                info.Properties.Remove(info.Properties.Single(item => item.Name == nameof(KernelAuditEvidence.DelegatedActor)));
         });
         return new(Json) { TypeInfoResolver = resolver, MaxDepth = LegacyJournalMaxDepth };
     }
@@ -802,7 +803,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             var journal = JsonSerializer.Deserialize<Journal>(bytes, LegacyJson);
             var result = ValidateJournal(journal, cancellationToken);
             // An ignored additive property in an old object cannot manufacture provenance.
-            return result.Select(entry => entry with { Row = entry.Row with { PublicationVersionId = null }, IsLegacy = true }).ToList();
+            return result.Select(entry => entry with { Row = entry.Row with { PublicationVersionId = null, DelegatedActor = null }, Audit = entry.Audit with { DelegatedActor = null }, IsLegacy = true }).ToList();
         }
         var temporalFormat = format == RecordTemporalJournalBinding.Format;
         if (!temporalFormat && format != RecordWriteJournalBinding.Format) throw Corrupt();
@@ -827,8 +828,8 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 var original = item.GetProperty("Legacy");
                 if (original.ValueKind != JsonValueKind.Object) throw Corrupt();
                 entry = original.Deserialize<Entry>(LegacyJson) ?? throw Corrupt();
-                if (entry.Row is null) throw Corrupt();
-                entry = entry with { Row = entry.Row with { PublicationVersionId = null }, IsLegacy = true };
+                if (entry.Row is null || entry.Audit is null) throw Corrupt();
+                entry = entry with { Row = entry.Row with { PublicationVersionId = null, DelegatedActor = null }, Audit = entry.Audit with { DelegatedActor = null }, IsLegacy = true };
             }
             else
             {
@@ -843,10 +844,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 }
                 RecordWriteJournalBinding.ValidateUnicode(RecordWriteIntent.Strict.GetBytes(item.GetRawText()));
                 Members(item.GetProperty("Operation"), "CommandId", "IdempotencyKey", "Fingerprint");
-                Members(item.GetProperty("Row"), "Tenant", "RecordId", "RecordTypeId", "Version", "DefinitionDigest", "Schema",
+                IdentityMembers(item.GetProperty("Row"), "Tenant", "RecordId", "RecordTypeId", "Version", "DefinitionDigest", "Schema",
                     "ActorId", "OperationId", "RequestedVersion", "IntentEncodingVersion", "IntentDigest", "Body", "RecordedAt",
                     "OriginatorId", "AcceptedCommandId", "AcceptanceAuditId", "PublicationVersionId");
-                Members(item.GetProperty("Audit"), "AuditId", "ActorId", "RecordedAt", "Payload", "AuthoritySnapshot", "OriginatorId");
+                IdentityMembers(item.GetProperty("Audit"), "AuditId", "ActorId", "RecordedAt", "Payload", "AuthoritySnapshot", "OriginatorId");
                 Members(item.GetProperty("Receipt"), "RecordId", "OperationId", "RecordTypeId", "Version", "DefinitionDigest", "Schema", "RecordedAt");
                 Members(item.GetProperty("Binding"), "Encoding", "Hash");
                 if (item.GetProperty("Row").GetProperty("Body").ValueKind != JsonValueKind.String
@@ -878,6 +879,17 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         return validated;
     }
 
+    private static void IdentityMembers(JsonElement value, params string[] names)
+    {
+        if (value.ValueKind != JsonValueKind.Object) throw Corrupt();
+        if (value.TryGetProperty("DelegatedActor", out var actor))
+        {
+            names = [.. names, "DelegatedActor"];
+            if (actor.ValueKind != JsonValueKind.Null) Members(actor, "DefinitionKey", "DefinitionVersion");
+        }
+        Members(value, names);
+    }
+
     private static void Members(JsonElement value, params string[] names)
     {
         if (value.ValueKind != JsonValueKind.Object) throw Corrupt();
@@ -895,7 +907,9 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             entry.Operation.Fingerprint, row.Tenant, row.RecordId, row.RecordTypeId, row.Version, row.DefinitionDigest,
             row.Schema.Value, row.ActorId, row.OperationId, row.RequestedVersion, row.IntentEncodingVersion, row.IntentDigest,
             row.OriginatorId, row.AcceptedCommandId, row.AcceptanceAuditId, row.PublicationVersionId,
-            entry.Audit.AuditId, entry.Audit.ActorId, entry.Audit.OriginatorId })
+            entry.Audit.AuditId, entry.Audit.ActorId, entry.Audit.OriginatorId,
+            row.DelegatedActor?.DefinitionKey, row.DelegatedActor?.DefinitionVersion,
+            entry.Audit.DelegatedActor?.DefinitionKey, entry.Audit.DelegatedActor?.DefinitionVersion })
             if (text is not null) _ = RecordWriteIntent.Strict.GetByteCount(text);
         var receipt = entry.Receipt?.Deserialize<RecordWriteReceipt>(Json) ?? throw Corrupt();
         if (receipt.RecordId != row.RecordId || receipt.OperationId != row.OperationId || receipt.RecordTypeId != row.RecordTypeId
@@ -903,7 +917,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             || !receipt.RecordedAt.EqualsExact(row.RecordedAt) || entry.Key != entry.Operation.IdempotencyKey
             || entry.Operation.CommandId != row.RecordId || entry.Operation.Fingerprint != row.IntentDigest
             || entry.Audit.ActorId != row.ActorId || !entry.Audit.RecordedAt.EqualsExact(row.RecordedAt)
-            || entry.Audit.OriginatorId != row.OriginatorId) throw Corrupt();
+            || entry.Audit.OriginatorId != row.OriginatorId || entry.Audit.DelegatedActor != row.DelegatedActor) throw Corrupt();
         entry.Operation.Validate();
         entry.Audit.Validate();
         _ = RecordWriteJournalBinding.Encode(row);

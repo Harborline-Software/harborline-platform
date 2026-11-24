@@ -29,6 +29,34 @@ public sealed class ScheduleDefinitionCatalogueTests
 
     private static DefinitionKey Key => new(Tenant, DefinitionKind.Schedules, Id);
 
+    [Theory]
+    [InlineData(DefinitionAdmissionPhase.Author)]
+    [InlineData(DefinitionAdmissionPhase.Publish)]
+    [InlineData(DefinitionAdmissionPhase.Install)]
+    public void DirectAdmission_MalformedJsonRefusesStructuredBodyInvalidAcrossPhases(DefinitionAdmissionPhase phase)
+    {
+        var document = new DefinitionDocument(new(Tenant, DefinitionKind.Schedules, "inspection"), "inspection@1.0.0", "1.0.0", "{");
+        // Oracle: T-491/definition-parse-malformed-json Acceptance 2 and DES-0014 C3.
+        var refusal = Assert.Single(ScheduleDefinitionCatalogue.Admission(document, phase));
+        Assert.Equal("scheduling.definition.body_invalid", refusal.Code);
+        Assert.Equal("", refusal.Pointer);
+        Assert.Null(refusal.Target);
+        Assert.Null(refusal.Detail);
+    }
+
+    [Theory]
+    [InlineData(DefinitionAdmissionPhase.Author)]
+    [InlineData(DefinitionAdmissionPhase.Publish)]
+    [InlineData(DefinitionAdmissionPhase.Install)]
+    public void DirectAdmission_WellFormedBodyIsAdmittedAcrossPhases(DefinitionAdmissionPhase phase)
+    {
+        var body = phase == DefinitionAdmissionPhase.Author
+            ? """{"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z"}"""
+            : """{"envelope":{"identity":"inspection","version":"1.0.0","tenant":"tenant-a","cascade_layer":"domain_package","provenance":{"pack":"general"},"retention_class":"standard","legal_hold":false,"requires":[],"contract":{"major":1,"minor":0}},"name":"Inspection","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z"}""";
+        var document = new DefinitionDocument(new(Tenant, DefinitionKind.Schedules, "inspection"), "inspection@1.0.0", "1.0.0", body);
+        Assert.Empty(ScheduleDefinitionCatalogue.Admission(document, phase));
+    }
+
     [Fact(DisplayName = "scheduling-ck-26: internal catalogue construction requires an explicit solver registry")]
     public void Scheduling_ck_26_CatalogueRequiresSolverRegistry()
     {

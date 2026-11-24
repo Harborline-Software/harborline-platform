@@ -47,6 +47,9 @@ public sealed record KernelOperationIdentity(
     }
 }
 
+/// <summary>A delegated workflow actor, identified by its definition and version.</summary>
+public sealed record KernelDelegatedActor(string DefinitionKey, string DefinitionVersion);
+
 /// <summary>The audit record committed atomically with a command's record.</summary>
 /// <param name="AuditId">The unique identifier of this audit entry.</param>
 /// <param name="ActorId">The actor the command is attributed to.</param>
@@ -71,12 +74,15 @@ public sealed record KernelAuditEvidence(
     /// <summary>
     /// The originator's provenance (decision D6 envelope field, ADR-0110 decision 4): the principal on whose durably accepted
     /// command <see cref="ActorId"/>, the actual executor, acted. Null when the actor acted for itself, as every existing
-    /// producer does. It is provenance only: it authorizes nothing, the authority snapshot stays the actor's own decision, and
+    /// producer does. It is provenance only: it authorizes nothing, the authority snapshot stays the enforcing decision, and
     /// a host port persists it beside the audit in the same transaction and never substitutes it for the actor. When
     /// present it is nonblank, never trimmed, and differs ordinally from <see cref="ActorId"/>, because an executor that names
     /// itself as its own originator is not recovering anyone's command.
     /// </summary>
     public string? OriginatorId { get; init; }
+
+    /// <summary>The delegated actor, recorded as provenance and never as authority.</summary>
+    public KernelDelegatedActor? DelegatedActor { get; init; }
 
     /// <summary>
     /// Returns this evidence; throws <see cref="ArgumentException"/> when the audit or actor id is null or blank, or when an
@@ -86,6 +92,11 @@ public sealed record KernelAuditEvidence(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(AuditId);
         ArgumentException.ThrowIfNullOrWhiteSpace(ActorId);
+        if (DelegatedActor is { } delegated)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(delegated.DefinitionKey);
+            ArgumentException.ThrowIfNullOrWhiteSpace(delegated.DefinitionVersion);
+        }
         if (OriginatorId is not null)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(OriginatorId);
