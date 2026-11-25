@@ -25,7 +25,12 @@ namespace Harborline.Blocks.Workflow.Durable;
 /// </remarks>
 public interface IWorkflowStore
 {
-    /// <summary>Reads the per-run history in sequence order.</summary>
+    /// <summary>
+    /// Reads committed per-run history in sequence order. Creation co-commits WorkflowStarted with
+    /// pinned (definition key, tenant namespace, version) and CreatedAt. An advance records TaskCompleted
+    /// or TaskFaulted with its commit timestamp and, when terminal, workflowStatus completed or faulted.
+    /// Legacy missing facts stay missing; this read never invents them.
+    /// </summary>
     Task<IReadOnlyList<WorkflowEventRecord>> EventsAsync(string instanceId, CancellationToken ct = default)
         => throw new NotSupportedException("This workflow store does not support history reads.");
 
@@ -39,6 +44,14 @@ public interface IWorkflowStore
         string resultJson, string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct = default)
         => this is IWorkflowMigrationStore ? throw new NotSupportedException("Migration-capable stores must fence advances.")
             : AdvanceLegacyAsync(key, effect, resultJson, eventType, eventDataJson, nextStep, nextStatus, ct);
+
+    /// <summary>
+    /// Commits a failed advance with the actual faulted task, independently of the terminal nextStep.
+    /// Lifecycle-history providers override this to retain faultedTask; the default preserves legacy fencing.
+    /// </summary>
+    Task<bool> AdvanceFailedIfCurrentAsync(WorkflowInstanceRecord expected, WorkflowStepKey key, WorkflowEffect? effect,
+        string resultJson, string eventType, string eventDataJson, string nextStep, string faultedTask, CancellationToken ct = default)
+        => AdvanceIfCurrentAsync(expected, key, effect, resultJson, eventType, eventDataJson, nextStep, WorkflowStatus.Failed, ct);
 
     private async Task<bool> AdvanceLegacyAsync(WorkflowStepKey key, WorkflowEffect? effect, string resultJson,
         string eventType, string eventDataJson, string nextStep, WorkflowStatus nextStatus, CancellationToken ct)
@@ -61,7 +74,11 @@ public interface IWorkflowStore
     /// <summary>Loads an instance by id, or <see langword="null"/> if unknown.</summary>
     Task<WorkflowInstanceRecord?> LoadAsync(string instanceId, CancellationToken ct = default);
 
-    /// <summary>Persists a new instance row. Authored-run hosts use WorkflowInstanceCreator to validate the subject first.</summary>
+    /// <summary>
+    /// Co-commits a new instance and its WorkflowStarted fact in one transaction; failure leaves neither.
+    /// The fact's definition coordinates come from this instance. Authored-run hosts use
+    /// WorkflowInstanceCreator to validate the subject first.
+    /// </summary>
     Task CreateInstanceAsync(WorkflowInstanceRecord instance, CancellationToken ct = default);
 
     /// <summary>
@@ -84,7 +101,8 @@ public interface IWorkflowStore
     /// <b>ATOMIC ADVANCE (build invariant #1).</b> Co-commits, in ONE store transaction:
     /// <list type="number">
     ///   <item>the optional domain <paramref name="effect"/> (staged onto the same unit-of-work),</item>
-    ///   <item>an append-only outcome <see cref="WorkflowEventRecord"/> (next per-instance <c>Seq</c>),</item>
+    ///   <item>an append-only lifecycle <see cref="WorkflowEventRecord"/> (next per-instance <c>Seq</c>),
+    ///     preserving the caller's event type and JSON as outcomeType and outcome,</item>
     ///   <item>the per-<c>(instance, iteration, step)</c> idempotency row,</item>
     ///   <item>the instance position/status update.</item>
     /// </list>

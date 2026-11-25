@@ -8,6 +8,7 @@ namespace Harborline.Blocks.Workflow.Tests;
 
 public sealed class WorkflowMigrationTests
 {
+    // ADR-0172 D2 preserves committed start history; ADR-0133 D3–4 and ADR-0173 D1 let refusals append nothing.
     [Fact]
     public void Migration_state_does_not_expose_an_unused_has_migrated_flag()
         => Assert.Null(typeof(WorkflowInstanceRecord).GetProperty("HasMigrated"));
@@ -44,7 +45,7 @@ public sealed class WorkflowMigrationTests
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Contains("old", error.Message, StringComparison.Ordinal);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     private static WorkflowMigration Migration(IWorkflowStore store, IWorkflowDefinitionExecutionStore definitions)
@@ -73,7 +74,7 @@ public sealed class WorkflowMigrationTests
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Contains("old", error.Message, StringComparison.Ordinal);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     private sealed class ReplacementDispatcher : IWorkflowTriggerDispatcher
@@ -107,7 +108,8 @@ public sealed class WorkflowMigrationTests
         }
         Assert.Equal(accepted ? "2.0.0" : "1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Equal(accepted ? 1 : 0, (await store.EventsAsync("run-1")).Count);
+        Assert.Equal(accepted ? new[] { "WorkflowStarted", "Migrated" } : new[] { "WorkflowStarted" },
+            (await store.EventsAsync("run-1")).Select(entry => entry.EventType));
     }
 
     private sealed class TypedHandler : IWorkflowStepHandler
@@ -141,7 +143,7 @@ public sealed class WorkflowMigrationTests
         Assert.Contains("subject", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     private sealed class SubjectDefinitions : IWorkflowDefinitionExecutionStore
@@ -168,7 +170,7 @@ public sealed class WorkflowMigrationTests
         var existing = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("run-1", "2.0.0", new Dictionary<string, string>(), authority));
         var absent = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => migration.MigrateAsync("missing", "2.0.0", new Dictionary<string, string>(), authority with { RecordId = "missing" }));
         Assert.Equal(existing.Message, absent.Message);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     [Fact]
@@ -190,7 +192,8 @@ public sealed class WorkflowMigrationTests
         Assert.Equal("old", run.CurrentStep);
         Assert.Equal("1.0.0", run.DefinitionVersion);
         Assert.Equal(0, run.Iteration);
-        Assert.Equal("Advanced", Assert.Single(await store.EventsAsync("run-1")).EventType);
+        Assert.Equal(new[] { "WorkflowStarted", "TaskCompleted" },
+            (await store.EventsAsync("run-1")).Select(entry => entry.EventType));
     }
 
     [Fact]
@@ -213,7 +216,7 @@ public sealed class WorkflowMigrationTests
         await definitions.PublishAsync("tenant-1", "flow", "2.0.0");
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
         await Migration(store, definitions).MigrateAsync("run-1", "2.0.0",
             new Dictionary<string, string> { ["old"] = "new" },
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true));
@@ -241,7 +244,8 @@ public sealed class WorkflowMigrationTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => migrating);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Equal("Parked", Assert.Single(await store.EventsAsync("run-1")).EventType);
+        Assert.Equal(new[] { "WorkflowStarted", "Parked" },
+            (await store.EventsAsync("run-1")).Select(entry => entry.EventType));
     }
 
     private sealed class FixedClock : TimeProvider
@@ -278,7 +282,7 @@ public sealed class WorkflowMigrationTests
             new WorkflowMigrationAuthority("operator-1", "tenant-1", "workflow:migrate", "workflow-instance", "run-1", true)));
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     [Theory]
@@ -314,7 +318,7 @@ public sealed class WorkflowMigrationTests
         Assert.True(error is UnauthorizedAccessException or ArgumentNullException);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
         Assert.Equal("old", (await store.LoadAsync("run-1"))!.CurrentStep);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     [Theory]
@@ -339,7 +343,7 @@ public sealed class WorkflowMigrationTests
         Assert.Equal("1.0.0", run.DefinitionVersion);
         Assert.Equal("old", run.CurrentStep);
         Assert.Equal("{\"wait\":true}", run.StateJson);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     [Fact]
@@ -359,7 +363,7 @@ public sealed class WorkflowMigrationTests
         Assert.Contains("other", error.Message, StringComparison.Ordinal);
         Assert.Equal(before, new FileInfo(fixture.JournalPath).Length);
         Assert.Equal("1.0.0", (await store.LoadAsync("run-1"))!.DefinitionVersion);
-        Assert.Empty(await store.EventsAsync("run-1"));
+        Assert.Equal("WorkflowStarted", Assert.Single(await store.EventsAsync("run-1")).EventType);
     }
 
     [Fact]
@@ -382,8 +386,9 @@ public sealed class WorkflowMigrationTests
         Assert.Equal("new", run.CurrentStep);
         Assert.Equal(WorkflowStatus.Parked, run.Status);
         Assert.Equal("{\"due\":\"2026-11-12T12:00:00Z\",\"correlation\":\"event-1\"}", run.StateJson);
-        var entry = Assert.Single(await store.EventsAsync("run-1"));
-        Assert.Equal("Migrated", entry.EventType);
+        var history = await store.EventsAsync("run-1");
+        Assert.Equal(new[] { "WorkflowStarted", "Migrated" }, history.Select(entry => entry.EventType));
+        var entry = history[1];
         using var data = JsonDocument.Parse(entry.DataJson);
         Assert.Equal("operator-1", data.RootElement.GetProperty("principal").GetString());
         Assert.Equal("1.0.0", data.RootElement.GetProperty("sourceVersion").GetString());

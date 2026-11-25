@@ -126,7 +126,7 @@ public sealed class WorkflowLifecycleMapperTests
             await store.CreateInstanceAsync(new WorkflowInstanceRecord { Id = "run", TenantId = "tenant", DefinitionKey = "flow", DefinitionVersion = "1", CurrentStep = "first", Status = WorkflowStatus.Running });
             await store.AdvanceAsync(new WorkflowStepKey("run", 0, "first"), null, "{}", "WorkflowSuspended",
                 "{\"name\":\"flow.example\",\"suspendedAt\":\"2024-07-26T16:59:57-05:00\"}", "second", WorkflowStatus.Suspended);
-            var fact = Assert.Single(await store.EventsAsync("run"));
+            var fact = Assert.Single(await store.EventsAsync("run"), e => e.EventType == "TaskCompleted");
             var before = JsonSerializer.Serialize(WorkflowLifecycleProjection.Map(fact, new("store", "tenant")));
             await store.AdvanceAsync(new WorkflowStepKey("run", 0, "second"), null, "{}", "Advanced", "{}", "third", WorkflowStatus.Running);
             Assert.Equal(WorkflowStatus.Running, (await store.LoadAsync("run"))!.Status);

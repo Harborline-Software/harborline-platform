@@ -27,9 +27,10 @@ public sealed class WorkflowLifecycleJournalReadbackTests
             using var reopenedJournal = new FileJournalWorkflowStore(options, TimeProvider.System);
             IWorkflowStore reopened = reopenedJournal;
             var events = await reopened.EventsAsync("run");
-            Assert.Equal(new long[] { 1, 2 }, events.Select(e => e.Seq));
-            Assert.Equal(new[] { "Advanced", "Parked" }, events.Select(e => e.EventType));
-            Assert.Equal("{\"principal\":\"user\"}", events[0].DataJson);
+            Assert.Equal(new long[] { 1, 2, 3 }, events.Select(e => e.Seq));
+            Assert.Equal(new[] { "WorkflowStarted", "TaskCompleted", "Parked" }, events.Select(e => e.EventType));
+            using var data = System.Text.Json.JsonDocument.Parse(events[1].DataJson);
+            Assert.Equal("user", data.RootElement.GetProperty("outcome").GetProperty("principal").GetString());
         }
         finally { Directory.Delete(directory, recursive: true); }
     }
