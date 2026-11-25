@@ -35,8 +35,8 @@ public static class FormAcceptedCommandReadings
     /// and before it commits (the existing prepared-transaction contract: preparation reads inside the transaction). A
     /// revocation that commits first is seen and refuses the acceptance; one that commits afterwards falls under decision 3
     /// and does not cancel the command. The ordering holds in production only when the host's store scope contends on the
-    /// fence its revocations take (open item 2, a W10 obligation). False would decide the gate before the transaction, as an
-    /// ordinary submit does.
+    /// same database fence as revocation (T-619's production qualification of the settled open-item-2 rule). False would
+    /// decide the gate before the transaction, as an ordinary submit does.
     /// <para><b>The decider contract this reading imposes (review M5; a W10 acceptance criterion):</b> the host's
     /// submit-gate decider runs while the store's exclusion scope is held. It must make <b>no writes</b> and open <b>no
     /// transaction of its own</b> (a nested <c>KernelTransactionBoundary</c> execution is refused and the submit denied); it
@@ -427,13 +427,13 @@ public enum FormAcceptedCommandRevocationReason
 
 /// <summary>One revocation that affects an accepted command: of its submitter's authority in its tenant, or of the tenant.</summary>
 /// <param name="Reason">Why the revocation was made.</param>
-/// <param name="RevokedAt">The instant the revocation took effect, on the host's clock.</param>
+/// <param name="RevokedAt">The revocation's host-clock audit timestamp; not fence-order evidence for revision-22 hosts.</param>
 public sealed record FormAcceptedCommandRevocation(FormAcceptedCommandRevocationReason Reason, DateTimeOffset RevokedAt);
 
 /// <summary>One claimed accepted command whose revocations the host is asked about.</summary>
 /// <param name="Tenant">The command's tenant.</param>
 /// <param name="SubmitterId">The principal whose authority accepted the command.</param>
-/// <param name="Command">The claimed command; its <see cref="FormAcceptedRecordCommand.StateChangedAt"/> is the claim instant.</param>
+/// <param name="Command">The claimed command; its <see cref="FormAcceptedRecordCommand.StateChangedAt"/> records the claim instant, not a fence-order witness.</param>
 public sealed record FormAcceptedCommandRevocationQuery(TenantId Tenant, string SubmitterId, FormAcceptedRecordCommand Command);
 
 /// <summary>
@@ -622,9 +622,10 @@ internal sealed class FormAcceptedCommandExecution(
             return FormAcceptedCommandRun.Settled;
         }
 
-        // ADR-0110 open item 6 (the owner's ruling, 2026-11-07): a compromise or tenant suspension that took effect at or
-        // before the claim refuses the command before any effect. On a resumed claim an earlier run may have committed it,
-        // so it is quarantined instead (DES-0029 section 9, review R2-M1).
+        // Historical revision-20 compatibility path: returned compromise/suspension rows at or before the recorded claim
+        // instant refuse a new claim or quarantine a resumed one (DES-0029 section 9). Revision-22 hosts instead settle
+        // applicability atomically during claim and return no winning revocation for a valid claim. This revocation
+        // quarantine branch is unreachable for those hosts; binding-failure and Records-refusal quarantine remain.
         string? revoked;
         try
         {
