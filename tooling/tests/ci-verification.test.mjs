@@ -83,7 +83,7 @@ test('the general Phase4 evidence upload retains its original hidden-file behavi
   const evidence = block('phase-4-gate').split('      - name: Evidence\n')[1]
     .split('\n      - name:')[0]
   assert.match(evidence, /^        if: always\(\)\n/)
-  assert.match(evidence, /\n        uses: actions\/upload-artifact@v7\n/)
+  assert.match(evidence, /\n        uses: actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7\n/)
   assert.ok(evidence.includes('          name: verify-evidence-${{ github.run_id }}\n'))
   assert.doesNotMatch(evidence, /include-hidden-files:/)
   assert.match(evidence, /\n          if-no-files-found: ignore\n/)

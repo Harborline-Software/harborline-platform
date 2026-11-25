@@ -240,7 +240,7 @@ test('a retained local bundle cannot replace a deleted receipt artifact', t => {
 test('candidate orchestration edits and additions are replaced by the complete main footprint', t => {
   const f = fixture(t)
   const producer = readWorkflow('verify-gallery-receipt.yml')
-  const script = producer.match(/python3 - <<'PY'\n([\s\S]*?)\n          PY/)[1]
+  const script = producer.split('\n  gallery-shard:\n')[1].match(/python3 - <<'PY'\n([\s\S]*?)\n          PY/)[1]
     .split('\n').map(line => line.slice(10)).join('\n')
   const repository = resolve(import.meta.dirname, '../..'), copied = new Set()
   const copy = name => {

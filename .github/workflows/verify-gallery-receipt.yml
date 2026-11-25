@@ -14,7 +14,44 @@ concurrency:
   group: gallery-receipt-${{ github.event_name }}-${{ github.event_name == 'push' && 'main' || github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt || 1 }}
   cancel-in-progress: false
 jobs:
+  policy-reader:
+    if: github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    environment: release-policy-reader
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      envelope: ${{ steps.read.outputs.envelope }}
+      policy-sha256: ${{ steps.read.outputs.policy-sha256 }}
+    steps:
+      # Owner setup: repository-scoped Variables read only, in a main-only protected environment.
+      # No checkout, candidate execution, signer, write token or credential-bearing output.
+      - id: read
+        env:
+          POLICY_READ_TOKEN: ${{ secrets.RELEASE_POLICY_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$POLICY_READ_TOKEN"
+          export POLICY_RESPONSE
+          POLICY_RESPONSE=$(GH_TOKEN="$POLICY_READ_TOKEN" gh api --method GET --hostname github.com "repos/Harborline-Software/harborline-platform/actions/variables/RELEASE_GATE_POLICY")
+          python3 - <<'PY'
+          import os, json, base64, hashlib
+          response = json.loads(os.environ['POLICY_RESPONSE'])
+          assert response.get('name') == 'RELEASE_GATE_POLICY' and isinstance(response.get('value'), str)
+          assert isinstance(json.loads(response['value']), dict)
+          snapshot = dict(schemaVersion=1, repository=os.environ['GITHUB_REPOSITORY'],
+                          runId=os.environ['GITHUB_RUN_ID'], attempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                          revision=os.environ['GITHUB_SHA'], response=response)
+          envelope = base64.b64encode(json.dumps(snapshot).encode()).decode()
+          digest = hashlib.sha256(response['value'].encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf8') as output:
+              output.write('envelope=' + envelope + '\npolicy-sha256=' + digest + '\n')
+          PY
+
   plan:
+    needs: policy-reader
     if: >-
       github.event_name == 'push' ||
       (github.event.workflow_run.event == 'merge_group' &&
@@ -44,6 +81,8 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_POLICY_ENVELOPE: ${{ needs.policy-reader.outputs.envelope }}
+          RELEASE_POLICY_SHA256: ${{ needs.policy-reader.outputs.policy-sha256 }}
           RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = push ]; then
@@ -103,6 +142,12 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     steps:
+      - id: test-syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          syft-version: v1.57.2
+      - name: Export required scanner to the gate and its child
+        run: echo "HARBORLINE_TEST_SYFT=${{ steps.test-syft.outputs.cmd }}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.plan.outputs.head }}
@@ -184,6 +229,12 @@ jobs:
       contents: read
       actions: read
     steps:
+      - id: test-syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          syft-version: v1.57.2
+      - name: Export required scanner to the gate and its child
+        run: echo "HARBORLINE_TEST_SYFT=${{ steps.test-syft.outputs.cmd }}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.plan.outputs.head }}

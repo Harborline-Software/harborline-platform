@@ -368,10 +368,30 @@ export function verifyReleaseInvocation({root, approvedCommit, testedCommit, tes
 
 // Always fetch current repository configuration. A released file, artifact, predicate or dispatch
 // input cannot supply this snapshot or choose the verifier/source pin.
+// These outputs come only from the credential-isolated main reader in this run/attempt.
+// They are bootstrap/planning inputs; they never establish the final live asset boundary.
+export function readPolicySnapshot({envelope, digest, context}) {
+  try {
+    const snapshot = JSON.parse(Buffer.from(envelope ?? '', 'base64').toString('utf8'))
+    if (snapshot.schemaVersion !== 1 || !/^[0-9a-f]{64}$/.test(digest ?? '')
+      || !OBJECT_ID.test(context?.revision ?? '')
+      || context.repository !== RECEIPT_REPOSITORY
+      || !/^[1-9]\d*$/.test(String(context.runId ?? '')) || !/^[1-9]\d*$/.test(String(context.attempt ?? ''))
+      || !['repository', 'runId', 'attempt', 'revision'].every(key => snapshot[key] === context[key])
+      || snapshot.response?.name !== 'RELEASE_GATE_POLICY' || typeof snapshot.response.value !== 'string'
+      || sha256(Buffer.from(snapshot.response.value, 'utf8')) !== digest) throw new Error('binding')
+    return snapshot.response
+  } catch { throw new Error('release policy snapshot: missing or invalid current-attempt reader output') }
+}
+
 function currentReleasePolicy(readApi) {
   let response, policy
   try {
-    response = readApi(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`)
+    response = readApi === api ? readPolicySnapshot({
+      envelope: process.env.RELEASE_POLICY_ENVELOPE, digest: process.env.RELEASE_POLICY_SHA256,
+      context: {repository: process.env.GITHUB_REPOSITORY, runId: process.env.GITHUB_RUN_ID,
+        attempt: process.env.GITHUB_RUN_ATTEMPT, revision: process.env.GITHUB_SHA},
+    }) : readApi(`repos/${RECEIPT_REPOSITORY}/actions/variables/RELEASE_GATE_POLICY`)
     if (response?.name !== 'RELEASE_GATE_POLICY' || typeof response.value !== 'string') throw new Error('missing owner variable')
     policy = JSON.parse(response.value)
   } catch { throw new Error('release policy: current owner configuration unavailable or malformed') }

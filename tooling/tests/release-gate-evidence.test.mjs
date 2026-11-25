@@ -15,6 +15,90 @@ import {requiredStepIds} from '../gate-contract.mjs'
 const workflow = name => readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
 const job = (text, name) => text.split(`\n  ${name}:\n`)[1]?.split(/\n  [a-z][a-z0-9-]*:\n/)[0]
 
+// R-0224: outputs are current-attempt planning data, not a first-asset live read.
+test('R-0224: policy outputs bind repository, run, attempt, source and exact policy bytes', () => {
+  assert.equal(typeof evidence.readPolicySnapshot, 'function')
+  const context = {repository: 'Harborline-Software/harborline-platform', runId: '9002', attempt: '1', revision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}
+  const response = {name: 'RELEASE_GATE_POLICY', value: '{"schemaVersion":1}'}
+  const snapshot = {...context, schemaVersion: 1, response}
+  const digest = createHash('sha256').update(response.value).digest('hex')
+  const read = value => evidence.readPolicySnapshot({envelope: Buffer.from(JSON.stringify(value)).toString('base64'), digest, context})
+  assert.deepEqual(read(snapshot), response)
+  for (const field of ['repository', 'runId', 'attempt', 'revision'])
+    assert.throws(() => read({...snapshot, [field]: 'other'}), /policy snapshot/)
+  assert.throws(() => read({...snapshot, response: {...response, value: '{}'}}), /policy snapshot/)
+  assert.throws(() => evidence.readPolicySnapshot({envelope: '', digest, context}), /policy snapshot/)
+})
+
+test('R-0224: readers isolate the Variables credential and earlier outputs cannot activate assets', () => {
+  const release = workflow('release-platform'), producer = workflow('verify-gallery-receipt')
+  for (const [text, names] of [[release, ['policy-stage', 'policy-publish']], [producer, ['policy-reader']]]) {
+    for (const name of names) {
+      const reader = job(text, name)
+      assert.ok(reader, name)
+      assert.match(reader, /environment: release-policy-reader/)
+      assert.match(reader, /POLICY_READ_TOKEN: \$\{\{ secrets.RELEASE_POLICY_READ_TOKEN \}\}/)
+      assert.match(reader, /GH_TOKEN="\$POLICY_READ_TOKEN" gh api/)
+      assert.doesNotMatch(reader, /actions\/checkout|node tooling|pnpm|id-token: write|attestations: write/)
+    }
+  }
+  for (const name of ['stage', 'publish']) assert.doesNotMatch(job(release, name), /secrets.RELEASE_POLICY_READ_TOKEN|actions\/variables\/RELEASE_GATE_POLICY/)
+  assert.doesNotMatch(job(producer, 'plan'), /secrets.RELEASE_POLICY_READ_TOKEN/)
+  const publish = job(release, 'publish')
+  assert.ok(publish.indexOf('Refuse assets without a proved isolated final live read') < publish.indexOf('uses: actions/attest@'))
+  assert.match(publish, /unproved first-asset live-read boundary[\s\S]*?exit 1/)
+})
+
+test('R-0224: actual isolated reader makes fresh credentialed requests, transfers only data and refuses denial or missing credentials', t => {
+  const reader = job(workflow('release-platform'), 'policy-stage')
+  const script = reader.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n')
+  const directory = mkdtempSync(join(tmpdir(), 'policy-reader-'))
+  t.after(() => rmSync(directory, {recursive: true, force: true}))
+  const context = {repository: 'Harborline-Software/harborline-platform', runId: '9004', attempt: '1', revision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'}
+  const run = (name, {token = 'fixture-variables-read', denied = false, value = '{"schemaVersion":1}'} = {}) => {
+    const output = join(directory, name), calls = join(directory, 'calls')
+    const prelude = `gh() {
+      test "$GH_TOKEN" = fixture-variables-read || return 22
+      test "$DENIED" = false || return 23
+      printf 'request\\n' >> "$CALLS"
+      printf '%s' "$API_RESPONSE"
+    }\n`
+    const result = spawnSync('bash', ['-c', prelude + script], {encoding: 'utf8', env: {...process.env,
+      GH_TOKEN: 'fixture-actions-read', POLICY_READ_TOKEN: token, DENIED: String(denied), CALLS: calls,
+      API_RESPONSE: JSON.stringify({name: 'RELEASE_GATE_POLICY', value}), GITHUB_OUTPUT: output,
+      GITHUB_REPOSITORY: context.repository, GITHUB_RUN_ID: context.runId, GITHUB_RUN_ATTEMPT: context.attempt, GITHUB_SHA: context.revision}})
+    const bytes = existsSync(output) ? readFileSync(output, 'utf8') : ''
+    assert.doesNotMatch(bytes + result.stdout + result.stderr, /fixture-variables-read|fixture-actions-read/)
+    return {result, bytes}
+  }
+  const first = run('first')
+  assert.equal(first.result.status, 0, first.result.stderr)
+  const values = Object.fromEntries(first.bytes.trim().split('\n').map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)] }))
+  assert.equal(evidence.readPolicySnapshot({envelope: values.envelope, digest: values['policy-sha256'], context}).value, '{"schemaVersion":1}')
+  const next = run('next', {value: '{"schemaVersion":1,"revoked":true}'})
+  assert.equal(next.result.status, 0, next.result.stderr)
+  assert.notEqual(first.bytes, next.bytes)
+  assert.equal(readFileSync(join(directory, 'calls'), 'utf8'), 'request\nrequest\n')
+  for (const [name, options] of [['missing', {token: ''}], ['denied', {denied: true}], ['malformed', {value: 'not JSON'}]]) {
+    const failed = run(name, options)
+    assert.notEqual(failed.result.status, 0, name)
+    assert.equal(failed.bytes, '', name)
+  }
+})
+
+test('R-0225: every owned test-bearing gate provisions pinned Syft and exports its path before execution', () => {
+  for (const [file, name] of [['verify', 'phase-4-gate'], ['verify-gallery-receipt', 'gallery-shard'],
+    ['verify-gallery-receipt', 'phase-4'], ['release-platform', 'stage']]) {
+    const text = job(workflow(file), name)
+    assert.match(text, /id: test-syft/)
+    assert.match(text, /uses: anchore\/sbom-action\/download-syft@e22c389904149dbc22b58101806040fa8d37a610/)
+    assert.match(text, /syft-version: v1\.57\.2/)
+    assert.match(text, /HARBORLINE_TEST_SYFT=\$\{\{ steps.test-syft.outputs.cmd \}\}/)
+    assert.ok(text.indexOf('id: test-syft') < text.indexOf('node tooling/run-')
+      || text.indexOf('node tooling/run-') === -1)
+  }
+})
+
 test('release.main-orchestration-inputs: producer selects immutable API data and invokes the main receipt entry outside the subject', () => {
   const producer = workflow('verify-gallery-receipt')
   for (const name of ['gallery-shard', 'phase-4']) {
@@ -239,10 +323,24 @@ test('release.gate-evidence-attested: main coordinates designated release work a
   assert.match(job(producer, 'plan'), /RELEASE_APPROVED_COMMIT: \$\{\{ vars.RELEASE_APPROVED_COMMIT \}\}/)
 })
 
+// Oracles: R-0225 mandatory preprovisioned Syft; absence is a failure, never a skip.
+test('required scanner cannot silently disappear when its executable input is absent', () => {
+  const env = {...process.env}; delete env.HARBORLINE_TEST_SYFT; delete env.NODE_TEST_CONTEXT;
+  const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap',
+    '--test-name-pattern=actual fresh scanner refuses GPL', import.meta.filename], {env, encoding: 'utf8'});
+  assert.notEqual(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /# skipped 0/);
+  assert.match(result.stdout, /HARBORLINE_TEST_SYFT.*required/);
+})
+
 // Exercises the same pinned Syft scanner and main-authored policy/configuration as the workflow.
-// The optional executable is a test-host dependency, never a candidate input to a hosted job.
+// CI provisions this required executable before tests; tests never install or download it.
 test('release.main-required-computations: actual fresh scanner refuses GPL despite forged MIT and candidate exclusions; MIT admits',
-  {skip: !process.env.HARBORLINE_TEST_SYFT}, t => {
+  t => {
+    assert.ok(process.env.HARBORLINE_TEST_SYFT, 'HARBORLINE_TEST_SYFT is required (CI must provision Syft v1.57.2)')
+    const version = spawnSync(process.env.HARBORLINE_TEST_SYFT, ['version', '-o', 'json'], {encoding: 'utf8', timeout: 15000})
+    assert.equal(version.status, 0, 'required Syft version probe failed')
+    assert.equal(JSON.parse(version.stdout).version, '1.57.2', 'required pinned Syft version')
     const text = workflow('license-sbom')
     const config = text.match(/cat > "\$RUNNER_TEMP\/syft.yaml" <<'SYFT'\n([\s\S]*?)\n          SYFT/)
     const policy = text.match(/cat > "\$RUNNER_TEMP\/license-policy.cjs" <<'NODE'\n([\s\S]*?)\n          NODE/)
@@ -414,7 +512,7 @@ test('release.verifier-policy-outside-release: release bootstraps only the owner
       else "$NODE_BINARY" --import "$API_HOOK" "$@"; fi; }
     set -euo pipefail
   `
-  const run = (label, policy, {dirty = false, inside = false, eventHead = f.B} = {}) => {
+  const run = (label, policy, {dirty = false, inside = false, eventHead = f.B, badSnapshot = false} = {}) => {
     const runner = join(f.root, label), marker = join(runner, 'candidate-executed')
     mkdirSync(runner)
     writeFileSync(responsePath, JSON.stringify({name: 'RELEASE_GATE_POLICY', value: JSON.stringify(policy)}))
@@ -423,6 +521,11 @@ test('release.verifier-policy-outside-release: release bootstraps only the owner
       GITHUB_SHA: eventHead,
       REPOSITORY: 'Harborline-Software/harborline-platform', NODE_BINARY: process.execPath,
       OWNER_VARIABLE: responsePath, API_HOOK: pathToFileURL(hookPath).href,
+      GITHUB_REPOSITORY: 'Harborline-Software/harborline-platform', GITHUB_RUN_ID: '9004', GITHUB_RUN_ATTEMPT: '1',
+      RELEASE_POLICY_ENVELOPE: Buffer.from(JSON.stringify({schemaVersion: 1,
+        repository: 'Harborline-Software/harborline-platform', runId: '9004', attempt: '1', revision: eventHead,
+        response: {name: 'RELEASE_GATE_POLICY', value: JSON.stringify(policy)}})).toString('base64'),
+      RELEASE_POLICY_SHA256: badSnapshot ? '0'.repeat(64) : createHash('sha256').update(JSON.stringify(policy)).digest('hex'),
       CANDIDATE_MARKER: marker, GITHUB_OUTPUT: join(runner, 'outputs'),
       DIRTY_VERIFIER: String(dirty), INSIDE_SNAPSHOT: String(inside),
     }})
@@ -440,6 +543,8 @@ test('release.verifier-policy-outside-release: release bootstraps only the owner
   assert.notEqual(dirty.result.status, 0, 'external verifier checkout must stay clean')
   const inside = run('inside', p.policy, {inside: true})
   assert.notEqual(inside.result.status, 0, 'policy snapshot cannot be stored in the released checkout')
+  const wrongSnapshot = run('wrong-snapshot', p.policy, {badSnapshot: true})
+  assert.notEqual(wrongSnapshot.result.status, 0, 'unbound reader bytes refuse without an Actions-token fallback')
   const advanced = run('advanced', p.policy, {eventHead: f.C})
   assert.notEqual(advanced.result.status, 0, 'main-tip dispatch guard must refuse B after event SHA C')
 })
