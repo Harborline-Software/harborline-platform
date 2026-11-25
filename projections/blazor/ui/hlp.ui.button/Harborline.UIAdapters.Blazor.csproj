@@ -229,4 +229,9 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="../../../../LICENSE" Link="LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
+  <ItemGroup>
+    <RazorComponent Include="../hlp.ui.scheduling-authoring/**/*.razor" Link="Components/SchedulingAuthoring/%(Filename)%(Extension)" />
+    <Compile Include="../hlp.ui.scheduling-authoring/**/*.cs" Link="Components/SchedulingAuthoring/%(Filename)%(Extension)" />
+    <Content Include="../hlp.ui.scheduling-authoring/wwwroot/**" Link="wwwroot/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

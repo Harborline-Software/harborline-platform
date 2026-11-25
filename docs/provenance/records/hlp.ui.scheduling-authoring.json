@@ -1,0 +1,27 @@
+{
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "legacySourceHashes": {},
+  "phase4Evidence": "specs/modules/ui/hlp.ui.scheduling-authoring/interface.yaml",
+  "sourceExtracted": false,
+  "sourceState": "New Schedule editor adapters. Focused native evidence is recorded in the PR; full check, gallery and provenance remain pending on the Mac mini.",
+  "contentHashes": {
+    "conformance/hlp.ui.scheduling-authoring/fixtures.yaml": "47ec44dcddcd7d4608919b5326ddb350ea4bf9e77d58e8308eeb545001e18b26",
+    "conformance/hlp.ui.scheduling-authoring/quality-fixtures.yaml": "3b281165ce3a25989687f6efe9425486992d7b06b63c60734f5a55e0f5c955cc",
+    "conformance/hlp.ui.scheduling-authoring/runners/run-shared.mjs": "b180c2dffeecf17b47c88d431aa2b0867626ed5852a0896664db105a2efb87a8",
+    "projections/blazor/ui/hlp.ui.scheduling-authoring.tests/SchedulingAuthoringTests.cs": "bb84320fa4410354e63a7088d3c3693ddc9898b83fb1dbebf833f8f0aabeeb6b",
+    "projections/blazor/ui/hlp.ui.scheduling-authoring/HarborlineSchedulingAuthoringEditor.razor": "dcd817185d0efdfeb44479fc8edfa6cca2b21638e047d21b2e0ea3b5a1a36d8d",
+    "projections/blazor/ui/hlp.ui.scheduling-authoring/SchedulingAuthoringTypes.cs": "1e4733abdcbdb3a55df76376d764de081f44889eb3ebfcb39ec8aea676274fca",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.test.tsx": "bb6fbd39585d8176bb06aa4770810cc7021c84b9703efd36cd0cbc4bf49170d3",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx": "b6407900ca4406c8ff84aa662cbabc923314bacff2d857f45eeb4a39b7948ba4",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/index.ts": "0a641a59f5777435b7bee448d53bc4bb48454fd8eca50ad8d050aa039e6a07b8",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
+    "projections/react/ui/hlp.ui.scheduling-authoring/tsconfig.build.json": "7662e569abfc7afc55dd504698be6e0d60f89931fef6e09e2e827658a74640fb",
+    "projections/react/ui/hlp.ui.scheduling-authoring/vitest.config.ts": "638dd1f45a7b0bcebcb48a16d56b38129e9c355f62727715413792db512edd55",
+    "specs/modules/ui/hlp.ui.scheduling-authoring/interface.yaml": "8239a6edd5b45cc1b0ddf4d716fc751e60fd9ba5b318fe21df50277a1730e443",
+    "specs/modules/ui/hlp.ui.scheduling-authoring/quality.yaml": "7fedc8ea9ca17d377298746d6840d4365871d13d176ad30989433260f0a19e8a",
+    "specs/modules/ui/hlp.ui.scheduling-authoring/scenarios.json": "1888dea4c3bd6eb2547ad5cdf51f7ee00a3d244ceef872e4b340cdf4e795539e",
+    "specs/modules/ui/hlp.ui.scheduling-authoring/style.css": "73c26f8d0b61799af047c557d628900d71d7a38f94e051e6f250d6445aaad7ff",
+    "conformance/hlp.ui.scheduling-authoring/mutation-evidence.json": "43b377e672eff7ac6df649ee36eba56a07222d985154322c54f4ff4d06f0fd7a"
+  },
+  "nextGate": "Full check, gallery and provenance on the Mac mini against the final head."
+}

@@ -184,6 +184,8 @@
     {"moduleId":"hlp.ui.data-exchange","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-exchange"},
     {"moduleId":"hlp.ui.data-grid","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.data-grid"},
     {"moduleId":"hlp.ui.data-grid","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.data-grid"},
+    {"moduleId":"hlp.ui.scheduling-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.scheduling-authoring"},
+    {"moduleId":"hlp.ui.scheduling-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.scheduling-authoring"},
     {"moduleId":"hlp.ui.rule-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.rule-authoring"},
     {"moduleId":"hlp.ui.rule-authoring","projection":"blazor","role":"adapter","status":"conformant","path":"projections/blazor/ui/hlp.ui.rule-authoring"},
     {"moduleId":"hlp.ui.report-authoring","projection":"react","role":"adapter","status":"conformant","path":"projections/react/ui/hlp.ui.report-authoring"},

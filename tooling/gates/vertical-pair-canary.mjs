@@ -26,7 +26,9 @@ export function canaryContexts({contextFor}) {
     // must not inherit a real module's profile, or a disposition recorded there could silence the
     // very rows it exists to prove.
     qualityProfile: null,
-    catalog: {scenarios: [{sourceQualityCaseIds: ['x.quality.visual-parity']}]},
+    catalog: {scenarios: [{id: 'canary.visual-parity', sourceQualityCaseIds: ['x.quality.visual-parity']}]},
+    recordedScenarios: new Set(['canary.visual-parity']),
+    recordedQualityCases: new Map([['canary.visual-parity', new Set(['x.quality.visual-parity'])]]),
     quality: null,
     conformanceCases: 1,
     gallery: true,

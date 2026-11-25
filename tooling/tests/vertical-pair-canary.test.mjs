@@ -25,6 +25,26 @@ test('the canary context carries every field the real gate-row context does', ()
 })
 
 // Key parity alone would pass a context whose values make every gate throw, so run the rows too.
+// Oracle: T-491/schedule-editor's vertical-pair acceptance (control main 848e4ce9e):
+// clean parity PASSes, determinism failure VOIDs both parity rows, independent of real recordings.
+test('synthetic recorded visual parity PASSes independently of the real module recordings', () => {
+  for (const recordedScenarios of [null, new Set(), new Set(['unrelated.real-scenario'])]) {
+    const {clean, failing} = canaryContexts({
+      contextFor: moduleId => ({...model.contextFor(moduleId), recordedScenarios}),
+    })
+    const rows = ctx => Object.fromEntries(model.gateRows(ctx).map(row => [row.id, row.status]))
+    assert.equal(rows(clean).assertVisualParity, 'PASS', 'clean visual parity must PASS, not PARTIAL')
+    assert.equal(rows(clean).assertFunctionalParity, 'PASS')
+    assert.equal(rows(failing).assertVisualParity, 'VOID')
+    assert.equal(rows(failing).assertFunctionalParity, 'VOID')
+    const [scenario] = clean.catalog.scenarios
+    assert.equal(typeof scenario.id, 'string')
+    assert.ok(scenario.id.length > 0)
+    assert.ok(clean.recordedScenarios instanceof Set)
+    assert.deepEqual([...clean.recordedScenarios], [scenario.id])
+  }
+})
+
 test('every canary row is exercised and reports its expected verdict', () => {
   assert.deepEqual(runCanary(model), [])
   assert.ok(CANARY_ROWS.length >= 8, 'the named row list must not shrink silently')

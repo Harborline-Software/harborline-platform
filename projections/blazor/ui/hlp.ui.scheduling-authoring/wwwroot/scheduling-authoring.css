@@ -1,0 +1,8 @@
+.hl-scheduling-authoring { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; overflow-wrap: anywhere; gap: var(--hl-space-4, 1rem); max-width: 64rem; color: var(--hl-color-text, currentColor); }
+.hl-scheduling-authoring fieldset { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--hl-space-3, .75rem); min-width: 0; border: 1px solid var(--hl-color-border, currentColor); padding: var(--hl-space-4, 1rem); }
+.hl-scheduling-authoring label { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--hl-space-1, .25rem); }
+.hl-scheduling-authoring input, .hl-scheduling-authoring select, .hl-scheduling-authoring textarea, .hl-scheduling-authoring button { box-sizing: border-box; min-width: 0; min-height: 2rem; max-width: 100%; font: inherit; }
+.hl-scheduling-authoring input[type=checkbox] { min-width: 1.5rem; }
+.hl-scheduling-authoring [data-scope=chain] { border-inline-start: .25rem solid var(--hl-color-primary, currentColor); padding-inline-start: var(--hl-space-3, .75rem); }
+.hl-scheduling-authoring pre, .hl-scheduling-authoring code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.hl-scheduling-authoring :focus-visible { outline: 2px solid var(--hl-color-primary, currentColor); outline-offset: 2px; }

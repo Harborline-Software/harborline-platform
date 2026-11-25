@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "accessibilityCases": [
+    {
+      "id": "scheduling-authoring.quality.labels",
+      "expected": {
+        "namedInputs": true,
+        "keyboardActions": true
+      }
+    },
+    {
+      "id": "scheduling-authoring.quality.refusals",
+      "expected": {
+        "liveRegion": "polite",
+        "serverRefusalsUnchanged": true
+      }
+    }
+  ],
+  "internationalizationCases": [
+    {
+      "id": "scheduling-authoring.quality.reflow",
+      "expected": {
+        "zoomPercent": 200,
+        "pageHorizontalOverflow": false
+      }
+    }
+  ],
+  "themingCases": [
+    {
+      "id": "scheduling-authoring.quality.visual-parity",
+      "expected": {
+        "reactEqualsBlazor": true
+      }
+    }
+  ],
+  "workflowCases": [
+    {
+      "id": "scheduling-authoring.quality.refusals",
+      "expected": {
+        "beforePublish": true
+      }
+    }
+  ],
+  "stateCases": [
+    {
+      "id": "scheduling-authoring.quality.refusals",
+      "expected": {
+        "serverRefusalsUnchanged": true
+      }
+    }
+  ]
+}

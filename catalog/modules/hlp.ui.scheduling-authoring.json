@@ -1,0 +1,58 @@
+{
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "module": {
+    "interface": {
+      "path": "specs/modules/ui/hlp.ui.scheduling-authoring/interface.yaml",
+      "revision": 2
+    },
+    "moduleKind": "interactive-component",
+    "presentation": {
+      "disposition": "visual"
+    },
+    "qualityProfile": {
+      "path": "specs/modules/ui/hlp.ui.scheduling-authoring/quality.yaml",
+      "revision": 1
+    },
+    "owner": "platform-ui",
+    "dependencies": [
+      "hlp.ui.button"
+    ],
+    "status": "gap-implemented",
+    "depth": {
+      "disposition": "deep-module",
+      "deletionTest": "PASS",
+      "redistributedComplexity": [
+        "Schedule grammar controls and immutable body updates otherwise repeated by each authoring host",
+        "Registered solver and admitted-module parameter binding, including explicit chain-scope selection, otherwise duplicated across lanes",
+        "Producer-refusal rendering with live announcements and read-only availability explanation otherwise reimplemented by each host"
+      ]
+    },
+    "projections": {
+      "react": {
+        "role": "adapter",
+        "seam": "ui.scheduling-authoring.framework",
+        "path": "projections/react/ui/hlp.ui.scheduling-authoring",
+        "status": "conformant",
+        "packageContribution": "@harborline-software/ui-react",
+        "conformanceRunner": "conformance/hlp.ui.scheduling-authoring/runners/run-shared.mjs"
+      },
+      "blazor": {
+        "role": "adapter",
+        "seam": "ui.scheduling-authoring.framework",
+        "path": "projections/blazor/ui/hlp.ui.scheduling-authoring",
+        "status": "conformant",
+        "packageContribution": "Harborline.UIAdapters.Blazor",
+        "conformanceRunner": "conformance/hlp.ui.scheduling-authoring/runners/run-shared.mjs"
+      }
+    }
+  },
+  "seams": {
+    "ui.scheduling-authoring.framework": {
+      "status": "conformant",
+      "adapters": [
+        "react",
+        "blazor"
+      ]
+    }
+  }
+}

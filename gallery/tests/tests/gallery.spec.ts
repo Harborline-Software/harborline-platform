@@ -3318,6 +3318,16 @@ for (const catalog of catalogs) for (const scenario of catalog.scenarios) {
       await assertRuleAuthoringKeyboard(reactPage)
       await assertRuleAuthoringKeyboard(blazorPage)
     }
+    if (scenario.id === 'scheduling-authoring.from-empty') {
+      for (const page of [reactPage, blazorPage]) {
+        await page.getByLabel('Schedule name', {exact: true}).focus()
+        await page.keyboard.type('Inspection')
+        await expect(page.getByLabel('Schedule name', {exact: true})).toHaveValue('Inspection')
+        await page.keyboard.press('Tab')
+        await expect(page.getByLabel('Record type', {exact: true})).toBeFocused()
+        await expect(page.locator('[aria-live="polite"]')).toContainText('Refusal list')
+      }
+    }
     if (scenario.id === 'select-field.multiple-search') {
       await assertSearchableMultipleScroll(reactPage, 'react')
       await assertSearchableMultipleScroll(blazorPage, 'blazor')

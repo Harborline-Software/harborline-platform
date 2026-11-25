@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "interfaceRevision": 2,
+  "authority": "DES-0022 section 4; ScheduleDefinition wire grammar",
+  "cases": [
+    {
+      "id": "scheduling-authoring.from-empty",
+      "steps": [["Schedule name", "Inspection"], ["Record type", "types.asset"], ["Starts kind", "form"], ["Starts target", "forms.inspection"], ["Due date", "2027-01-01T00:00:00Z"], ["Window earliest", "2026-12-31T00:00:00Z"], ["Window latest", "2027-01-02T00:00:00Z"], ["Tolerance early", "PT1H"], ["Tolerance late", "PT2H"], ["Grace", "PT3H"], ["Missed behaviour", "window_closed"], ["Legality citation", "legality.safety"]],
+      "expected": {"name":"Inspection","on_type_id":"types.asset","starts":{"kind":"form","target_id":"forms.inspection"},"due_date":"2027-01-01T00:00:00Z","window":{"earliest":"2026-12-31T00:00:00Z","latest":"2027-01-02T00:00:00Z"},"tolerance":{"early":"PT1H","late":"PT2H"},"grace":"PT3H","missed_behaviour":"window_closed","legality_ref":"legality.safety"}
+    },
+    {
+      "id": "scheduling-authoring.bound",
+      "steps": [["Problem class", "Project"], ["Backend", "prototype.exhaustive-proof.v2"], ["Guarantee", "feasible_proof"], ["Work budget", "10"]],
+      "expected": {"problem_class":"Project","solver":{"parameters":{},"backend_id":"prototype.exhaustive-proof.v2","guarantee":"feasible_proof","work_budget":10}}
+    },
+    {
+      "id": "scheduling-authoring.refusals",
+      "renderingOracle": "T-491 scheduling-auth-27; DES-0022 C3 -> DES-0014 C3: optional detail object and safe/authorized fetchable target. Null supplies no detail object; empty target supplies no reference.",
+      "renderingCases": [
+        {
+          "id": "absent-optionals",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver"},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":[],"details":[]}
+        },
+        {
+          "id": "null-detail",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"schedule.inspection@1","detail":null},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":["schedule.inspection@1"],"details":[]}
+        },
+        {
+          "id": "empty-target",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"","detail":{"missing":["backend"]}},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":[],"details":[{"missing":["backend"]}]}
+        },
+        {
+          "id": "present-empty-detail-object",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"schedule.inspection@1","detail":{}},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":["schedule.inspection@1"],"details":[{}]}
+        }
+      ]
+    },
+    {
+      "id": "scheduling-authoring.remove-node-window",
+      "initial": {"name":"Inspection","basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"},"window":{"earliest":"PT0S","latest":"P1D"}},{"node_id":"followup","after_node_id":"check","offset":"P2D","tolerance":{"early":"PT0S","late":"PT1H"}}]},"host_note":"preserve"},
+      "steps": [["Remove node 1 window", "", "click"]],
+      "expected": {"name":"Inspection","basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"}},{"node_id":"followup","after_node_id":"check","offset":"P2D","tolerance":{"early":"PT0S","late":"PT1H"}}]},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.remove-tolerance",
+      "initial": {"name":"Inspection","tolerance":{"early":"PT1H","late":"PT2H"},"grace":"PT3H","host_note":"preserve"},
+      "steps": [["Remove tolerance", "", "click"]],
+      "expected": {"name":"Inspection","grace":"PT3H","host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.invalid-threshold",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold", "abc"], ["Threshold", "NaN"], ["Threshold", "Infinity"], ["Threshold", "1e400"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.invalid-work-budget",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget", "abc"], ["Work budget", "NaN"], ["Work budget", "Infinity"], ["Work budget", "1e400"]],
+      "error": "Work budget must be a 32-bit integer in plain decimal notation.",
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-rejections",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1e30"],["Threshold","1e3"],["Threshold","0x10"],["Threshold","Infinity"],["Threshold","NaN"],["Threshold","79228162514264337593543950336"],["Threshold","-79228162514264337593543950336"],["Threshold","79228162514264337593543950335.1"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-rejections",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget","1e30"],["Work budget","1e3"],["Work budget","0x10"],["Work budget","Infinity"],["Work budget","NaN"],["Work budget","79228162514264337593543950336"],["Work budget","2147483648"],["Work budget","-2147483649"],["Work budget","1.5"],["Work budget","2147483647.0000001"]],
+      "error": "Work budget must be a 32-bit integer in plain decimal notation.",
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-empty",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold",""]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":null},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-empty",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget",""]],
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":null},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-threshold-whitespace",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold"," \t-12.5\r\n"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-whitespace",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget","\t +2147483647 \r\n"]],
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":2147483647},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.numeric-work-budget-minimum",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget","-2147483648"]],
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":-2147483648},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-negative-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-0"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0},"host_note":"preserve"},
+      "expectedThresholdWire": ["0"],
+      "expectedThresholdDisplay": "0"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1.50"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.5},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.5"],
+      "expectedThresholdDisplay": "1.5"
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-point",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold",".5"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.5},"host_note":"preserve"},
+      "expectedThresholdWire": ["0.5"],
+      "expectedThresholdDisplay": "0.5"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-point",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","5."]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
+    },
+    {
+      "id": "scheduling-authoring.threshold-leading-space",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold"," 5"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
+    },
+    {
+      "id": "scheduling-authoring.threshold-trailing-space",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","5 "]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":5},"host_note":"preserve"},
+      "expectedThresholdWire": ["5"],
+      "expectedThresholdDisplay": "5"
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264337593543950335"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-decimal-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264337593543950335"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-before-decimal-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264337593543950336"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-after-decimal-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264337593543950336"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-unsafe-integer",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","9007199254740993"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-minimum-positive",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000000000000000000000000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-28},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-28","1E-28","0.0000000000000000000000000001"],
+      "expectedThresholdDisplay": "0.0000000000000000000000000001"
+    },
+    {
+      "id": "scheduling-authoring.threshold-below-scale",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.00000000000000000000000000001"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-precision-boundary",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":123456789012345},"host_note":"preserve"},
+      "expectedThresholdWire": ["123456789012345"],
+      "expectedThresholdDisplay": "123456789012345"
+    },
+    {
+      "id": "scheduling-authoring.threshold-excess-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1.234567890123456"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-fraction-precision-boundary",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":0.123456789012345},"host_note":"preserve"},
+      "expectedThresholdWire": ["0.123456789012345"],
+      "expectedThresholdDisplay": "0.123456789012345"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-small",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-07},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-7","0.0000001"],
+      "expectedThresholdDisplay": "0.0000001"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","1000000000000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1000000000000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e+21","1000000000000000000000"],
+      "expectedThresholdDisplay": "1000000000000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-large-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","12345678901234500000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12345678901234500000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e+28","12345678901234500000000000000"],
+      "expectedThresholdDisplay": "12345678901234500000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","79228162514264300000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":79228162514264300000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["7.92281625142643e+28","79228162514264300000000000000"],
+      "expectedThresholdDisplay": "79228162514264300000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-maximum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-79228162514264300000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-79228162514264300000000000000},"host_note":"preserve"},
+      "expectedThresholdWire": ["-7.92281625142643e+28","-79228162514264300000000000000"],
+      "expectedThresholdDisplay": "-79228162514264300000000000000"
+    },
+    {
+      "id": "scheduling-authoring.threshold-display-negative-minimum",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-0.0000000000000000000000000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-1e-28},"host_note":"preserve"},
+      "expectedThresholdWire": ["-1e-28","-0.0000000000000000000000000001"],
+      "expectedThresholdDisplay": "-0.0000000000000000000000000001"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-small",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-7},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000001"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1e-7},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e-7"],
+      "expectedThresholdDisplay": "0.0000001",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-large",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1E+21},"host_note":"preserve"},
+      "steps": [["Threshold","1000000000000000000000"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1E+21},"host_note":"preserve"},
+      "expectedThresholdWire": ["1e+21","1E+21"],
+      "expectedThresholdDisplay": "1000000000000000000000",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-small-precision",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-14},"host_note":"preserve"},
+      "steps": [["Threshold","0.0000000000000123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-14},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e-14"],
+      "expectedThresholdDisplay": "0.0000000000000123456789012345",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-preserve-scale-29",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-15},"host_note":"preserve"},
+      "steps": [["Threshold","0.00000000000000123456789012345"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.23456789012345e-15},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.23456789012345e-15"],
+      "expectedThresholdDisplay": "0.00000000000000123456789012345",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-negative-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-0},"host_note":"preserve"},
+      "steps": [["Threshold","0"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":-0},"host_note":"preserve"},
+      "expectedThresholdWire": ["0","-0"],
+      "expectedThresholdDisplay": "0",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-trailing-zero",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.50},"host_note":"preserve"},
+      "steps": [["Threshold","1.5"]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":1.50},"host_note":"preserve"},
+      "expectedThresholdWire": ["1.5","1.50"],
+      "expectedThresholdDisplay": "1.5",
+      "unchangedThresholdEdit": true
+    },
+    {
+      "id": "scheduling-authoring.threshold-negative-infinity",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold","-Infinity"]],
+      "error": "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.work-budget-negative-infinity",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget","-Infinity"]],
+      "error": "Work budget must be a 32-bit integer in plain decimal notation.",
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-whitespace-only",
+      "initial": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":12.5},"host_note":"preserve"},
+      "steps": [["Threshold"," \t\r\n\f\u000b "]],
+      "expected": {"name":"Inspection","basis":{"kind":"threshold","reading":"meter.hours","crossing":"above","value":null},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.work-budget-whitespace-only",
+      "initial": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Work budget"," \t\r\n\f\u000b "]],
+      "expected": {"name":"Inspection","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":null},"host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-integer",
+      "initialJson": "{\"name\":\"Inspection\",\"basis\":{\"kind\":\"threshold\",\"value\":9007199254740993},\"host_note\":\"preserve\"}",
+      "steps": [
+        [
+          "Schedule name",
+          "Updated"
+        ],
+        [
+          "Threshold",
+          "9007199254740993"
+        ]
+      ],
+      "expectedJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":9007199254740993},\"host_note\":\"preserve\"}",
+      "expectedThresholdDisplay": "9007199254740993",
+      "unchangedThresholdEdit": true,
+      "expectedChanges": 1,
+      "expectedEditedThresholdJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":25},\"host_note\":\"preserve\"}"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-integer-exponent",
+      "initialJson": "{\"name\":\"Inspection\",\"basis\":{\"kind\":\"threshold\",\"value\":9.007199254740993e15},\"host_note\":\"preserve\"}",
+      "steps": [
+        [
+          "Schedule name",
+          "Updated"
+        ],
+        [
+          "Threshold",
+          "9007199254740993"
+        ]
+      ],
+      "expectedJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":9.007199254740993e15},\"host_note\":\"preserve\"}",
+      "expectedThresholdDisplay": "9007199254740993",
+      "unchangedThresholdEdit": true,
+      "expectedChanges": 1,
+      "expectedEditedThresholdJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":25},\"host_note\":\"preserve\"}"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-decimal-maximum",
+      "initialJson": "{\"name\":\"Inspection\",\"basis\":{\"kind\":\"threshold\",\"value\":79228162514264337593543950335},\"host_note\":\"preserve\"}",
+      "steps": [
+        [
+          "Schedule name",
+          "Updated"
+        ],
+        [
+          "Threshold",
+          "79228162514264337593543950335"
+        ]
+      ],
+      "expectedJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":79228162514264337593543950335},\"host_note\":\"preserve\"}",
+      "expectedThresholdDisplay": "79228162514264337593543950335",
+      "unchangedThresholdEdit": true,
+      "expectedChanges": 1,
+      "expectedEditedThresholdJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":25},\"host_note\":\"preserve\"}"
+    },
+    {
+      "id": "scheduling-authoring.threshold-host-exact-fraction",
+      "initialJson": "{\"name\":\"Inspection\",\"basis\":{\"kind\":\"threshold\",\"value\":0.1234567890123456789012345678},\"host_note\":\"preserve\"}",
+      "steps": [
+        [
+          "Schedule name",
+          "Updated"
+        ],
+        [
+          "Threshold",
+          "0.1234567890123456789012345678"
+        ]
+      ],
+      "expectedJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":0.1234567890123456789012345678},\"host_note\":\"preserve\"}",
+      "expectedThresholdDisplay": "0.1234567890123456789012345678",
+      "unchangedThresholdEdit": true,
+      "expectedChanges": 1,
+      "expectedEditedThresholdJson": "{\"name\":\"Updated\",\"basis\":{\"kind\":\"threshold\",\"value\":25},\"host_note\":\"preserve\"}"
+    },
+    {
+      "id": "scheduling-authoring.remove-threshold-error",
+      "initial": {
+        "basis": {
+          "kind": "threshold",
+          "value": 12.5
+        }
+      },
+      "steps": [
+        [
+          "Threshold",
+          "abc"
+        ],
+        [
+          "alert",
+          "Threshold must be an exact decimal with at most 15 significant digits and scale 28.",
+          "expect-error"
+        ],
+        [
+          "Basis",
+          "completion_offset"
+        ],
+        [
+          "",
+          "",
+          "expect-no-errors"
+        ],
+        [
+          "Basis",
+          "threshold"
+        ],
+        [
+          "",
+          "",
+          "expect-no-errors"
+        ]
+      ],
+      "expected": {
+        "basis": {
+          "kind": "threshold"
+        }
+      }
+    },
+    {
+      "id": "scheduling-authoring.remove-module-parameter-error",
+      "initial": {
+        "modules": [
+          {
+            "module": "precedence",
+            "parameters": {}
+          }
+        ]
+      },
+      "steps": [
+        [
+          "Precedence parameters",
+          "{"
+        ],
+        [
+          "alert",
+          "Precedence parameters must be a JSON object.",
+          "expect-error"
+        ],
+        [
+          "Precedence — chain scope (explicit opt-in)",
+          "false",
+          "toggle"
+        ],
+        [
+          "",
+          "",
+          "expect-no-errors"
+        ],
+        [
+          "Precedence — chain scope (explicit opt-in)",
+          "true",
+          "toggle"
+        ],
+        [
+          "",
+          "",
+          "expect-no-errors"
+        ]
+      ],
+      "expected": {
+        "modules": [
+          {
+            "module": "precedence",
+            "parameters": {}
+          }
+        ]
+      }
+    },
+    {
+      "id": "scheduling-authoring.backend-parameter-preserves-number-token",
+      "initialJson": "{\"solver\":{\"parameters\":{\"limit\":9007199254740993,\"seed\":7}}}",
+      "steps": [
+        [
+          "Backend parameters",
+          "{\"limit\":9007199254740993,\"seed\":8}"
+        ]
+      ],
+      "expectedJson": "{\"solver\":{\"parameters\":{\"limit\":9007199254740993,\"seed\":8}}}"
+    },
+    {
+      "id": "scheduling-authoring.module-parameter-preserves-number-token",
+      "initialJson": "{\"modules\":[{\"module\":\"precedence\",\"parameters\":{\"limit\":0.1234567890123456789012345678,\"seed\":7}}]}",
+      "steps": [
+        [
+          "Precedence parameters",
+          "{\"limit\":0.1234567890123456789012345678,\"seed\":8}"
+        ]
+      ],
+      "expectedJson": "{\"modules\":[{\"module\":\"precedence\",\"parameters\":{\"limit\":0.1234567890123456789012345678,\"seed\":8}}]}"
+    },
+    {
+      "id": "scheduling-authoring.remove-solver",
+      "initial": {"name":"Inspection","problem_class":"Project","solver":{"backend_id":"prototype.exhaustive-proof.v2","parameters":{"seed":7},"guarantee":"feasible_proof","work_budget":10},"host_note":"preserve"},
+      "steps": [["Problem class","None"],["Backend",""]],
+      "expected": {"name":"Inspection","problem_class":"None","host_note":"preserve"}
+    },
+    {
+      "id": "scheduling-authoring.remove-escalation",
+      "initial": {"name":"Inspection","escalation":{"after":"PT1H","to":"team.operations"},"grace":"PT3H","host_note":"preserve"},
+      "steps": [["Escalation after",""],["Escalation to",""]],
+      "expected": {"name":"Inspection","grace":"PT3H","host_note":"preserve"}
+    }
+  ]
+}

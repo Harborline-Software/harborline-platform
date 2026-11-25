@@ -97,3 +97,5 @@ export * from '../../hlp.ui.confirm-dialog/src/index'
 export * from '../../hlp.ui.document-authoring/src/index'
 
 export * from '../../hlp.ui.report-authoring/src/index'
+
+export * from '../../hlp.ui.scheduling-authoring/src/index'

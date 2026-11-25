@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "moduleId": "hlp.ui.scheduling-authoring",
+  "sourceFixture": "conformance/hlp.ui.scheduling-authoring/fixtures.yaml",
+  "qualityFixture": "conformance/hlp.ui.scheduling-authoring/quality-fixtures.yaml",
+  "galleryInterface": {
+    "probeAttribute": "data-gallery-probe",
+    "scenarioAttribute": "data-gallery-scenario",
+    "projectionTitles": {
+      "react": "Platform/Scheduling authoring",
+      "blazor": "Platform/Scheduling authoring"
+    }
+  },
+  "scenarios": [
+    {
+      "id": "scheduling-authoring.from-empty",
+      "name": "Author from empty",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "scheduling-authoring.from-empty"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Create a Schedule from nothing using named native controls.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "schedule-editor",
+            "react": "<SchedulingAuthoringEditor />",
+            "blazor": "<HarborlineSchedulingAuthoringEditor />",
+            "rationale": "Controlled producer body; server admission remains authoritative."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduling-authoring.bound",
+      "name": "Bound solver and module",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "scheduling-authoring.bound"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity"
+      ],
+      "content": {
+        "blurb": "Choose a registered backend and explicitly opt into an admitted module.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "schedule-editor",
+            "react": "<SchedulingAuthoringEditor />",
+            "blazor": "<HarborlineSchedulingAuthoringEditor />",
+            "rationale": "Controlled producer body; server admission remains authoritative."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduling-authoring.refusals",
+      "name": "Refusal list",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "scheduling-authoring.refusals"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity",
+        "scheduling-authoring.quality.refusals"
+      ],
+      "content": {
+        "blurb": "Server refusals appear before publish in a live region.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "schedule-editor",
+            "react": "<SchedulingAuthoringEditor />",
+            "blazor": "<HarborlineSchedulingAuthoringEditor />",
+            "rationale": "Controlled producer body; server admission remains authoritative."
+          }
+        ],
+        "footer": []
+      }
+    },
+    {
+      "id": "scheduling-authoring.long-content",
+      "name": "Long refusal target and module label",
+      "surface": "authoring",
+      "sourceCaseIds": [
+        "scheduling-authoring.refusals"
+      ],
+      "sourceQualityCaseIds": [
+        "scheduling-authoring.quality.labels",
+        "scheduling-authoring.quality.reflow",
+        "scheduling-authoring.quality.visual-parity",
+        "scheduling-authoring.quality.refusals"
+      ],
+      "content": {
+        "blurb": "Long module labels and refusal targets remain readable at narrow widths.",
+        "environment": {
+          "locale": "en-US",
+          "direction": "ltr",
+          "theme": "light",
+          "catalog": {}
+        },
+        "props": {},
+        "state": {},
+        "body": [
+          {
+            "control": "schedule-editor",
+            "react": "<SchedulingAuthoringEditor />",
+            "blazor": "<HarborlineSchedulingAuthoringEditor />",
+            "rationale": "Controlled producer body; server admission remains authoritative."
+          }
+        ],
+        "footer": []
+      }
+    }
+  ]
+}

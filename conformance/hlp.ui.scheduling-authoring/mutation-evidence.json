@@ -1,0 +1,238 @@
+{
+  "slice": "T-491/schedule-editor",
+  "machine": "macOS",
+  "sourceBaseHead": "b73fb0cd4c5f0dc1a380f45dfb2ed98a621ee787",
+  "sourceHashes": {
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx": "41d3c3674051546940a3236ced026b138a54e921f2d3b1a9225008e266174849",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.test.tsx": "8976a7d1a2873b047cf45b7d08be165e73d9e43969e4d420cd8701d719448b5d"
+  },
+  "tests": {
+    "react": 92,
+    "blazor": 105,
+    "tooling": 15,
+    "sharedInterfaceCases": 56,
+    "sharedResultRows": 57,
+    "moduleTypecheckExit": 0,
+    "aggregateTypecheckExit": 0
+  },
+  "mutation": {
+    "command": "node tooling/strykerjs.mjs run --all projections/react/ui/hlp.ui.scheduling-authoring",
+    "exitCode": 0,
+    "report": "projections/react/ui/hlp.ui.scheduling-authoring/reports/mutation/mutation.json",
+    "reportSha256": "9cc066363e648e633fe1a2df3992fed2eb04d5a212da928114467fa54a52e1e8",
+    "total": 835,
+    "tested": 811,
+    "counts": {
+      "NoCoverage": 24,
+      "Killed": 523,
+      "Survived": 41,
+      "Timeout": 247
+    },
+    "score": 92.22,
+    "baseline": 72,
+    "break": 72,
+    "limitation": "247 Timeouts count as detected in StrykerJS scoring; this is not 770 assertion kills. The historical floor is retained.",
+    "sourceRestoration": "Repository runner byte-compared mutable sources and checked for strays; report source also equals restored source."
+  },
+  "oracles": [
+    "DES-0022 section 4 and schedule-editor acceptance; independent literal body fixture",
+    "Precedence parameter literal from hlp.blocks.scheduling.tests/ModuleAdmissionTests.cs Module shape fixture, not a production symbol",
+    "Producer refusal corpus; generator code and pointer intentionally not asserted",
+    "WAI-ARIA APG native select and WCAG 2.2 status messages/use of color",
+    "Real catalog count: base inventory 82 plus new module 1; recorded-tree PARTIAL policy from schedule-editor log 2026-11-16",
+    "W3C WAI ARIA21 and ARIA1: invalid controls expose aria-invalid=true and reference their own error; removed errors leave no association."
+  ],
+  "pending": [
+    "New-head remote checks and reviews; PR description remains unchanged by request."
+  ],
+  "historicalPcEvidence": {
+    "slice": "T-491/schedule-editor",
+    "machine": "PC",
+    "toolchain": "StrykerJS 10.1.1",
+    "tests": {
+      "react": 16,
+      "blazor": 11,
+      "tooling": 17,
+      "sharedBlazorCases": 3,
+      "sharedReactSuiteTests": 16,
+      "typescript": "PASS",
+      "staticGallery": "PASS",
+      "uiSpecAuthority": "PASS",
+      "strykerRegistration": "PASS"
+    },
+    "refusalCorpus": {
+      "rows": 31,
+      "refusals": 28,
+      "generatorCodeAndPointerAsserted": false
+    },
+    "mutation": {
+      "initial": {
+        "score": 56.74,
+        "total": 386,
+        "killed": 213,
+        "survived": 113,
+        "timeout": 6,
+        "noCoverage": 54
+      },
+      "final": {
+        "score": 72.34,
+        "total": 423,
+        "tested": 396,
+        "killed": 304,
+        "survived": 90,
+        "timeout": 2,
+        "noCoverage": 27
+      },
+      "baseline": 72,
+      "break": 72,
+      "sourceRestoration": "tooling/strykerjs.mjs byte-compared both mutable source files after each in-place run; no strays",
+      "restoredNativeTests": {
+        "react": 16,
+        "blazor": 11,
+        "tooling": 17
+      }
+    },
+    "logs": {
+      "stryker-initial.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-initial.log",
+        "sha256": "859bc1d86505677c6be6d9ae92928d25680403a434db558af6908f40e3ada7c8"
+      },
+      "stryker-expanded.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-expanded.log",
+        "sha256": "cbea861c1ccda7a281aa848647fd2022c3c89cab1bdec691c7223242912b6b98"
+      },
+      "stryker-final.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\stryker-final.log",
+        "sha256": "a2752355fec60d97b4446f72bbfa6fc35e71b2b4c28c8043b2cf34db86af5c03"
+      },
+      "final-verification.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\final-verification.log",
+        "sha256": "f170cb673c401e4b0c89f9e26bc32a88ba5a2358cae2dbdaba105791d5ddf746"
+      },
+      "provenance-search.txt": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\provenance-search.txt",
+        "sha256": "6e25bf8c32c96425af7e4ec4bd8af25b807e41241fabc88749c24d3b4fe81206"
+      },
+      "provenance-final-search.txt": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\provenance-final-search.txt",
+        "sha256": "b056cac973e1254eb5e25ae27806f9763f35ae00dc7b84d9ff2556ff29dae1da"
+      },
+      "review-react-red.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-react-red.log",
+        "sha256": "50ce3adfb119c59351d6988165de08a223dd5d1cc2c3fcd3821f4b3a8bb4a986"
+      },
+      "review-blazor-red.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-blazor-red.log",
+        "sha256": "5b594996ade9bf232268a24a17dbe1a9b64baea02e20f56be1bdfc584bbee9d5"
+      },
+      "review-green.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-green.log",
+        "sha256": "69dee78cf68bf9640337c06ca1bab4d749419f2b4394dbaf51956751ecfbaeb6"
+      },
+      "review-stryker.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-stryker.log",
+        "sha256": "d40eae889f7075c4f82a6153ab2c95347fcd34b8e305dc6a9c11678faf195e2b"
+      },
+      "review-restored.log": {
+        "path": "C:\\Users\\Chris\\AppData\\Local\\Temp\\harborline\\t491-editor\\review-restored.log",
+        "sha256": "eb31e584d2f3c55cccb6cecfdac07cab2f8a124e54064f3f20cd404361807686"
+      }
+    },
+    "oracles": [
+      "DES-0022 section 4 and schedule-editor acceptance; independent literal body fixture",
+      "Precedence parameter literal from hlp.blocks.scheduling.tests/ModuleAdmissionTests.cs Module shape fixture, not a production symbol",
+      "Producer refusal corpus; generator code and pointer intentionally not asserted",
+      "WAI-ARIA APG native select and WCAG 2.2 status messages/use of color",
+      "Real catalog count: base inventory 82 plus new module 1; recorded-tree PARTIAL policy from schedule-editor log 2026-11-16"
+    ],
+    "pending": [
+      "Full check, gallery and provenance: pending on the Mac mini",
+      "Browser axe, reflow and visual parity",
+      "Separate local-diff and PR reviews"
+    ],
+    "outOfScope": [
+      "scheduling-auth-17 generator detail; working follow-up T-491/generator-refusal-detail",
+      "Protocol/Constraint editors and app mount",
+      "scheduling-bound-7 resolver wiring carried to workshop-mount because host supplies resolved catalogues",
+      "Availability parameterisation is Booking per Resource; planner read is module-admission"
+    ],
+    "reviewFollowUp": {
+      "baseHead": "49b6dcd5f97858ae41c1dd98388f813fc61895d6",
+      "previousMutation": {
+        "score": 72.05,
+        "total": 390,
+        "tested": 367,
+        "killed": 281,
+        "survived": 86,
+        "timeout": 0,
+        "noCoverage": 23
+      },
+      "findings": [
+        {
+          "id": "R1",
+          "thread": "PRRT_kwDOURcFUM67Evjg",
+          "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+          "reviewLine": 60,
+          "outcome": "Ignore unchanged parameter blur; preserve absent solver",
+          "red": {
+            "reactFailed": 1
+          },
+          "green": {
+            "reactPassed": 1
+          },
+          "oracle": "Literal no-planner Schedule body and zero change callbacks; DES-0022 scheduling-auth-11"
+        },
+        {
+          "id": "R2",
+          "thread": "PRRT_kwDOURcFUM67Evjm",
+          "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+          "reviewLine": 79,
+          "outcome": "Retain native threshold editing text and commit a finite number on blur",
+          "red": {
+            "reactFailed": 2
+          },
+          "green": {
+            "reactPassed": 2
+          },
+          "oracle": "Literal keyboard strings and numbers 12.5 and -12.5; threshold decimal contract, scheduling-auth-2"
+        },
+        {
+          "id": "R3",
+          "thread": "PRRT_kwDOURcFUM67Evjq",
+          "path": "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx",
+          "reviewLine": 92,
+          "outcome": "Explicit Remove validity window action in both lanes",
+          "red": {
+            "reactFailed": 1,
+            "blazorFailed": 1
+          },
+          "green": {
+            "reactPassed": 1,
+            "blazorPassed": 1
+          },
+          "oracle": "Literal Schedule body containing only name and chosen chain basis after removal; scheduling-auth-2 and scheduling-auth-3"
+        }
+      ],
+      "redSuites": {
+        "react": {
+          "passed": 12,
+          "failed": 4,
+          "exit": 1
+        },
+        "blazor": {
+          "passed": 10,
+          "failed": 1,
+          "exit": 1
+        }
+      },
+      "restoredSuites": {
+        "react": 16,
+        "blazor": 11,
+        "tooling": 17,
+        "sharedBlazorCases": 3
+      },
+      "reviewThreadsResolved": false,
+      "workerDiagnostics": "Stryker recovered a Windows worker exit 3221225477; the completed report and source-restoration checks passed, with two Timeout mutants reported."
+    }
+  }
+}

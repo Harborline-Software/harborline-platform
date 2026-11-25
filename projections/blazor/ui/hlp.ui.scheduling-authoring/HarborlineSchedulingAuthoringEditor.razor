@@ -1,0 +1,206 @@
+@namespace Harborline.UIAdapters.Blazor.Components.SchedulingAuthoring
+@using System.Text.Json.Nodes
+@using Microsoft.AspNetCore.Components.Rendering
+
+<form class="hl-scheduling-authoring" aria-label="Schedule editor" @onsubmit:preventDefault>
+    <fieldset disabled="@ReadOnly"><legend>Schedule</legend>
+        @if (CreateRequested.HasDelegate) { <button type="button" @onclick="() => CreateRequested.InvokeAsync(new JsonObject())">Create Schedule</button> }
+        @Input("Schedule name", Value["name"], next => Set("name", next))
+        @Pick("Record type", Text(Value["on_type_id"]), Catalogue.Types, next => SetOptional("on_type_id", next))
+        @Pick("Starts kind", Text(Starts["kind"]), Words(["form", "workflow", "work_item"]), next => Nested("starts", "kind", next))
+        @if (Catalogue.Starts is { } targets) { @Pick("Starts target", Text(Starts["target_id"]), targets, next => Nested("starts", "target_id", next)) }
+        else { @Input("Starts target", Starts["target_id"], next => Nested("starts", "target_id", next)) }
+        @Pick("Basis", Text(Basis["kind"]), Words(["fixed_calendar", "completion_offset", "threshold", "event_anchored_chain"]), ChooseBasis)
+        @if (Basis["kind"] is null) { @Input("Due date", Value["due_date"], next => Set("due_date", next)) }
+        @if (Text(Basis["kind"]) == "fixed_calendar") { @Input("Recurrence rule", Basis["rrule"], next => Nested("basis", "rrule", next)) }
+        @if (Text(Basis["kind"]) == "completion_offset") { @Input("Completion offset", Basis["offset"], next => Nested("basis", "offset", next)) }
+        @if (Text(Basis["kind"]) == "threshold")
+        {
+            @Input("Reading", Basis["reading"], next => Nested("basis", "reading", next))
+            @Pick("Crossing", Text(Basis["crossing"]), Words(["above", "below"]), next => Nested("basis", "crossing", next))
+            @NumberInput("Threshold", Basis["value"], next => Nested("basis", "value", next))
+        }
+        @if (Text(Basis["kind"]) == "event_anchored_chain")
+        {
+            <fieldset><legend>Event-anchored chain</legend>
+                @Input("Chain anchor", Basis["anchor"], next => Nested("basis", "anchor", next))
+                @for (var position = 0; position < Nodes.Count; position++)
+                {
+                    var index = position;
+                    var node = Object(Nodes[index]);
+                    <fieldset><legend>Node @(index + 1)</legend>
+                        @Input($"Node {index + 1} id", node["node_id"], next => UpdateNode(index, "node_id", next))
+                        @Input($"Node {index + 1} follows", node["after_node_id"], next => UpdateNode(index, "after_node_id", next.Length == 0 ? null : JsonValue.Create(next)))
+                        @Input($"Node {index + 1} offset", node["offset"], next => UpdateNode(index, "offset", next))
+                        @foreach (var side in new[] { "early", "late" }) { @Input($"Node {index + 1} tolerance {side}", Object(node["tolerance"])[side], next => UpdateNodeGroup(index, "tolerance", side, next)) }
+                        @foreach (var side in new[] { "earliest", "latest" }) { @Input($"Node {index + 1} {side}", Object(node["window"])[side], next => UpdateNodeGroup(index, "window", side, next)) }
+                        @if (node.ContainsKey("window")) { <button type="button" @onclick="() => RemoveNodeWindow(index)">Remove node @(index + 1) window</button> }
+                        <button type="button" @onclick="() => RemoveNode(index)">Remove node @(index + 1)</button>
+                    </fieldset>
+                }
+                <button type="button" @onclick="AddNode">Add node</button>
+            </fieldset>
+        }
+        <fieldset><legend>Validity window</legend>
+            @foreach (var side in new[] { "earliest", "latest" }) { @Input($"Window {side}", Object(Value["window"])[side], next => Nested("window", side, next)) }
+            @if (Value.ContainsKey("window")) { <button type="button" @onclick="RemoveWindow">Remove validity window</button> }
+        </fieldset>
+        <fieldset><legend>On-time tolerance</legend>
+            @foreach (var side in new[] { "early", "late" }) { @Input($"Tolerance {side}", Object(Value["tolerance"])[side], next => Nested("tolerance", side, next)) }
+            @if (Value.ContainsKey("tolerance")) { <button type="button" @onclick='() => SetOptional("tolerance", "")'>Remove tolerance</button> }
+        </fieldset>
+        @Input("Grace", Value["grace"], next => SetOptional("grace", next))
+        @Pick("Missed behaviour", Text(Value["missed_behaviour"]), Words(["record_and_replan", "window_closed"]), next => SetOptional("missed_behaviour", next))
+        @Input("Escalation after", Object(Value["escalation"])["after"], next => Nested("escalation", "after", next))
+        @Input("Escalation to", Object(Value["escalation"])["to"], next => Nested("escalation", "to", next))
+        @Pick("Problem class", Text(Value["problem_class"]) is "" ? "None" : Text(Value["problem_class"]), Words(["None", "Workforce", "Timetabling", "ProtocolAdmission", "Project", "JobShop", "Mobility", "CompositeRecovery"]), next => Set("problem_class", next))
+        @Pick("Legality citation", Text(Value["legality_ref"]), Catalogue.Legality, next => SetOptional("legality_ref", next))
+        <fieldset><legend>Solver binding</legend>
+            @Pick("Backend", Text(Solver["backend_id"]), Catalogue.Backends, next => Nested("solver", "backend_id", next))
+            @Pick("Guarantee", Text(Solver["guarantee"]), Words(Catalogue.Backends.FirstOrDefault(backend => backend.Id == Text(Solver["backend_id"]))?.Guarantees ?? []), next => Nested("solver", "guarantee", next))
+            @NumberInput("Work budget", Solver["work_budget"], next => Nested("solver", "work_budget", next), true)
+            @Parameters("Backend parameters", Solver["parameters"], next => Nested("solver", "parameters", next))
+        </fieldset>
+        <fieldset><legend>Admitted modules</legend><p>Naming a module does not certify it or confer backend support.</p>
+            @foreach (var module in Catalogue.Modules)
+            {
+                var entry = Modules.FirstOrDefault(candidate => Text(Object(candidate)["module"]) == module.Id);
+                var controlId = FieldId("module.selected." + module.Id);
+                <div data-scope="@module.Scope">
+                    <label for="@controlId"><input id="@controlId" type="checkbox" checked="@(entry is not null)" @onchange="args => ToggleModule(module.Id, args.Value is true)" />@module.Label — @module.Scope scope@(module.Scope == "chain" ? " (explicit opt-in)" : "")</label>
+                    @if (entry is not null) { @Parameters($"{module.Label} parameters", Object(entry)["parameters"], next => ModuleParameters(module.Id, next), "module.parameters." + module.Id) }
+                </div>
+            }
+        </fieldset>
+    </fieldset>
+    <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
+    @foreach (var error in _errors) { @if (error.Value.Length > 0) { <p id="@(FieldId(error.Key) + "-error")" role="alert">@error.Value</p> } }
+    <section aria-labelledby="@(_id + "-refusals")" aria-live="polite" aria-atomic="true"><h2 id="@(_id + "-refusals")">Refusal list</h2>
+        @if (Refusals.Count == 0) { <p>No refusals supplied. The server must validate before publish.</p> }
+        else { <ul>@foreach (var refusal in Refusals) { <li><code>@refusal.Code</code> at <code>@refusal.Pointer</code>@if (!string.IsNullOrEmpty(refusal.Target)) { <span>@(" " + refusal.Target)</span> }@if (refusal.Detail is not null) { <pre>@refusal.Detail.ToJsonString(IndentedJson)</pre> }</li> }</ul> }
+    </section>
+</form>
+
+@code {
+    /// <summary>The producer body, including any host-owned metadata.</summary>
+    [Parameter] public JsonObject Value { get; set; } = new();
+    /// <summary>Reports a cloned body without mutating the input.</summary>
+    [Parameter] public EventCallback<JsonObject> ValueChanged { get; set; }
+    /// <summary>Requests a new Schedule from the host without replacing the current draft.</summary>
+    [Parameter] public EventCallback<JsonObject> CreateRequested { get; set; }
+    /// <summary>The host's catalogues.</summary>
+    [Parameter] public ScheduleCatalogue Catalogue { get; set; } = new();
+    /// <summary>Server refusals for the displayed draft, supplied before publish.</summary>
+    [Parameter] public IReadOnlyList<ScheduleRefusal> Refusals { get; set; } = [];
+    /// <summary>Disables editing.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    private readonly string _id = "schedule-" + Guid.NewGuid().ToString("N");
+    private string FieldId(string key) => _id + "-" + Uri.EscapeDataString(key);
+    private bool HasError(string key) => _errors.TryGetValue(key, out var message) && message.Length > 0;
+    private readonly Dictionary<string, string> _errors = new(StringComparer.Ordinal);
+    private static readonly System.Text.Json.JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
+    private JsonObject Basis => Object(Value["basis"]);
+    private JsonObject Starts => Object(Value["starts"]);
+    private JsonObject Solver => Object(Value["solver"]);
+    private JsonArray Nodes => Basis["nodes"] as JsonArray ?? new();
+    private JsonArray Modules => Value["modules"] as JsonArray ?? new();
+    private static JsonObject Object(JsonNode? node) => node as JsonObject ?? new();
+    private static string Text(JsonNode? node) => node is JsonValue value ? value.ToString() : "";
+    protected override void OnParametersSet()
+    {
+        var controls = new HashSet<string>(StringComparer.Ordinal) { "Backend parameters", "Work budget" };
+        if (Text(Basis["kind"]) == "threshold") controls.Add("Threshold");
+        foreach (var module in Catalogue.Modules)
+            if (Modules.Any(entry => Text(Object(entry)["module"]) == module.Id)) controls.Add("module.parameters." + module.Id);
+        foreach (var key in _errors.Keys.Where(key => !controls.Contains(key)).ToArray()) _errors.Remove(key);
+    }
+    private static string NumberText(JsonNode? node)
+    {
+        if (node is not JsonValue || node.GetValueKind() != System.Text.Json.JsonValueKind.Number) return Text(node);
+        // Expand the original token, including host values beyond the authoring precision limit.
+        var text = node.ToJsonString();
+        var sign = text.StartsWith('-') ? "-" : "";
+        var unsigned = text.TrimStart('-');
+        var exponent = unsigned.IndexOfAny(['e', 'E']);
+        var mantissa = exponent < 0 ? unsigned : unsigned[..exponent];
+        var parts = mantissa.Split('.');
+        var digits = string.Concat(parts);
+        var point = parts[0].Length + (exponent < 0 ? 0 : int.Parse(unsigned[(exponent + 1)..], System.Globalization.CultureInfo.InvariantCulture));
+        var plain = point <= 0 ? "0." + new string('0', -point) + digits
+            : point >= digits.Length ? digits + new string('0', point - digits.Length)
+            : digits.Insert(point, ".");
+        var normalized = plain.Split('.');
+        var whole = normalized[0].TrimStart('0');
+        var fraction = normalized.Length > 1 ? normalized[1].TrimEnd('0') : "";
+        if (whole.Length == 0 && fraction.Length == 0) return "0";
+        return sign + (whole.Length == 0 ? "0" : whole) + (fraction.Length == 0 ? "" : "." + fraction);
+    }
+
+    private static JsonNode? Number(string value, bool integer)
+    {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"\A[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\z")) return null;
+        var parts = value.TrimStart('+', '-').Split('.');
+        var whole = parts[0].TrimStart('0');
+        var fraction = parts.Length > 1 ? parts[1] : "";
+        const string maximum = "79228162514264337593543950335";
+        if (whole.Length > maximum.Length || (whole.Length == maximum.Length && (string.CompareOrdinal(whole, maximum) > 0 || (whole == maximum && fraction.Any(digit => digit != '0'))))) return null;
+        if (integer && fraction.Any(digit => digit != '0')) return null;
+        var normalizedFraction = fraction.TrimEnd('0');
+        var significant = (whole + normalizedFraction).TrimStart('0').TrimEnd('0');
+        if (!integer && (significant.Length > 15 || normalizedFraction.Length > 28)) return null;
+        if (!decimal.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture, out var number)) return null;
+        if (!integer)
+        {
+            var wire = double.Parse(value, System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint, System.Globalization.CultureInfo.InvariantCulture).ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            if (!decimal.TryParse(wire, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var roundTrip) || roundTrip != number) return null;
+            return JsonValue.Create(number == 0 ? 0m : decimal.Parse(number.ToString("G29", System.Globalization.CultureInfo.InvariantCulture), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture));
+        }
+        return number is >= int.MinValue and <= int.MaxValue ? JsonValue.Create((int)number) : null;
+    }
+    private static IReadOnlyList<ScheduleOption> Words(IEnumerable<string> values) => values.Select(value => new ScheduleOption(value, value)).ToArray();
+    private Task Set(string member, JsonNode? next) { var body = (JsonObject)Value.DeepClone(); body[member] = next?.DeepClone(); return ValueChanged.InvokeAsync(body); }
+    private Task RemoveWindow() { var body = (JsonObject)Value.DeepClone(); body.Remove("window"); return ValueChanged.InvokeAsync(body); }
+    private Task SetOptional(string member, string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove(member); else body[member] = next; return ValueChanged.InvokeAsync(body); }
+    private Task Nested(string member, string key, JsonNode? next)
+    {
+        if (member == "solver" && key == "backend_id" && Text(next).Length == 0) return SetOptional(member, "");
+        var group = (JsonObject)Object(Value[member]).DeepClone();
+        if (member == "solver" && !group.ContainsKey("parameters")) group["parameters"] = new JsonObject();
+        group[key] = next?.DeepClone();
+        if (member == "escalation" && Text(group["after"]).Length == 0 && Text(group["to"]).Length == 0) return SetOptional(member, "");
+        return Set(member, group);
+    }
+    private Task ChooseBasis(string next) { var body = (JsonObject)Value.DeepClone(); if (next.Length == 0) body.Remove("basis"); else { body["basis"] = new JsonObject { ["kind"] = next }; body.Remove("due_date"); } return ValueChanged.InvokeAsync(body); }
+    private Task UpdateNode(int index, string key, JsonNode? next) { var nodes = (JsonArray)Nodes.DeepClone(); Object(nodes[index])[key] = next?.DeepClone(); return Nested("basis", "nodes", nodes); }
+    private Task RemoveNodeWindow(int index) { var nodes = (JsonArray)Nodes.DeepClone(); Object(nodes[index]).Remove("window"); return Nested("basis", "nodes", nodes); }
+    private Task UpdateNodeGroup(int index, string group, string key, string next) { var node = Object(Nodes[index]); var values = (JsonObject)Object(node[group]).DeepClone(); values[key] = next; return UpdateNode(index, group, values); }
+    private Task AddNode() { var nodes = (JsonArray)Nodes.DeepClone(); nodes.Add(new JsonObject { ["node_id"] = "", ["after_node_id"] = null, ["offset"] = "", ["tolerance"] = new JsonObject { ["early"] = "", ["late"] = "" } }); return Nested("basis", "nodes", nodes); }
+    private Task RemoveNode(int index) { var nodes = (JsonArray)Nodes.DeepClone(); nodes.RemoveAt(index); return Nested("basis", "nodes", nodes); }
+    private Task ToggleModule(string id, bool selected) { var modules = new JsonArray(Modules.Where(entry => Text(Object(entry)["module"]) != id).Select(entry => entry?.DeepClone()).ToArray()); if (selected) modules.Add(new JsonObject { ["module"] = id, ["parameters"] = new JsonObject() }); return Set("modules", modules); }
+    private Task ModuleParameters(string id, JsonObject parameters) { var modules = (JsonArray)Modules.DeepClone(); foreach (var entry in modules) if (Text(Object(entry)["module"]) == id) Object(entry)["parameters"] = parameters.DeepClone(); return Set("modules", modules); }
+    private RenderFragment NumberInput(string label, JsonNode? value, Func<JsonNode?, Task> changed, bool integer = false) => Input(label, JsonValue.Create(NumberText(value)), async raw => {
+        if (raw == NumberText(value)) { _errors[label] = ""; return; }
+        var trimmed = raw.Trim(' ', '\t', '\r', '\n', '\f', '\v');
+        var parsed = trimmed.Length == 0 ? null : Number(trimmed, integer);
+        if (trimmed.Length != 0 && parsed is null) { _errors[label] = integer ? label + " must be a 32-bit integer in plain decimal notation." : label + " must be an exact decimal with at most 15 significant digits and scale 28."; return; }
+        _errors[label] = "";
+        await changed(parsed);
+    });
+    private RenderFragment Input(string label, JsonNode? value, Func<string, Task> changed) => builder => {
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "input"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", Text(value)); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? ""))); builder.AddAttribute(8, "aria-invalid", HasError(label) ? "true" : null); builder.AddAttribute(9, "aria-describedby", HasError(label) ? FieldId(label) + "-error" : null); builder.CloseElement(); builder.CloseElement();
+    };
+    private RenderFragment Pick(string label, string value, IEnumerable<ScheduleOption> offered, Func<string, Task> changed) => builder => {
+        var options = offered.ToArray();
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(label)); builder.AddContent(2, label); builder.OpenElement(3, "select"); builder.AddAttribute(4, "id", FieldId(label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, args => changed(args.Value?.ToString() ?? "")));
+        builder.OpenElement(8, "option"); builder.AddAttribute(9, "value", ""); builder.AddContent(10, "Choose…"); builder.CloseElement();
+        if (value.Length > 0 && !options.Any(option => option.Id == value)) { builder.OpenElement(11, "option"); builder.AddAttribute(12, "value", value); builder.AddContent(13, value + " (not offered)"); builder.CloseElement(); }
+        foreach (var option in options) { builder.OpenElement(14, "option"); builder.AddAttribute(15, "value", option.Id); builder.AddContent(16, option.Label); builder.CloseElement(); }
+        builder.CloseElement(); builder.CloseElement();
+    };
+    private RenderFragment Parameters(string label, JsonNode? value, Func<JsonObject, Task> changed, string? controlKey = null) => builder => {
+        builder.OpenElement(0, "label"); builder.AddAttribute(1, "for", FieldId(controlKey ?? label)); builder.AddContent(2, label); builder.OpenElement(3, "textarea"); builder.AddAttribute(4, "id", FieldId(controlKey ?? label)); builder.AddAttribute(5, "aria-label", label); builder.AddAttribute(6, "value", value?.ToJsonString(IndentedJson) ?? "{}"); builder.AddAttribute(7, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, async args => {
+            try { if (JsonNode.Parse(args.Value?.ToString() ?? "") is JsonObject parameters) { _errors[controlKey ?? label] = ""; await changed(parameters); } else _errors[controlKey ?? label] = label + " must be a JSON object."; }
+            catch (System.Text.Json.JsonException) { _errors[controlKey ?? label] = label + " must be a JSON object."; }
+        })); builder.AddAttribute(8, "aria-invalid", HasError(controlKey ?? label) ? "true" : null); builder.AddAttribute(9, "aria-describedby", HasError(controlKey ?? label) ? FieldId(controlKey ?? label) + "-error" : null); builder.CloseElement(); builder.CloseElement();
+    };
+}
