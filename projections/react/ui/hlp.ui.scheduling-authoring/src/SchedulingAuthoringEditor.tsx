@@ -153,7 +153,7 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
     change(member, member === 'escalation' && !text(group.after) && !text(group.to) ? undefined : group)
   }
   const input = (label: string, current: ScheduleJson | undefined, update: (next: string) => void) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} aria-label={label} value={text(current)} onChange={event => update(event.currentTarget.value)} /></label>
-  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={numberText(current)} aria-label={label} inputMode="decimal" defaultValue={numberText(current)} onBlur={event => {
+  const numberInput = (label: string, current: ScheduleJson | undefined, update: (next: number | null) => void, integer = false) => <label htmlFor={fieldId(label)}>{label}<input id={fieldId(label)} key={numberText(current)} aria-label={label} aria-invalid={errors[label] ? true : undefined} aria-describedby={errors[label] ? `${fieldId(label)}-error` : undefined} inputMode="decimal" defaultValue={numberText(current)} onBlur={event => {
     const raw = event.currentTarget.value
     if (raw === numberText(current)) { setError(label, ''); return }
     const trimmed = raw.replace(/^[ \t\r\n\f\v]+|[ \t\r\n\f\v]+$/g, '')
@@ -183,7 +183,7 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
     else updated[key] = next
     return updated
   }))
-  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} key={stringifyScheduleBody(current)} defaultValue={stringifyScheduleBody(current ?? {}, 2)} onBlur={event => {
+  const parameters = (label: string, current: ScheduleJson | undefined, update: (next: ScheduleBody) => void, controlKey = label) => <label htmlFor={fieldId(controlKey)}>{label}<textarea id={fieldId(controlKey)} aria-label={label} aria-invalid={errors[controlKey] ? true : undefined} aria-describedby={errors[controlKey] ? `${fieldId(controlKey)}-error` : undefined} key={stringifyScheduleBody(current)} defaultValue={stringifyScheduleBody(current ?? {}, 2)} onBlur={event => {
     if (event.currentTarget.value === event.currentTarget.defaultValue) { setError(controlKey, ''); return }
     try {
       const parsed = parseBody(event.currentTarget.value)
@@ -242,7 +242,7 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
       </fieldset>
     </fieldset>
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
-    {Object.entries(errors).map(([key, message]) => errorControls.has(key) && message && <p key={key} role="alert">{message}</p>)}
+    {Object.entries(errors).map(([key, message]) => errorControls.has(key) && message && <p key={key} id={`${fieldId(key)}-error`} role="alert">{message}</p>)}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
       {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{stringifyScheduleBody(refusal.detail, 2)}</pre>}</li>)}</ul>}
     </section>

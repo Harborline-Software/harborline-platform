@@ -299,13 +299,26 @@ describe('Schedule authoring', () => {
     render(<Host />)
     if (entry.unchangedThresholdEdit) expect(screen.getByLabelText('Threshold')).toHaveValue(entry.expectedThresholdDisplay)
     for (const [label, value, action] of entry.steps) {
-      if (action === 'expect-error') { expect(screen.getByRole('alert')).toHaveTextContent(value); continue }
-      if (action === 'expect-no-errors') { expect(screen.queryByRole('alert')).toBeNull(); continue }
+      if (action === 'expect-error') {
+        const error = screen.getByRole('alert')
+        expect(error).toHaveTextContent(value)
+        expect(error.id).not.toBe('')
+        const invalid = document.querySelectorAll('[aria-invalid="true"]')
+        expect(invalid).toHaveLength(1)
+        expect(invalid[0].getAttribute('aria-describedby')).toBe(error.id)
+        continue
+      }
+      if (action === 'expect-no-errors') { expect(screen.queryByRole('alert')).toBeNull(); expect(document.querySelector('[aria-invalid="true"]')).toBeNull(); expect(document.querySelector('[aria-describedby]')).toBeNull(); continue }
       if (action === 'toggle') fireEvent.click(screen.getByLabelText(label))
       else if (action === 'click') fireEvent.click(screen.getByRole('button', { name: label }))
       else { fireEvent.change(screen.getByLabelText(label), { target: { value } }); fireEvent.blur(screen.getByLabelText(label)) }
       if (entry.error) {
         expect(screen.getByRole('alert')).toHaveTextContent(entry.error)
+        // Oracle: WAI ARIA21/ARIA1: invalid controls identify and reference their error.
+        const control = screen.getByLabelText(label)
+        expect(control).toHaveAttribute('aria-invalid', 'true')
+        expect(control.getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id)
+        expect(screen.getByRole('alert').id).not.toBe('')
         expect(actual).toEqual(entry.expected)
         expect(changes).toBe(0)
       }

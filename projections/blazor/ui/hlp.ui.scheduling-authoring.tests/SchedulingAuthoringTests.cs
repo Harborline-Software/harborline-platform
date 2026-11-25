@@ -362,8 +362,15 @@ public sealed class SchedulingAuthoringTests : BunitContext
         {
             var label = step![0]!.GetValue<string>(); var value = step[1]!.GetValue<string>();
             var action = step.AsArray().Count > 2 ? step[2]?.GetValue<string>() : null;
-            if (action == "expect-error") { Assert.Equal(value, cut.Find("[role='alert']").TextContent); continue; }
-            if (action == "expect-no-errors") { Assert.Empty(cut.FindAll("[role='alert']")); continue; }
+            if (action == "expect-error") {
+                var alert = cut.Find("[role='alert']");
+                Assert.Equal(value, alert.TextContent);
+                Assert.False(string.IsNullOrEmpty(alert.Id));
+                var invalid = Assert.Single(cut.FindAll("[aria-invalid='true']"));
+                Assert.Equal(alert.Id, invalid.GetAttribute("aria-describedby"));
+                continue;
+            }
+            if (action == "expect-no-errors") { Assert.Empty(cut.FindAll("[role='alert']")); Assert.Empty(cut.FindAll("[aria-invalid='true'], [aria-describedby]")); continue; }
             if (action == "toggle") cut.FindAll("label").Single(element => element.TextContent == label).QuerySelector("input")!.Change(value == "true");
             else if (action == "click") cut.FindAll("button").Single(button => button.TextContent == label).Click();
             else cut.Find($"[aria-label='{label}']").Change(value);
@@ -371,6 +378,12 @@ public sealed class SchedulingAuthoringTests : BunitContext
             if (fixture["error"] is { } error)
             {
                 Assert.Equal(error.GetValue<string>(), cut.Find("[role='alert']").TextContent);
+                // Oracle: WAI ARIA21/ARIA1, independent of the editor's ID generator.
+                var control = cut.Find($"[aria-label='{label}']");
+                Assert.Equal("true", control.GetAttribute("aria-invalid"));
+                var errorId = cut.Find("[role='alert']").Id;
+                Assert.False(string.IsNullOrEmpty(errorId));
+                Assert.Equal(errorId, control.GetAttribute("aria-describedby"));
                 AssertBody();
                 Assert.Equal(0, changes);
             }

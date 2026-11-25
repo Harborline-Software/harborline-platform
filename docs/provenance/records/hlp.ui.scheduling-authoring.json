@@ -8,11 +8,11 @@
     "conformance/hlp.ui.scheduling-authoring/fixtures.yaml": "e2cb6db7e9761884245c65f63e12657e1aa1883e8c156a6b2cb33c26054c4a67",
     "conformance/hlp.ui.scheduling-authoring/quality-fixtures.yaml": "3b281165ce3a25989687f6efe9425486992d7b06b63c60734f5a55e0f5c955cc",
     "conformance/hlp.ui.scheduling-authoring/runners/run-shared.mjs": "b180c2dffeecf17b47c88d431aa2b0867626ed5852a0896664db105a2efb87a8",
-    "projections/blazor/ui/hlp.ui.scheduling-authoring.tests/SchedulingAuthoringTests.cs": "2174912f64dcd20cd42f3308a04c0a3c32e9e9d1327eb6d22d856854c9d487cd",
-    "projections/blazor/ui/hlp.ui.scheduling-authoring/HarborlineSchedulingAuthoringEditor.razor": "48a94d2179a08422dd388819e620999d32cbeb63f5fb2e7a7077fad00aeba177",
+    "projections/blazor/ui/hlp.ui.scheduling-authoring.tests/SchedulingAuthoringTests.cs": "be6764d2347f883afcdf3b32b8ba369fc5651000c54bd087443a49d9f41aad8e",
+    "projections/blazor/ui/hlp.ui.scheduling-authoring/HarborlineSchedulingAuthoringEditor.razor": "fb9a8c3cb3bd40625bc560861ef1654f03423a21626e3b5308dc721d6aed4b3e",
     "projections/blazor/ui/hlp.ui.scheduling-authoring/SchedulingAuthoringTypes.cs": "1e4733abdcbdb3a55df76376d764de081f44889eb3ebfcb39ec8aea676274fca",
-    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.test.tsx": "a6c0d212ba3acb69d7a66489473915abb2a972658378ac795e005cea3c818a51",
-    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx": "65d00c24a257931abad04437a9b2e322ac90e08bc631b8e75069eb6dde64051c",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.test.tsx": "8976a7d1a2873b047cf45b7d08be165e73d9e43969e4d420cd8701d719448b5d",
+    "projections/react/ui/hlp.ui.scheduling-authoring/src/SchedulingAuthoringEditor.tsx": "41d3c3674051546940a3236ced026b138a54e921f2d3b1a9225008e266174849",
     "projections/react/ui/hlp.ui.scheduling-authoring/src/index.ts": "0a641a59f5777435b7bee448d53bc4bb48454fd8eca50ad8d050aa039e6a07b8",
     "projections/react/ui/hlp.ui.scheduling-authoring/src/test-setup.ts": "977afde26bba6a51325908cd7713cbfdc87d18f06b78b237c8f364c44864b7de",
     "projections/react/ui/hlp.ui.scheduling-authoring/tsconfig.build.json": "7662e569abfc7afc55dd504698be6e0d60f89931fef6e09e2e827658a74640fb",
@@ -21,7 +21,7 @@
     "specs/modules/ui/hlp.ui.scheduling-authoring/quality.yaml": "7fedc8ea9ca17d377298746d6840d4365871d13d176ad30989433260f0a19e8a",
     "specs/modules/ui/hlp.ui.scheduling-authoring/scenarios.json": "1888dea4c3bd6eb2547ad5cdf51f7ee00a3d244ceef872e4b340cdf4e795539e",
     "specs/modules/ui/hlp.ui.scheduling-authoring/style.css": "73c26f8d0b61799af047c557d628900d71d7a38f94e051e6f250d6445aaad7ff",
-    "conformance/hlp.ui.scheduling-authoring/mutation-evidence.json": "b1f2e4d83aafead4a094e17f7dbe422a1b78813144f6d05bdcb7edb8a3fb5458"
+    "conformance/hlp.ui.scheduling-authoring/mutation-evidence.json": "43b377e672eff7ac6df649ee36eba56a07222d985154322c54f4ff4d06f0fd7a"
   },
   "nextGate": "Full check, gallery and provenance on the Mac mini against the final head."
 }

@@ -38,17 +38,22 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
   const git = args => execFileSync('git', ['-C', platformRoot, ...args],
     {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 64 * 1024 * 1024})
   let recordedTreeReadable
-  function recordedScenarioIds(moduleId) {
+  const recordedCatalogs = new Map()
+  function recordedScenarioCases(moduleId) {
+    if (recordedCatalogs.has(moduleId)) return recordedCatalogs.get(moduleId)
     if (recordedTree === null) return null
     if (recordedTreeReadable === undefined) {
       try { git(['cat-file', '-e', `${recordedTree}^{tree}`]); recordedTreeReadable = true } catch { recordedTreeReadable = false }
     }
     if (!recordedTreeReadable) return null
     try {
-      return new Set(JSON.parse(git(['show', `${recordedTree}:gallery/scenarios/${moduleId}.json`])).scenarios.map(s => s.id))
+      const cases = new Map(JSON.parse(git(['show', `${recordedTree}:gallery/scenarios/${moduleId}.json`])).scenarios
+        .map(s => [s.id, new Set(s.sourceQualityCaseIds ?? [])]))
+      recordedCatalogs.set(moduleId, cases)
+      return cases
     } catch {
       // The tree is readable and this module had no catalog in it: the gate scanned none of its scenarios.
-      return new Set()
+      return new Map()
     }
   }
 
@@ -280,8 +285,11 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
     {
       id: 'assertResponsiveQuality',
       parent: 'assertDesignQuality',
+      // Reusing a scenario ID does not prove reflow ran: the recorded catalog must name the
+      // same reflow case, because gallery-gate decides whether to measure it from that link.
       verdict: ctx => ctx.gallery && (!ctx.recordedScenarios || (ctx.catalog?.scenarios ?? []).some(s =>
-        s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow')) && !ctx.recordedScenarios.has(s.id)))
+        s.sourceQualityCaseIds?.some(id => id.endsWith('.quality.reflow') &&
+          (!ctx.recordedScenarios.has(s.id) || !ctx.recordedQualityCases?.get(s.id)?.has(id)))))
         ? ['PARTIAL', 'reflow scenarios are outside the readable recorded gallery-gate tested tree']
         : ctx.gallery
         // PASS requires the module to have a scenario that declares a reflow case AND is DRAWN in both
@@ -392,6 +400,7 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
   function contextFor(moduleId) {
     const catalog = catalogFor(moduleId)
     const scenarios = catalog?.scenarios ?? []
+    const recordedQualityCases = recordedScenarioCases(moduleId)
     const surfaces = scenarios.map(s => String(s.surface ?? ''))
     const fixturePath = `conformance/${moduleId}/fixtures.yaml`
     return {
@@ -401,7 +410,8 @@ export function createGateModel(platformRoot, designReviewOptions = {}) {
       qualityProfile: profileFor(moduleId),
       conformanceCases: existsSync(resolve(platformRoot, fixturePath)) ? read(fixturePath).cases.length : 0,
       gallery: Boolean(gate?.results?.find(r => r.id === 'gallery-gate')?.passed),
-      recordedScenarios: recordedScenarioIds(moduleId),
+      recordedScenarios: recordedQualityCases === null ? null : new Set(recordedQualityCases.keys()),
+      recordedQualityCases,
       determinism: scannerRows('scan-scenario-determinism.mjs', moduleId),
       focus: (scannerRows('scan-focus-quality.mjs', moduleId) ?? [])[0] ?? null,
       tokens: tokenSummary(moduleId),
