@@ -183,6 +183,12 @@
     },
     {
       "id": "scheduling-authoring.module-parameter-preserves-number-token"
+    },
+    {
+      "id": "scheduling-authoring.remove-solver"
+    },
+    {
+      "id": "scheduling-authoring.remove-escalation"
     }
   ],
   "errors": []
