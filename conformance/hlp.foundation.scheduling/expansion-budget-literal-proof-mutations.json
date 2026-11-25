@@ -1,0 +1,78 @@
+{
+  "producerSha": "dbce351d581b2967661ae6022c02661c8c83a5e1",
+  "producerTree": "b534153bbe2a69c0b4570f0e06861333d4fed46e",
+  "targetSha256": "a193f6b8a12b926ae25e7093a41be18c5855ca37395c27f3881229e0561bb3ce",
+  "testSha256": "f26d51c2c0e8da10f385b255ec0359cdded008d6c19549083749f2744556cbe7",
+  "fixtureInputs": [],
+  "toolchain": "dotnet 11.0.100",
+  "environment": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1",
+  "runner": "bash control/tools/ci/host-lane.sh run --holder writer --session mb-491-budget",
+  "command": "dotnet test projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~SchedulingExpansionBudgetLiteralProofTests -m:1 -nr:false",
+  "baseline": {
+    "logSha256": "96fe07b6d0b4c36ebac5f45d44da0053772715813989e9a9f89ec51d7439dae8",
+    "exit": 0,
+    "counts": "5 passed, 0 failed, 0 skipped"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionBudget.cs",
+      "line": 54,
+      "before": "units > CandidateLimit - CandidatesExamined",
+      "after": "units >= CandidateLimit - CandidatesExamined",
+      "counts": "1 failed, 4 passed, 0 skipped",
+      "detector": "ExactAllowanceAndRefusal: Assert.Null on exact-boundary Charge",
+      "run": {
+        "logSha256": "ee99cc24b507645f951a416b63d4a28d2def48a5ce470d18fb3fb3afde5cac4e",
+        "exit": 1
+      },
+      "restored": {
+        "logSha256": "fa3a000f881281dfe13baae42f7147755df6807616bb3a9246ba7a9942d54860",
+        "exit": 0,
+        "counts": "5 passed, 0 failed, 0 skipped"
+      }
+    },
+    {
+      "id": "M2",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionBudget.cs",
+      "line": 17,
+      "before": "Charge(recurrenceId.Length);",
+      "after": "removed",
+      "counts": "2 failed, 3 passed, 0 skipped",
+      "detector": "ExactAllowanceAndRefusal: expected 10; InputExhaustion: Assert.Throws",
+      "run": {
+        "logSha256": "a3093c40d71af89b21e7e8ac7d0eca7b24bcc0114912c354c4f23073651cf7b5",
+        "exit": 1
+      },
+      "restored": {
+        "logSha256": "14515f0b37143d35be23a42f4c0c1d3b892fd74030a9ba033affe8a7f9696152",
+        "exit": 0,
+        "counts": "5 passed, 0 failed, 0 skipped"
+      }
+    },
+    {
+      "id": "M3",
+      "file": "projections/dotnet/foundation/hlp.foundation.scheduling/Services/RruleExpansionBudget.cs",
+      "line": 56,
+      "before": "CandidateLimit + 1",
+      "after": "CandidateLimit",
+      "counts": "2 failed, 3 passed, 0 skipped",
+      "detector": "ExactAllowanceAndRefusal: expected 12; InputExhaustion: expected 10",
+      "run": {
+        "logSha256": "1a9bbb7fe1e925273b7c6b97a7b28c12f9977079d64eaba9d7bf2613b9d98bc2",
+        "exit": 1
+      },
+      "restored": {
+        "logSha256": "fa3a000f881281dfe13baae42f7147755df6807616bb3a9246ba7a9942d54860",
+        "exit": 0,
+        "counts": "5 passed, 0 failed, 0 skipped"
+      }
+    }
+  ],
+  "suite": {
+    "logSha256": "11a473baf2619cfe2546f2dfa2339615ecc6e8823f0d0536663d2c675f42226f",
+    "exit": 0,
+    "command": "dotnet test projections/dotnet/foundation/hlp.foundation.scheduling.tests/Harborline.Foundation.Scheduling.Tests.csproj -c Release -m:1 -nr:false",
+    "counts": "293 passed, 0 failed, 0 skipped"
+  }
+}

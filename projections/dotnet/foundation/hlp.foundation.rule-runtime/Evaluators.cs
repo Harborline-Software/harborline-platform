@@ -119,7 +119,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
             return Validity.Invalid(RuleError.Of(workRefusal.Code));
         if (compiled.RuleCount == 0) return Validity.Valid;
         var cr = compiled.Rules[0];
-        return Run(cr, context.CreateResolver(scope), ct,
+        return Run(cr, admission!.Environment.Fence(context.CreateResolver(scope)), ct,
             onValue: v => HarborlineJsonLogic.IsTruthy(v) ? Validity.Valid : Validity.Invalid(RuleError.Of(rule.Id)),
             onError: e => Validity.Invalid(e),
             onPending: () => Validity.Invalid(RuleError.Of(RuleEngineCodes.PendingAtSave)),
@@ -168,7 +168,7 @@ public sealed class GuardEvaluator : IGuardEvaluator
         if (_coding is not null && RuleCompiler.StaticWorkRefusal(CoreWorkDerivation.DeriveGraph(compiled.Rules, _limits, coding: true), _limits) is { } workRefusal)
             return ComputedValue.OfError(RuleError.Of(workRefusal.Code));
         if (compiled.RuleCount == 0) return ComputedValue.Resolved(null);
-        return Run(compiled.Rules[0], context.CreateResolver(scope), ct,
+        return Run(compiled.Rules[0], admission!.Environment.Fence(context.CreateResolver(scope)), ct,
             onValue: ComputedValue.Resolved, onError: ComputedValue.OfError,
             onPending: ComputedValue.OfPending, onAbort: code => ComputedValue.OfError(RuleError.Of(code, "rule", rule.Id)));
     }

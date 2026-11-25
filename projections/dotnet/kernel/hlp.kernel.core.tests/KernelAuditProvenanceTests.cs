@@ -13,11 +13,36 @@ public sealed class KernelAuditProvenanceTests
 {
     private static readonly DateTimeOffset At = new(2026, 10, 11, 9, 0, 0, TimeSpan.Zero);
 
+    // Oracle: T-616/reaction-write-identities acceptance 47 and ADR-0154 decision 4; literal identities and case id.
+    [Theory(DisplayName = "audit-evidence-keeps-every-identity")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Audit_evidence_keeps_every_identity(bool reaction)
+    {
+        var port = new RecordingPort();
+        var audit = Audit() with
+        {
+            OriginatorId = reaction ? "alice" : null,
+            DelegatedActor = reaction ? new("wf.follow-up", "1.0.0") : null,
+        };
+
+        var result = await KernelTransactionBoundary.ExecuteAsync([new KernelCommand<string>(Operation(), "record", audit)], port);
+
+        Assert.True(result.Committed);
+        Assert.Equal(["begin", "record", "audit", "commit", "dispose"], port.Events);
+        var staged = Assert.Single(port.StagedAudits);
+        Assert.Equal("sys.records-worker", staged.ActorId);
+        Assert.Equal(reaction ? "alice" : null, staged.OriginatorId);
+        Assert.Equal(reaction ? "wf.follow-up" : null, staged.DelegatedActor?.DefinitionKey);
+        Assert.Equal(reaction ? "1.0.0" : null, staged.DelegatedActor?.DefinitionVersion);
+        Assert.Contains("  - id: audit-evidence-keeps-every-identity", File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures.yaml")), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task The_originator_is_staged_with_the_actor_and_snapshot_in_the_one_audit_call()
     {
         var port = new RecordingPort();
-        var audit = Audit() with { AuthoritySnapshot = "worker-decision"u8.ToArray(), OriginatorId = "alice" };
+        var audit = Audit() with { AuthoritySnapshot = "worker-decision"u8.ToArray(), OriginatorId = "alice", DelegatedActor = new("wf.follow-up", "1.0.0") };
 
         var result = await KernelTransactionBoundary.ExecuteAsync([new KernelCommand<string>(Operation(), "record", audit)], port);
 
@@ -26,6 +51,7 @@ public sealed class KernelAuditProvenanceTests
         var staged = Assert.Single(port.StagedAudits);
         Assert.Equal("sys.records-worker", staged.ActorId);
         Assert.Equal("alice", staged.OriginatorId);
+        Assert.Equal(("wf.follow-up", "1.0.0"), (staged.DelegatedActor!.DefinitionKey, staged.DelegatedActor.DefinitionVersion));
         Assert.Equal("worker-decision"u8.ToArray(), staged.AuthoritySnapshot.ToArray());
     }
 
@@ -35,7 +61,16 @@ public sealed class KernelAuditProvenanceTests
         var audit = new KernelAuditEvidence("audit-1", "alice", At, "{}"u8.ToArray());
 
         Assert.Null(audit.OriginatorId);
+        Assert.Null(audit.DelegatedActor);
         Assert.Same(audit, audit.Validate());
+    }
+
+    [Theory]
+    [InlineData("", "1.0.0")]
+    [InlineData("wf.follow-up", " ")]
+    public void T616_invalid_delegated_actor_is_refused(string key, string version)
+    {
+        Assert.Throws<ArgumentException>(() => (Audit() with { DelegatedActor = new(key, version) }).Validate());
     }
 
     [Theory]

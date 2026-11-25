@@ -49,11 +49,13 @@ public sealed class ContentStoreStagedPrincipalTests
         var store = Store(storage);
         var stage = await store.PutAsync(new("tenant-a"), new MemoryStream("evidence"u8.ToArray()), "text/plain", null,
             ContentStoreWriteEvidence.New("alice"));
+        var write = ContentStoreWriteEvidence.New("sys.records-worker");
         await store.CommitReferenceAsync(new("tenant-a"), stage, new("record", "evidence"), "evidence.txt",
-            ContentStoreWriteEvidence.New("sys.records-worker") with { Originator = "alice" });
+            write with { Originator = "alice", Audit = write.Audit with { DelegatedActor = new("wf.follow-up", "1.0.0") } });
         var audit = ((InMemoryContentBookkeeping)storage.Bookkeeping).Snapshot().Audits[^1];
         Assert.Equal("sys.records-worker", audit.ActorId);
         Assert.Equal("alice", audit.OriginatorId);
+        Assert.Equal(("wf.follow-up", "1.0.0"), (audit.DelegatedActor!.DefinitionKey, audit.DelegatedActor.DefinitionVersion));
         Assert.Equal(0, store.StagedCount);
         Assert.Equal(1, store.CommittedCount);
     }
@@ -68,7 +70,7 @@ public sealed class ContentStoreStagedPrincipalTests
         ContentStoreWrite Worker()
         {
             var write = ContentStoreWriteEvidence.New("sys.records-worker");
-            return write with { Audit = write.Audit with { OriginatorId = "alice" } };
+            return write with { Audit = write.Audit with { OriginatorId = "alice", DelegatedActor = new("wf.follow-up", "1.0.0") } };
         }
         var refused = await Assert.ThrowsAsync<ContentRefusedException>(async () => await store.CommitReferenceAsync(
             new("tenant-a"), alices, new("record", "evidence"), "alice.txt", Worker()));
@@ -79,6 +81,7 @@ public sealed class ContentStoreStagedPrincipalTests
             .Where(audit => audit.ActorId == "sys.records-worker").ToArray();
         Assert.Equal(2, audits.Length);
         Assert.All(audits, audit => Assert.Equal("alice", audit.OriginatorId));
+        Assert.All(audits, audit => Assert.Equal("wf.follow-up", audit.DelegatedActor!.DefinitionKey));
         Assert.Equal(1, store.StagedCount);
         Assert.Equal(1, store.CommittedCount);
     }
