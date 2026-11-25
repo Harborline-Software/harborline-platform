@@ -15,6 +15,7 @@ using Harborline.Foundation.RuleEngine.Records;
 using Harborline.Foundation.RuleEngine.References;
 using Harborline.Kernel.Core;
 using Harborline.Kernel.SchemaValidation;
+using Harborline.Kernel.SchemaValidation.Records;
 
 namespace Harborline.Blocks.BuilderDefinitions;
 
@@ -203,6 +204,31 @@ public interface IRecordContentTransaction
 {
     /// <summary>The transaction's content bookkeeping participant; never an independently committed transaction.</summary>
     IContentBookkeepingSession ContentSession { get; }
+}
+
+/// <summary>A latest-knowledge effective piece of a committed ancestor, clipped to the requested interval.</summary>
+/// <param name="Row">The committed row, never a caller-supplied body.</param>
+/// <param name="From">Inclusive effective start.</param>
+/// <param name="To">Exclusive effective end; null means unbounded.</param>
+public sealed record RecordReferenceSegment(RecordWriteRow Row, DateTimeOffset From, DateTimeOffset? To);
+
+/// <summary>Unavailable history is distinct from a known empty interval (ADR-0162 decision 5).</summary>
+/// <param name="Available">False for switched-off, compacted or otherwise unavailable history.</param>
+/// <param name="RowsRead">Ancestor rows examined, including superseded overlapping rows; at most the requested budget.</param>
+/// <param name="Segments">Latest-knowledge pieces; gaps mean known absence only when Available is true.</param>
+public sealed record RecordReferenceHistory(bool Available, int RowsRead, IReadOnlyList<RecordReferenceSegment> Segments);
+
+/// <summary>
+/// Committed reference reads enlisted in the prepared write's single write lock through commit or rollback.
+/// Reads never re-enter that lock. Latest knowledge, not historical permission, governs (DES-0015).
+/// </summary>
+public interface IRecordReferenceTransaction
+{
+    /// <summary>Reads the logical identity's latest committed row in the exact tenant, regardless of effective coverage.</summary>
+    ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default);
+    /// <summary>Splits the requested half-open period at effective boundaries using latest committed knowledge.</summary>
+    ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
+        DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -898,6 +924,8 @@ public sealed class RecordWriteOperation
                         catch (FieldAdmissionException) { throw new RefusedWriteException(new(ValidateStage, BodyInvalid, [pointer])); }
                     }
                 }
+                await ValidateReferencesAsync(definition, candidate, scope.Tenant, recordId, from, to,
+                    contentPort.References, token).ConfigureAwait(false);
                 var row = new RecordWriteRow(scope.Tenant, recordId, type!, publication.Revision.Document.Version,
                     publication.Revision.Digest, publication.Schema.Id, scope.ActorId, operationId, version,
                     RecordTemporalJournalBinding.IntentEncodingVersion, digest, submitted, instant)
@@ -1315,6 +1343,8 @@ public sealed class RecordWriteOperation
                         }
                     }
 
+                    await ValidateReferencesAsync(definition, candidate, plan.Tenant, recordId, instant, null,
+                        contentPort.References, token).ConfigureAwait(false);
                     var row = new RecordWriteRow(plan.Tenant, recordId, request.RecordTypeId, publication.Revision.Document.Version,
                         publication.Revision.Digest, publication.Schema.Id, plan.ExecutorId, request.OperationId, request.Version,
                         RecordWriteIntent.EncodingVersion, intentDigest, body, instant)
@@ -1603,15 +1633,117 @@ public sealed class RecordWriteOperation
         return RecordWriteRules.Bind(recordTypeId, [rule]);
     }
 
+    // DES-0015 records-eng-16 / records-auth-34: authorization precedes these internal integrity reads;
+    // Historical meaning is not historical permission. Refusals name only the referring field (ADR-0176 D10).
+    private async ValueTask ValidateReferencesAsync(RecordTypeDocument definition, JsonObject body, string tenant,
+        string writtenId, DateTimeOffset from, DateTimeOffset? to, IRecordReferenceTransaction? reader, CancellationToken ct)
+    {
+        var rowsRead = 0;
+        var types = new Dictionary<string, RecordTypeDocument?>(StringComparer.Ordinal);
+        var retainedTypes = new Dictionary<(string Type, string? Publication, string Version, SchemaId Schema), RecordTypeDocument?>();
+        async ValueTask<RecordTypeDocument?> TypeAsync(string type)
+        {
+            if (!types.TryGetValue(type, out var found))
+                types[type] = found = await ReferenceTypeAsync(tenant, type, ct).ConfigureAwait(false);
+            return found;
+        }
+        async ValueTask<RecordTypeDocument?> RetainedTypeAsync(RecordWriteRow row)
+        {
+            var key = (row.RecordTypeId, row.PublicationVersionId, row.Version, row.Schema);
+            if (retainedTypes.TryGetValue(key, out var found)) return found;
+            RecordTypePublication? publication;
+            try
+            {
+                publication = row.PublicationVersionId is { } pin
+                    ? await _recordTypes.ResolveBoundStoredPublishedSchemaAsync(tenant, row.RecordTypeId, pin, row.Version, row.Schema, ct).ConfigureAwait(false)
+                    : await _recordTypes.ResolveStoredPublishedSchemaAsync(tenant, row.RecordTypeId, row.Version, row.Schema, ct).ConfigureAwait(false);
+            }
+            catch (DefinitionRefusalException) { publication = null; }
+            return retainedTypes[key] = publication is null ? null
+                : RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        }
+        foreach (var field in definition.Fields)
+        {
+            if (field.Reference is not { } reference || body[field.FieldKey] is not { } supplied) continue;
+            var pointer = "/" + field.FieldKey.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+            var values = reference.Cardinality == ReferenceCardinality.Many ? ((JsonArray)supplied).ToArray() : [supplied];
+            for (var i = 0; i < values.Length; i++)
+            {
+                var at = reference.Cardinality == ReferenceCardinality.Many ? pointer + "/" + i.ToString(CultureInfo.InvariantCulture) : pointer;
+                if (reader is null) Reject("target_unresolved", at);
+                var value = values[i]!;
+                var id = value["id"]!.GetValue<string>();
+                var type = value["type"]!.GetValue<string>();
+                var target = await reader!.FindReferenceAsync(tenant, id, ct).ConfigureAwait(false);
+                if (target is null || !StringComparer.Ordinal.Equals(target.RecordTypeId, type)
+                    || !StringComparer.Ordinal.Equals(target.Tenant, tenant)) Reject("target_unresolved", at);
+                var targetType = await TypeAsync(type).ConfigureAwait(false);
+                if (targetType is null) Reject("target_unresolved", at);
+                if (!RecordReferenceEligibility.Admits(reference, type, targetType!.ClassId, targetType.Traits))
+                    Reject(reference.TargetClassId is not null && !StringComparer.Ordinal.Equals(reference.TargetClassId, targetType.ClassId)
+                        ? "class_mismatch" : "trait_absent", at);
+                if (!reference.Parent) continue;
+
+                // ADR-0162 D1, records-ck-31 / records-eng-22, DES-0015 section 10; SQL:2011
+                // period-aware foreign keys (Kulkarni and Michels 2.2 via R-0095): check the whole period,
+                // not a sample at now or effective_from. Each branch carries its own half-open intersection.
+                var pending = new Stack<(string Id, string Type, DateTimeOffset From, DateTimeOffset? To, int Depth, string[] Path)>();
+                pending.Push((id, type, from, to, 1, [writtenId]));
+                while (pending.TryPop(out var ancestor))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (ancestor.Path.Contains(ancestor.Id, StringComparer.Ordinal)) Reject("parent_cycle", at);
+                    if (ancestor.Depth > 100 || rowsRead >= 1000) Reject("parent_depth_exceeded", at);
+                    var document = await TypeAsync(ancestor.Type).ConfigureAwait(false);
+                    if (document is null) Reject("target_unresolved", at);
+                    if (document!.HistoryPolicy != RecordHistoryPolicy.Enabled) Reject("parent_history_unavailable", at);
+                    var history = await reader.ReadParentHistoryAsync(tenant, ancestor.Id, ancestor.From, ancestor.To,
+                        1000 - rowsRead, ct).ConfigureAwait(false);
+                    if (!history.Available) Reject("parent_history_unavailable", at); // ADR-0162 D5: never a root.
+                    rowsRead += history.RowsRead;
+                    if (rowsRead >= 1000) Reject("parent_depth_exceeded", at);
+                    foreach (var segment in history.Segments)
+                    {
+                        if (!StringComparer.Ordinal.Equals(segment.Row.RecordTypeId, ancestor.Type)) Reject("target_unresolved", at);
+                        // DES-0015 retained historical meaning: today's schema is not a substitute for this row's basis.
+                        var retained = await RetainedTypeAsync(segment.Row).ConfigureAwait(false);
+                        if (retained is null) Reject("parent_history_unavailable", at);
+                        var parent = retained!.Fields.SingleOrDefault(f => f.Reference?.Parent == true);
+                        if (parent is null) continue;
+                        using var parsed = JsonDocument.Parse(segment.Row.Body);
+                        if (!parsed.RootElement.TryGetProperty(parent.FieldKey, out var next) || next.ValueKind == JsonValueKind.Null) continue;
+                        pending.Push((next.GetProperty("id").GetString()!, next.GetProperty("type").GetString()!,
+                            segment.From, segment.To, ancestor.Depth + 1, [.. ancestor.Path, ancestor.Id]));
+                    }
+                }
+            }
+        }
+    }
+
+    private async ValueTask<RecordTypeDocument?> ReferenceTypeAsync(string tenant, string type, CancellationToken ct)
+    {
+        try
+        {
+            var publication = await _recordTypes.ResolvePublishedSchemaAsync(tenant, type, cancellationToken: ct).ConfigureAwait(false);
+            return publication is null ? null : RecordTypeDefinitionJson.Deserialize(Encoding.UTF8.GetBytes(publication.Revision.Document.BodyJson));
+        }
+        catch (DefinitionRefusalException) { return null; }
+    }
+
+    private static void Reject(string suffix, string pointer)
+        => throw new RefusedWriteException(new(ValidateStage, "records.reference." + suffix, [pointer]));
+
     // One wrapper per invocation, so simultaneous writes cannot share a session. The boundary still owns disposal/commit.
     private sealed class ContentPreparedPort<TRecord, TResult>(IKernelPreparedTransactionPort<TRecord, TResult> inner)
         : IKernelPreparedTransactionPort<TRecord, TResult>
     {
         public IContentBookkeepingSession? Session { get; private set; }
+        public IRecordReferenceTransaction? References { get; private set; }
         public async ValueTask<IKernelPreparedTransaction<TRecord, TResult>> BeginAsync(CancellationToken cancellationToken = default)
         {
             var transaction = await inner.BeginAsync(cancellationToken).ConfigureAwait(false);
             Session = (transaction as IRecordContentTransaction)?.ContentSession;
+            References = transaction as IRecordReferenceTransaction;
             return transaction;
         }
     }

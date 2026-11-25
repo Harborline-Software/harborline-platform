@@ -4,13 +4,15 @@
   "sourceExtracted": true,
   "sourceState": "Revision 1 preserves caller-backed draft-2020-12 registration, canonical content addressing, bounded validation, timed patterns, and field-addressable localizable errors. Legacy migration, lenses, upcasters, epochs, compaction, blobs, event bus, and federation are excluded from the Forms validation package.",
   "contentHashes": {
+    "projections/dotnet/kernel/hlp.kernel.schema-validation/Records/RecordReferenceEligibility.cs": "37a10eb072ad3b14d1c7cd09bd7ce938e4b523c0e9c6d93bcc8785f9407ca18c",
+    "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/RecordReferenceEligibilityTests.cs": "d93ec56bbf591eab4c22b8836397652c87d7008067161405f1518d160f369b64",
     "projections/dotnet/kernel/hlp.kernel.schema-validation/SchemaContracts.cs": "60084a052fde5c35c075e395d6b6e55261e86f40074b891b8618c35a14a3e646",
     "projections/dotnet/kernel/hlp.kernel.schema-validation/CanonicalContent.cs": "61ade55602a8f488762b7b92d484cef428903f7d62d7de5c15585523435ed834",
     "projections/dotnet/kernel/hlp.kernel.schema-validation/TimedSchemaDialect.cs": "4d3f5a49124b15e1499b18a949ae22331bc09c806507e920e3dee4b166660b1e",
     "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "acc0c97e4889588d05a29bfcb6277026e70eefad37a8e39518bfd4d317a72c6c",
     "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/SchemaValidationTests.cs": "0523fc9dbb0e533cf94b3b8f96278d1ad9793a31f99faf4a497903788dd13dfb",
-    "conformance/hlp.kernel.schema-validation/fixtures.yaml": "adf45356cb7e7bd41245492768def08d0df4ec4a27cc1f12f6132844fc28b039",
-    "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "7b78ea802cd4001bfef1e5e811542ff699ea6e7a753fe545c834ca89ecee27ae"
+    "conformance/hlp.kernel.schema-validation/fixtures.yaml": "3edcdef814c9328b841dc2365a982e6137e178d8199bdb48248ca95d87ca6751",
+    "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "06ad28892f71dd68da74e0ba018ec869a3afd04ec194df7b1e3a435a237255ae"
   },
   "nextGate": "Consume this package and the completed Rule Runtime from Forms state and Forms Engine."
 }

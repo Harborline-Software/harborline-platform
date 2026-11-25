@@ -409,11 +409,12 @@ public sealed class FileJournalRecordTemporalTests
         var first = Committed(await fixture.CreateEvent());
         fixture.AuthorityClock.Now = GateAt.AddDays(-1);
         var arrivals = 0;
-        var bothPrepared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        fixture.Storage.BeforeCommit = async () =>
+        // Prepare is now serialized with commit. Compete before entering that lock, not while holding it.
+        var bothAuthorized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Access.BeforeDecision = async ct =>
         {
-            if (Interlocked.Increment(ref arrivals) == 2) bothPrepared.SetResult();
-            await bothPrepared.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            if (Interlocked.Increment(ref arrivals) == 2) bothAuthorized.SetResult();
+            await bothAuthorized.Task.WaitAsync(TimeSpan.FromSeconds(15), ct);
         };
         var competing = await Task.WhenAll(fixture.AmendEvent(first, "candidate-a", value: 20),
             fixture.AmendEvent(first, "candidate-b", value: 30));

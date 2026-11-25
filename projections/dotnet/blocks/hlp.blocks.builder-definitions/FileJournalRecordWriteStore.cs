@@ -111,11 +111,11 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     /// <inheritdoc />
     public bool HasAuthorityClock => _authorityClock is not null;
 
-    ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>
+    async ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>
         IKernelPreparedTransactionPort<RecordTemporalWrite, RecordTemporalCommit>.BeginAsync(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>(new TemporalTransaction(this));
+        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new TemporalTransaction(this);
     }
 
     /// <inheritdoc />
@@ -223,71 +223,66 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private async ValueTask<RecordTemporalCommit> CommitTemporalAsync(KernelOperationIdentity operation,
         RecordTemporalWrite write, KernelAuditEvidence audit, CancellationToken ct)
     {
-        await Mutation.WaitAsync(ct).ConfigureAwait(false);
-        try
+        var entries = Load(out var legacySource, ct);
+        var prior = entries.SingleOrDefault(entry => entry.Key == operation.IdempotencyKey);
+        if (prior is not null)
         {
-            var entries = Load(out var legacySource, ct);
-            var prior = entries.SingleOrDefault(entry => entry.Key == operation.IdempotencyKey);
-            if (prior is not null)
-            {
-                var stored = TemporalStored(prior);
-                var disposition = stored.IntentEncodingVersion == RecordTemporalJournalBinding.IntentEncodingVersion
-                    && write.Row.IntentEncodingVersion == RecordTemporalJournalBinding.IntentEncodingVersion
-                    && stored.IntentDigest == operation.Fingerprint
-                    ? RecordTemporalCommitDisposition.Replayed : RecordTemporalCommitDisposition.Conflict;
-                return new(disposition, null) { Stored = stored };
-            }
-            var matches = Identity(entries, write.Row.Tenant, write.Row.RecordId);
-            Entry? head = null;
-            if (write.Kind == RecordTemporalCommandKind.Create)
-            {
-                if (matches.Count != 0) throw new InvalidOperationException("The new temporal record identity already exists.");
-            }
-            else
-            {
-                if (matches.Count > 0 && matches[0].Temporal is null)
-                    return new(RecordTemporalCommitDisposition.UnsupportedLegacyBasis, null);
-                head = matches.LastOrDefault();
-                if (head is null || write.ExpectedPredecessor is not { } expected
-                    || expected.Revision != head.Temporal!.Revision || expected.Hash != head.TemporalHash)
-                    return new(RecordTemporalCommitDisposition.BasisMismatch, null);
-                if (head.Row.RecordTypeId != write.Row.RecordTypeId)
-                    throw new InvalidOperationException("A temporal amendment changed its logical type.");
-            }
-            if (_authorityClock is null) return new(RecordTemporalCommitDisposition.TemporalClockRequired, null);
-            if (head?.Temporal?.Revision == long.MaxValue)
-                throw new InvalidOperationException("The temporal revision cannot be incremented.");
-            var revision = head is null ? 1 : checked(head.Temporal!.Revision + 1);
-            var authorityAt = _authorityClock.GetUtcNow();
-            var temporal = new RecordTemporalEvidence(revision,
-                head is null ? null : new(head.Temporal!.Revision, head.TemporalHash!),
-                VisibleSegments(matches, write.EffectiveFrom, write.EffectiveTo),
-                write.EffectiveFrom, write.EffectiveTo, write.Reason, authorityAt);
-            var row = write.Row;
-            var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version,
-                row.DefinitionDigest, row.Schema, row.RecordedAt);
-            var appended = new Entry(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json))
-                { Temporal = temporal };
-            appended = appended with
-            {
-                TemporalHash = RecordTemporalJournalBinding.HashBinding(appended.Key, operation, row, audit, temporal),
-            };
-            ValidateBound(appended);
-            ValidateTemporalChains(entries.Append(appended).ToList(), ct);
-            if (legacySource is not null)
-            {
-                try { RecordWriteJournalBinding.ValidateUnicode(legacySource); }
-                catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException) { throw Corrupt(); }
-                using var original = JsonDocument.Parse(legacySource);
-                var originals = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
-                for (var i = 0; i < entries.Count; i++)
-                    entries[i] = entries[i] with { Raw = RecordWriteIntent.Strict.GetBytes(originals[i].GetRawText()) };
-            }
-            else if (entries.Count != 0) ValidateTemporalUnicode(entries[0].Source);
-            await PublishTemporalAsync(entries, appended, ct).ConfigureAwait(false);
-            return new(RecordTemporalCommitDisposition.Created, new(receipt, CopyTemporal(temporal), appended.TemporalHash!));
+            var stored = TemporalStored(prior);
+            var disposition = stored.IntentEncodingVersion == RecordTemporalJournalBinding.IntentEncodingVersion
+                && write.Row.IntentEncodingVersion == RecordTemporalJournalBinding.IntentEncodingVersion
+                && stored.IntentDigest == operation.Fingerprint
+                ? RecordTemporalCommitDisposition.Replayed : RecordTemporalCommitDisposition.Conflict;
+            return new(disposition, null) { Stored = stored };
         }
-        finally { Mutation.Release(); }
+        var matches = Identity(entries, write.Row.Tenant, write.Row.RecordId);
+        Entry? head = null;
+        if (write.Kind == RecordTemporalCommandKind.Create)
+        {
+            if (matches.Count != 0) throw new InvalidOperationException("The new temporal record identity already exists.");
+        }
+        else
+        {
+            if (matches.Count > 0 && matches[0].Temporal is null)
+                return new(RecordTemporalCommitDisposition.UnsupportedLegacyBasis, null);
+            head = matches.LastOrDefault();
+            if (head is null || write.ExpectedPredecessor is not { } expected
+                || expected.Revision != head.Temporal!.Revision || expected.Hash != head.TemporalHash)
+                return new(RecordTemporalCommitDisposition.BasisMismatch, null);
+            if (head.Row.RecordTypeId != write.Row.RecordTypeId)
+                throw new InvalidOperationException("A temporal amendment changed its logical type.");
+        }
+        if (_authorityClock is null) return new(RecordTemporalCommitDisposition.TemporalClockRequired, null);
+        if (head?.Temporal?.Revision == long.MaxValue)
+            throw new InvalidOperationException("The temporal revision cannot be incremented.");
+        var revision = head is null ? 1 : checked(head.Temporal!.Revision + 1);
+        var authorityAt = _authorityClock.GetUtcNow();
+        var temporal = new RecordTemporalEvidence(revision,
+            head is null ? null : new(head.Temporal!.Revision, head.TemporalHash!),
+            VisibleSegments(matches, write.EffectiveFrom, write.EffectiveTo),
+            write.EffectiveFrom, write.EffectiveTo, write.Reason, authorityAt);
+        var row = write.Row;
+        var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version,
+            row.DefinitionDigest, row.Schema, row.RecordedAt);
+        var appended = new Entry(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json))
+            { Temporal = temporal };
+        appended = appended with
+        {
+            TemporalHash = RecordTemporalJournalBinding.HashBinding(appended.Key, operation, row, audit, temporal),
+        };
+        ValidateBound(appended);
+        ValidateTemporalChains(entries.Append(appended).ToList(), ct);
+        if (legacySource is not null)
+        {
+            try { RecordWriteJournalBinding.ValidateUnicode(legacySource); }
+            catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException) { throw Corrupt(); }
+            using var original = JsonDocument.Parse(legacySource);
+            var originals = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+            for (var i = 0; i < entries.Count; i++)
+                entries[i] = entries[i] with { Raw = RecordWriteIntent.Strict.GetBytes(originals[i].GetRawText()) };
+        }
+        else if (entries.Count != 0) ValidateTemporalUnicode(entries[0].Source);
+        await PublishTemporalAsync(entries, appended, ct).ConfigureAwait(false);
+        return new(RecordTemporalCommitDisposition.Created, new(receipt, CopyTemporal(temporal), appended.TemporalHash!));
     }
 
     private async ValueTask PublishTemporalAsync(List<Entry> entries, Entry appended, CancellationToken ct)
@@ -567,10 +562,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     }
 
     /// <inheritdoc />
-    public ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>>(new Transaction(this));
+        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new Transaction(this);
     }
 
     /// <inheritdoc />
@@ -635,106 +630,101 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     private async ValueTask<RecordWriteCommit> CommitAsync(KernelOperationIdentity operation, RecordWriteRow row,
         KernelAuditEvidence audit, CancellationToken ct)
     {
-        await Mutation.WaitAsync(ct).ConfigureAwait(false);
+        var entries = Load(out var legacySource, ct);
+        var prior = entries.SingleOrDefault(entry => entry.Key == operation.IdempotencyKey);
+        if (prior is not null)
+        {
+            var stored = prior.Stored();
+            var disposition = stored.IntentEncodingVersion == RecordWriteIntent.EncodingVersion
+                && row.IntentEncodingVersion == RecordWriteIntent.EncodingVersion && stored.IntentDigest == operation.Fingerprint
+                ? RecordWriteCommitDisposition.Replayed : RecordWriteCommitDisposition.Conflict;
+            return new(disposition, stored.Receipt) { Stored = stored };
+        }
+
+        if (entries.Any(entry => entry.Temporal is not null)
+            && entries.Any(entry => entry.Row.Tenant == row.Tenant && entry.Row.RecordId == row.RecordId))
+            throw new InvalidOperationException("The ordinary record identity already exists in the temporal journal.");
+        var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version,
+            row.DefinitionDigest, row.Schema, row.RecordedAt);
+        var appended = new Entry(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json));
+        var hash = RecordWriteJournalBinding.Hash(row);
         try
         {
-            var entries = Load(out var legacySource, ct);
-            var prior = entries.SingleOrDefault(entry => entry.Key == operation.IdempotencyKey);
-            if (prior is not null)
-            {
-                var stored = prior.Stored();
-                var disposition = stored.IntentEncodingVersion == RecordWriteIntent.EncodingVersion
-                    && row.IntentEncodingVersion == RecordWriteIntent.EncodingVersion && stored.IntentDigest == operation.Fingerprint
-                    ? RecordWriteCommitDisposition.Replayed : RecordWriteCommitDisposition.Conflict;
-                return new(disposition, stored.Receipt) { Stored = stored };
-            }
-
-            if (entries.Any(entry => entry.Temporal is not null)
-                && entries.Any(entry => entry.Row.Tenant == row.Tenant && entry.Row.RecordId == row.RecordId))
-                throw new InvalidOperationException("The ordinary record identity already exists in the temporal journal.");
-            var receipt = new RecordWriteReceipt(row.RecordId, row.OperationId, row.RecordTypeId, row.Version,
-                row.DefinitionDigest, row.Schema, row.RecordedAt);
-            var appended = new Entry(operation.IdempotencyKey, operation, row, audit, JsonSerializer.SerializeToElement(receipt, Json));
-            var hash = RecordWriteJournalBinding.Hash(row);
-            try
-            {
-                ValidateBound(appended);
-                RecordWriteJournalBinding.ValidateUnicode(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
-            }
-            catch (Exception error) when (error is JsonException or ArgumentException or InvalidDataException or InvalidOperationException)
-            {
-                throw RecordWriteJournalBinding.InvalidBinding();
-            }
-            if (legacySource is not null)
-            {
-                // Scan the complete source, including ignored root/nested members, before creating any file.
-                try { RecordWriteJournalBinding.ValidateUnicode(legacySource); }
-                catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
-                { throw Corrupt(); }
-                using var original = JsonDocument.Parse(legacySource);
-                var originals = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
-                for (var i = 0; i < entries.Count; i++)
-                    entries[i] = entries[i] with { Raw = RecordWriteIntent.Strict.GetBytes(originals[i].GetRawText()) };
-            }
-            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
-            var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                    4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
-                {
-                using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { MaxDepth = BoundJournalMaxDepth }))
-                    {
-                        writer.WriteStartObject();
-                        writer.WriteString("Format", entries.Any(entry => entry.Temporal is not null)
-                            ? RecordTemporalJournalBinding.Format : RecordWriteJournalBinding.Format);
-                        writer.WriteNumber("LegacyEntryCount", entries.Count(entry => entry.IsLegacy));
-                        writer.WriteStartArray("Entries");
-                        foreach (var entry in entries)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            if (entry.Wrapped) writer.WriteRawValue(entry.Raw, skipInputValidation: false);
-                            else
-                            {
-                                writer.WriteStartObject();
-                                writer.WriteString("Tag", "legacy/1");
-                                writer.WritePropertyName("Legacy");
-                                writer.WriteRawValue(entry.Raw, skipInputValidation: false);
-                                writer.WriteEndObject();
-                            }
-                        }
-                        writer.WriteStartObject();
-                        writer.WriteString("Tag", "bound/2");
-                        using var element = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
-                        foreach (var property in element.RootElement.EnumerateObject()) property.WriteTo(writer);
-                        writer.WriteStartObject("Binding");
-                        writer.WriteString("Encoding", RecordWriteJournalBinding.EncodingName);
-                        writer.WriteString("Hash", hash);
-                        writer.WriteEndObject();
-                        writer.WriteEndObject();
-                        writer.WriteEndArray();
-                        writer.WriteEndObject();
-                        await writer.FlushAsync(ct).ConfigureAwait(false);
-                    }
-                    await stream.FlushAsync(ct).ConfigureAwait(false);
-                    stream.Flush(flushToDisk: true);
-                }
-            ct.ThrowIfCancellationRequested();
-            try
-            {
-                _ = Decode(File.ReadAllBytes(temporary), out var legacyOutput, ct);
-                if (legacyOutput) throw Corrupt();
-            }
+            ValidateBound(appended);
+            RecordWriteJournalBinding.ValidateUnicode(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
+        }
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidDataException or InvalidOperationException)
+        {
+            throw RecordWriteJournalBinding.InvalidBinding();
+        }
+        if (legacySource is not null)
+        {
+            // Scan the complete source, including ignored root/nested members, before creating any file.
+            try { RecordWriteJournalBinding.ValidateUnicode(legacySource); }
             catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
             { throw Corrupt(); }
-            _beforeReplace?.Invoke();
-                ct.ThrowIfCancellationRequested();
-                File.Move(temporary, _path, overwrite: true);
-            }
-            finally { File.Delete(temporary); }
-            return new(RecordWriteCommitDisposition.Created, receipt);
+            using var original = JsonDocument.Parse(legacySource);
+            var originals = original.RootElement.GetProperty("Entries").EnumerateArray().ToArray();
+            for (var i = 0; i < entries.Count; i++)
+                entries[i] = entries[i] with { Raw = RecordWriteIntent.Strict.GetBytes(originals[i].GetRawText()) };
         }
-        finally { Mutation.Release(); }
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        var temporary = _path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                4096, FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { MaxDepth = BoundJournalMaxDepth }))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("Format", entries.Any(entry => entry.Temporal is not null)
+                        ? RecordTemporalJournalBinding.Format : RecordWriteJournalBinding.Format);
+                    writer.WriteNumber("LegacyEntryCount", entries.Count(entry => entry.IsLegacy));
+                    writer.WriteStartArray("Entries");
+                    foreach (var entry in entries)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (entry.Wrapped) writer.WriteRawValue(entry.Raw, skipInputValidation: false);
+                        else
+                        {
+                            writer.WriteStartObject();
+                            writer.WriteString("Tag", "legacy/1");
+                            writer.WritePropertyName("Legacy");
+                            writer.WriteRawValue(entry.Raw, skipInputValidation: false);
+                            writer.WriteEndObject();
+                        }
+                    }
+                    writer.WriteStartObject();
+                    writer.WriteString("Tag", "bound/2");
+                    using var element = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(appended, Json));
+                    foreach (var property in element.RootElement.EnumerateObject()) property.WriteTo(writer);
+                    writer.WriteStartObject("Binding");
+                    writer.WriteString("Encoding", RecordWriteJournalBinding.EncodingName);
+                    writer.WriteString("Hash", hash);
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                    await writer.FlushAsync(ct).ConfigureAwait(false);
+                }
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+        ct.ThrowIfCancellationRequested();
+        try
+        {
+            _ = Decode(File.ReadAllBytes(temporary), out var legacyOutput, ct);
+            if (legacyOutput) throw Corrupt();
+        }
+        catch (Exception error) when (error is JsonException or ArgumentException or InvalidOperationException)
+        { throw Corrupt(); }
+        _beforeReplace?.Invoke();
+            ct.ThrowIfCancellationRequested();
+            File.Move(temporary, _path, overwrite: true);
+        }
+        finally { File.Delete(temporary); }
+        return new(RecordWriteCommitDisposition.Created, receipt);
     }
 
     private List<Entry> Load(CancellationToken cancellationToken = default) => Load(out _, cancellationToken);
@@ -1016,13 +1006,86 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         public override void Write(Utf8JsonWriter writer, SchemaId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Value);
     }
 
+    // The prepared transaction owns Mutation, from Begin through commit/rollback. These reads do not
+    // acquire it again. ADR-0162 D1 / DES-0015 records-ck-31 and section 10 require one stable effective graph.
+    private sealed class ReferenceReader(FileJournalRecordWriteStore owner)
+    {
+        private List<Entry>? _entries;
+        private async ValueTask<List<Entry>> EntriesAsync(CancellationToken ct)
+            => _entries ??= await owner.LoadForCurrentReadAsync(ct).ConfigureAwait(false);
+
+        public async ValueTask<RecordWriteRow?> FindAsync(string tenant, string id, CancellationToken ct)
+        {
+            var entry = Identity(await EntriesAsync(ct).ConfigureAwait(false), tenant, id).LastOrDefault();
+            return entry is null ? null : entry.Row with { Body = entry.Row.Body.ToArray() };
+        }
+
+        public async ValueTask<RecordReferenceHistory> HistoryAsync(string tenant, string id,
+            DateTimeOffset from, DateTimeOffset? to, int budget, CancellationToken ct)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(budget);
+            var matches = Identity(await EntriesAsync(ct).ConfigureAwait(false), tenant, id);
+            if (matches.Count == 0) return new(true, 0, []); // Known absence, not unavailable history.
+            if (matches[0].Temporal is null) return new(false, 1, []); // No effective provenance to invent.
+            var overlapping = new List<Entry>();
+            foreach (var entry in matches)
+            {
+                ct.ThrowIfCancellationRequested();
+                var period = entry.Temporal!;
+                if (to is { } end && period.EffectiveFrom >= end || period.EffectiveTo is { } until && until <= from) continue;
+                overlapping.Add(entry);
+                if (overlapping.Count >= budget) return new(true, budget, []);
+            }
+            var points = new SortedSet<DateTimeOffset> { from };
+            if (to is { } finish) points.Add(finish);
+            foreach (var entry in overlapping)
+            {
+                var period = entry.Temporal!;
+                if (period.EffectiveFrom > from) points.Add(period.EffectiveFrom);
+                if (period.EffectiveTo is { } end && (to is null || end < to) && end > from) points.Add(end);
+            }
+            var boundaries = points.ToArray();
+            var segments = new List<RecordReferenceSegment>();
+            for (var i = 0; i < boundaries.Length; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var start = boundaries[i];
+                if (to is { } end && start >= end) break;
+                var row = overlapping.LastOrDefault(entry => Covers(entry.Temporal!, start.UtcTicks))?.Row;
+                if (row is null) continue;
+                segments.Add(new(row with { Body = row.Body.ToArray() }, start,
+                    i + 1 < boundaries.Length ? boundaries[i + 1] : to));
+            }
+            return new(true, overlapping.Count, segments);
+        }
+    }
+
     private sealed class TemporalTransaction(FileJournalRecordWriteStore owner)
-        : IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>
+        : IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>, IRecordReferenceTransaction
     {
         private KernelOperationIdentity? _operation;
         private RecordTemporalWrite? _write;
         private KernelAuditEvidence? _audit;
         private bool _finished;
+        private readonly ReferenceReader _references = new(owner);
+        private bool _released;
+        private void Release()
+        {
+            if (_released) return;
+            _released = true;
+            Mutation.Release();
+        }
+        public ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
+        {
+            Open(cancellationToken);
+            return _references.FindAsync(tenant, recordId, cancellationToken);
+        }
+        public ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
+            DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default)
+        {
+            Open(cancellationToken);
+            return _references.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
+        }
 
         private void Open(CancellationToken ct)
         {
@@ -1082,7 +1145,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 throw new InvalidOperationException("Records temporal transaction is incomplete.");
             _finished = true;
             try { return await owner.CommitTemporalAsync(_operation, _write, _audit, cancellationToken).ConfigureAwait(false); }
-            finally { _operation = null; _write = null; _audit = null; }
+            finally { _operation = null; _write = null; _audit = null; Release(); }
         }
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
@@ -1091,18 +1154,38 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             _operation = null;
             _write = null;
             _audit = null;
+            Release();
             return ValueTask.CompletedTask;
         }
 
         public ValueTask DisposeAsync() => RollbackAsync();
     }
 
-    private sealed class Transaction(FileJournalRecordWriteStore owner) : IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>
+    private sealed class Transaction(FileJournalRecordWriteStore owner) : IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>, IRecordReferenceTransaction
     {
         private KernelOperationIdentity? _operation;
         private RecordWriteRow? _row;
         private KernelAuditEvidence? _audit;
         private bool _finished;
+        private readonly ReferenceReader _references = new(owner);
+        private bool _released;
+        private void Release()
+        {
+            if (_released) return;
+            _released = true;
+            Mutation.Release();
+        }
+        public ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
+        {
+            Open(cancellationToken);
+            return _references.FindAsync(tenant, recordId, cancellationToken);
+        }
+        public ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
+            DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default)
+        {
+            Open(cancellationToken);
+            return _references.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
+        }
 
         private void Open(CancellationToken ct)
         {
@@ -1149,7 +1232,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
                 throw new InvalidOperationException("Records transaction is incomplete.");
             _finished = true;
             try { return await owner.CommitAsync(_operation, _row, _audit, cancellationToken).ConfigureAwait(false); }
-            finally { _operation = null; _row = null; _audit = null; }
+            finally { _operation = null; _row = null; _audit = null; Release(); }
         }
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
@@ -1158,6 +1241,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             _operation = null;
             _row = null;
             _audit = null;
+            Release();
             return ValueTask.CompletedTask;
         }
 
