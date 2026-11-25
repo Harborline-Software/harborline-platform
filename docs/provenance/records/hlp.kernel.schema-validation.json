@@ -11,8 +11,8 @@
     "projections/dotnet/kernel/hlp.kernel.schema-validation/TimedSchemaDialect.cs": "4d3f5a49124b15e1499b18a949ae22331bc09c806507e920e3dee4b166660b1e",
     "projections/dotnet/kernel/hlp.kernel.schema-validation/InMemorySchemaRegistry.cs": "acc0c97e4889588d05a29bfcb6277026e70eefad37a8e39518bfd4d317a72c6c",
     "projections/dotnet/kernel/hlp.kernel.schema-validation.tests/SchemaValidationTests.cs": "0523fc9dbb0e533cf94b3b8f96278d1ad9793a31f99faf4a497903788dd13dfb",
-    "conformance/hlp.kernel.schema-validation/fixtures.yaml": "3edcdef814c9328b841dc2365a982e6137e178d8199bdb48248ca95d87ca6751",
-    "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "06ad28892f71dd68da74e0ba018ec869a3afd04ec194df7b1e3a435a237255ae"
+    "conformance/hlp.kernel.schema-validation/fixtures.yaml": "c3aa6acf6d2dae8d83792a3d448b619a7065ed083eadf47c2153a72d0827b8d3",
+    "specs/modules/kernel/hlp.kernel.schema-validation/interface.yaml": "6a1da0f9698156e2bcd76b7151217659a2792520bebbd642223cec838a8ebf36"
   },
   "nextGate": "Consume this package and the completed Rule Runtime from Forms state and Forms Engine."
 }
