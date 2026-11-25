@@ -301,7 +301,12 @@ public interface IFormAcceptedCommandStore
 
     /// <summary>
     /// Claims a pending command for execution by <paramref name="workerId"/> at <paramref name="at"/>, durably, before any
-    /// effect. A command already claimed is returned unchanged (an interrupted execution is executed again); a completed,
+    /// effect. For the R-0229 host handoff, the revocation check and this claim commit are one fenced host write
+    /// transaction: a winning revocation returns an audited terminal refusal instead of claiming. A winning claim retains
+    /// its validity decision and evidence durably; neither audit timestamp establishes order. On recovery the host returns
+    /// that same decision, and its revocation port reads the retained decision, not current revocations. The built-in stores
+    /// supply lifecycle contract fixtures; they do not implement the API's grant database or its production fence.
+    /// A command already claimed is returned unchanged (an interrupted execution is executed again); a completed,
     /// refused or cancelled command is returned unchanged and must not be executed. Null when no such command exists.
     /// </summary>
     ValueTask<FormAcceptedCommandTransition?> ClaimAcceptedCommandAsync(string commandId, string workerId, DateTimeOffset at, CancellationToken cancellationToken = default);

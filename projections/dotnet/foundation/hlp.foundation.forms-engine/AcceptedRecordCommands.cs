@@ -443,7 +443,10 @@ public sealed record FormAcceptedCommandRevocationQuery(TenantId Tenant, string 
 /// its result stands (any undo is decision 5's authorized amend or delete). An ordinary revocation never refuses (decision 3).
 /// A conforming host answers every revocation of the submitter's authority in the tenant, and the tenant's suspension, that
 /// took effect at or before the claim; a failure is thrown and the command stays pending. Whether the host's revocations
-/// join the claim's fence atomically is open item 2 (T-619). Without the port no revocation is known and every accepted
+/// join the claim's fence atomically is the host adapter's responsibility (T-619, R-0229). A fenced host refuses a
+/// winning revocation atomically while Pending; for a valid claim this lookup returns the retained decision (empty),
+/// including after restart. It must not return current revocations filtered by audit timestamps to reconstruct order.
+/// The legacy timestamp filter below is not a fence witness. Without the port no revocation is known and every accepted
 /// command runs as decision 3 has it; host enablement stays held until a host supplies it.
 /// </summary>
 public interface IFormAcceptedCommandRevocations
@@ -710,8 +713,9 @@ internal sealed class FormAcceptedCommandExecution(
     }
 
     // Returns the refusal code of the earliest compromise or tenant suspension at or before the claim, or null. The claim
-    // instant is the claimed command's last transition. ponytail: compared on the host's and the engine's clocks; joining the
-    // revocation and the claim in one fence is open item 2 (T-619).
+    // instant is the claimed command's last transition. This legacy compatibility path is not a fence witness:
+    // R-0229 hosts decide atomically in ClaimAcceptedCommandAsync and return only the retained decision here,
+    // never reconstructing order from clocks. A valid fenced claim therefore has no winning revocations to return.
     private async ValueTask<string?> RevocationRefusalAsync(FormProjectionEnvelope row, FormAcceptedRecordCommand claimed, CancellationToken cancellationToken)
     {
         if (revocations is null) return null;
