@@ -370,6 +370,20 @@ describe('Schedule authoring', () => {
     fireEvent.blur(screen.getByLabelText('Backend parameters'), { target: { value: '{"seed":7}' } })
     expect(actual).toEqual({ modules: [{ module: 'precedence', parameters: { constraints: [{ id: 'after', beforeActivityId: 'a', afterActivityId: 'b', minimumGapSlots: 1 }] } }], solver: { parameters: { seed: 7 } } })
   })
+  // Oracle: literal shared rendering expectations derived from DES-0022 C3 -> DES-0014 C3,
+  // not from either renderer. Null is no detail object; an empty target is no fetchable reference.
+  it.each(fixtures.cases.find((entry: { id: string }) => entry.id === 'scheduling-authoring.refusals').renderingCases)(
+    'scheduling-auth-27: shared refusal rendering $id',
+    (entry: { refusal: scheduling.ScheduleRefusal; expected: { code: string; pointer: string; targets: string[]; details: unknown[] } }) => {
+      const view = render(<SchedulingAuthoringEditor value={{}} onChange={() => {}} refusals={[entry.refusal]} />)
+      const item = screen.getByRole('listitem')
+      expect(item.querySelectorAll('code')[0]).toHaveTextContent(entry.expected.code)
+      expect(item.querySelectorAll('code')[1]).toHaveTextContent(entry.expected.pointer)
+      expect(Array.from(item.querySelectorAll('span'), span => span.textContent!.trim())).toEqual(entry.expected.targets)
+      expect(Array.from(item.querySelectorAll('pre'), pre => JSON.parse(pre.textContent!))).toEqual(entry.expected.details)
+      view.unmount()
+    },
+  )
   it('scheduling-auth-27: displays every conformance refusal before publish without reinterpreting it', () => {
     const corpus = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.blocks.scheduling/authoring-refusals.json'), 'utf8'))
     for (const entry of corpus.cases) {

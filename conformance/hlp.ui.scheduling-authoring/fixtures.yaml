@@ -14,7 +14,32 @@
       "steps": [["Problem class", "Project"], ["Backend", "prototype.exhaustive-proof.v2"], ["Guarantee", "feasible_proof"], ["Work budget", "10"]],
       "expected": {"problem_class":"Project","solver":{"parameters":{},"backend_id":"prototype.exhaustive-proof.v2","guarantee":"feasible_proof","work_budget":10}}
     },
-    {"id": "scheduling-authoring.refusals"},
+    {
+      "id": "scheduling-authoring.refusals",
+      "renderingOracle": "T-491 scheduling-auth-27; DES-0022 C3 -> DES-0014 C3: optional detail object and safe/authorized fetchable target. Null supplies no detail object; empty target supplies no reference.",
+      "renderingCases": [
+        {
+          "id": "absent-optionals",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver"},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":[],"details":[]}
+        },
+        {
+          "id": "null-detail",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"schedule.inspection@1","detail":null},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":["schedule.inspection@1"],"details":[]}
+        },
+        {
+          "id": "empty-target",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"","detail":{"missing":["backend"]}},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":[],"details":[{"missing":["backend"]}]}
+        },
+        {
+          "id": "present-empty-detail-object",
+          "refusal": {"code":"scheduling.definition.solver_required","pointer":"/solver","target":"schedule.inspection@1","detail":{}},
+          "expected": {"code":"scheduling.definition.solver_required","pointer":"/solver","targets":["schedule.inspection@1"],"details":[{}]}
+        }
+      ]
+    },
     {
       "id": "scheduling-authoring.remove-node-window",
       "initial": {"name":"Inspection","basis":{"kind":"event_anchored_chain","anchor":"event.install","nodes":[{"node_id":"check","after_node_id":null,"offset":"P1D","tolerance":{"early":"PT1H","late":"PT2H"},"window":{"earliest":"PT0S","latest":"P1D"}},{"node_id":"followup","after_node_id":"check","offset":"P2D","tolerance":{"early":"PT0S","late":"PT1H"}}]},"host_note":"preserve"},

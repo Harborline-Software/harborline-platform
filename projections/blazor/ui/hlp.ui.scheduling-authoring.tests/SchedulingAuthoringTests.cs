@@ -455,9 +455,32 @@ public sealed class SchedulingAuthoringTests : BunitContext
             authored["module"]!.GetValue<string>(), JsonSerializer.SerializeToElement(authored["parameters"]))));
     }
 
+    // Oracle: shared literal expectations, DES-0022 C3 -> DES-0014 C3's optional object/reference.
+    [Theory(DisplayName = "scheduling-auth-27: shared refusal rendering")]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(3)]
+    public void RefusalRendering(int index)
+    {
+        var fixtures = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/fixtures.yaml")))!;
+        var entry = fixtures["cases"]!.AsArray().Single(row => row!["id"]!.GetValue<string>() == "scheduling-authoring.refusals")!["renderingCases"]![index]!;
+        var row = entry["refusal"]!;
+        var expected = entry["expected"]!;
+        var refusal = new ScheduleRefusal(row["code"]!.GetValue<string>(), row["pointer"]!.GetValue<string>(), row["detail"]?.DeepClone(), row["target"]?.GetValue<string>());
+        var cut = Render<HarborlineSchedulingAuthoringEditor>(p => p.Add(x => x.Refusals, new[] { refusal }));
+        var item = Assert.Single(cut.FindAll("li"));
+        Assert.Equal(expected["code"]!.GetValue<string>(), item.QuerySelectorAll("code")[0].TextContent);
+        Assert.Equal(expected["pointer"]!.GetValue<string>(), item.QuerySelectorAll("code")[1].TextContent);
+        Assert.Equal(expected["targets"]!.AsArray().Select(value => value!.GetValue<string>()), item.QuerySelectorAll("span").Select(span => span.TextContent.Trim()));
+        Assert.Equal(expected["details"]!.AsArray().Count, item.QuerySelectorAll("pre").Length);
+        for (var position = 0; position < expected["details"]!.AsArray().Count; position++)
+            Assert.True(JsonNode.DeepEquals(expected["details"]![position], JsonNode.Parse(item.QuerySelectorAll("pre")[position].TextContent)));
+        cut.Dispose();
+    }
+
     [Fact(DisplayName = "scheduling-auth-27: every conformance refusal is displayed before publish")]
     public void Refusals()
     {
+        // This method is also dispatched by the shared scheduling-authoring.refusals case.
+        for (var index = 0; index < 4; index++) RefusalRendering(index);
         var corpus = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "scheduling-authoring-fixtures/authoring-refusals.json")))!;
         foreach (var entry in corpus["cases"]!.AsArray())
         {

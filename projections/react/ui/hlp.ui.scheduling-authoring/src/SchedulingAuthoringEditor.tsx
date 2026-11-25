@@ -244,7 +244,7 @@ export function SchedulingAuthoringEditor({ value: suppliedValue, catalogue = {}
     <p>Supply is read from the shared availability runtime, from each Resource's own availability source. Configure that source in Booking, per Resource.</p>
     {Object.entries(errors).map(([key, message]) => errorControls.has(key) && message && <p key={key} id={`${fieldId(key)}-error`} role="alert">{message}</p>)}
     <section aria-labelledby={`${id}-refusals`} aria-live="polite" aria-atomic="true"><h2 id={`${id}-refusals`}>Refusal list</h2>
-      {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail !== undefined && <pre>{stringifyScheduleBody(refusal.detail, 2)}</pre>}</li>)}</ul>}
+      {refusals.length === 0 ? <p>No refusals supplied. The server must validate before publish.</p> : <ul>{refusals.map((refusal, index) => <li key={index}><code>{refusal.code}</code> at <code>{refusal.pointer}</code>{refusal.target && <span> {refusal.target}</span>}{refusal.detail != null && <pre>{stringifyScheduleBody(refusal.detail, 2)}</pre>}</li>)}</ul>}
     </section>
   </form>
 }
