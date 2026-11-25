@@ -9,11 +9,9 @@ using Harborline.Foundation.Definitions;
 namespace Harborline.Foundation.Assistance;
 
 /// <summary>Identifies the Assistance package content kind.</summary>
-public static class AssistancePackIdentity
+public static partial class AssistancePackIdentity
 {
     // DES-0002 §5, row "Assistance"; 19 is the api's highest. Reserved in PackContentKindRegistry (T-738).
-    /// <summary>The reserved content kind for Assistance definitions.</summary>
-    public const int ContentKind = 20;
 }
 
 /// <summary>Controls whether a definition is base or tenant scoped.</summary>

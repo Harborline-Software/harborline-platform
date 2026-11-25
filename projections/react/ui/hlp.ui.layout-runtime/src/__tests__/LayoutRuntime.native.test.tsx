@@ -8,7 +8,7 @@ import { LayoutAuthoringEditor, emptyLayoutAuthoringDraft } from '../LayoutAutho
 import { LayoutRuntime } from '../LayoutRuntime'
 
 describe('LayoutRuntime React projection', () => {
-  it('renders ordered screen flow, static regions, and pinned definition provenance', () => {
+  it('layout-bound-4: renders ordered screen flow, static regions, and pinned definition provenance', () => {
     const { container } = render(<LayoutRuntime plan={{ definitionId: 'invoice', definitionVersionId: 'version-7', medium: 'screen', flow: [{ id: 'title', kind: 'layout.text', depth: 0 }, { id: 'table', kind: 'layout.table', depth: 1 }], staticRegions: [{ id: 'header', kind: 'layout.text', depth: 0, zone: 'header.center' }] }} />)
     expect(container.querySelector('[data-fragmentainer=screen]')).toBeInTheDocument()
     expect(container.querySelectorAll('[data-layout-block]')).toHaveLength(2)
@@ -37,7 +37,7 @@ describe('LayoutRuntime React projection', () => {
     expect(submitted).toHaveBeenCalledTimes(1)
   })
 
-  it('renders persisted invalid values as diagnostics without normalization', () => {
+  it('layout-runtime-eng-8: renders persisted invalid values as diagnostics without normalization', () => {
     render(<LayoutRuntime plan={{ definitionId: 'invoice', definitionVersionId: 'version-7', medium: 'page', flow: [], staticRegions: [], diagnostics: [{ code: 'layout.numeric.out_of_range', pointer: '/blocks/0/placement/span' }] }} />)
     expect(screen.getByRole('alert')).toHaveTextContent('layout.numeric.out_of_range at /blocks/0/placement/span')
   })
@@ -62,7 +62,7 @@ describe('LayoutRuntime React projection', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('authors the closed layout grammar without a separate reading-order or numeric control', () => {
+  it('layout-auth-32: layout-eng-23: authors the closed layout grammar without a separate reading-order or numeric control', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), medium: 'page', blocks: [{ id: 'dashboard', kind: 'layout.dashboard-widget' }], pageRuns: [{ id: 'run-1', pageLayoutId: 'letter', pageMasterId: 'letter-master' }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }, { id: 'layout.dashboard-widget', label: 'Dashboard widget' }], zones: ['header.center'], staticRegions: ['header.center'], helmWidgets: [{ id: 'revenue-glance', label: 'Revenue glance' }], pageLayouts: [{ id: 'letter', label: 'Letter' }], pageMasters: [{ id: 'letter-master', label: 'Letter master' }] }} onChange={changed} />)
     expect(screen.getByLabelText('Collapse below')).toHaveTextContent('sm')
@@ -75,6 +75,163 @@ describe('LayoutRuntime React projection', () => {
     expect(document.querySelector('input[type=number]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Add block' }))
     expect(changed).toHaveBeenCalledWith(expect.objectContaining({ blocks: expect.arrayContaining([expect.objectContaining({ kind: 'layout.table' })]) }))
+  })
+
+  // Oracles: DES-0052 authoring rows, layout-ck-9/11/13/14; literal slice choices.
+  function authoringRowDraft(): LayoutAuthoringDraft {
+    return {
+      name: 'Draft', medium: 'screen', defaultIntent: 'observe', containerFlow: 'stack',
+      collapseBelow: 'sm', gap: 1, density: 'comfortable',
+      blocks: [{ id: 'table', kind: 'layout.table', intent: 'observe', width: 'hug', alignSelf: 'start' }],
+      pageRuns: [{ id: 'run-1', pageLayoutId: 'letter', pageMasterId: 'letter-master' }],
+    }
+  }
+
+  const authoringRowCatalogue = {
+    blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: ['header.center'],
+    pageLayouts: [{ id: 'letter', label: 'Letter' }, { id: 'a4', label: 'A4' }],
+    pageMasters: [{ id: 'letter-master', label: 'Letter master' }, { id: 'a4-master', label: 'A4 master' }],
+  }
+
+  it('layout-auth-1: names the surface and declares page medium', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    const { rerender } = render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.change(screen.getByLabelText('Layout name'), { target: { value: 'Invoice' } })
+    expected = { ...expected, name: 'Invoice' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={changed.mock.lastCall![0]} catalogue={authoringRowCatalogue} onChange={changed} />)
+    fireEvent.change(screen.getByLabelText('Layout medium'), { target: { value: 'page' } })
+    expected = { ...expected, medium: 'page' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-2: writes surface default intent', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.change(screen.getByLabelText('Default intent'), { target: { value: 'capture' } })
+    expected = { ...expected, defaultIntent: 'capture' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-4: overrides block intent without changing the surface default', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.change(screen.getByLabelText('Block 1 intent'), { target: { value: 'capture' } })
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], intent: 'capture' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-5: writes areas from the closed flow vocabulary', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    expect(within(screen.getByLabelText('Container flow')).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['stack', 'flow', 'areas'])
+    fireEvent.change(screen.getByLabelText('Container flow'), { target: { value: 'areas' } })
+    expected = { ...expected, containerFlow: 'areas' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-6: selects a catalogue zone and clears it with No zone', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    const { rerender } = render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.change(screen.getByLabelText('Block 1 zone'), { target: { value: 'header.center' } })
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], zone: 'header.center' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={changed.mock.lastCall![0]} catalogue={authoringRowCatalogue} onChange={changed} />)
+    fireEvent.change(screen.getByLabelText('Block 1 zone'), { target: { value: '' } })
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], zone: undefined }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    expect(changed.mock.lastCall![0].blocks[0].zone).toBeUndefined()
+  })
+
+  it('layout-auth-7: writes end from the closed alignment vocabulary', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    expect(within(screen.getByLabelText('Block 1 alignment')).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['start', 'center', 'end', 'stretch'])
+    fireEvent.change(screen.getByLabelText('Block 1 alignment'), { target: { value: 'end' } })
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], alignSelf: 'end' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-8: writes container gap four', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.change(screen.getByLabelText('Container gap'), { target: { value: 4 } })
+    expected = { ...expected, gap: 4 }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-9: writes fixed sizing without a numeric control', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    const { container } = render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    expect(within(screen.getByLabelText('Block 1 width')).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['hug', 'fill', 'fixed'])
+    expect(container.querySelectorAll('input[type=number]')).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Block 1 width'), { target: { value: 'fixed' } })
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], width: 'fixed' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-10: writes md collapse and compact density separately', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    const { rerender } = render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    expect(within(screen.getByLabelText('Collapse below')).getAllByRole('option').map(option => option.getAttribute('value'))).toEqual(['', 'sm', 'md', 'lg'])
+    expect(within(screen.getByLabelText('Collapse below')).getByRole('option', { name: 'No collapse' })).toHaveValue('')
+    fireEvent.change(screen.getByLabelText('Collapse below'), { target: { value: 'md' } })
+    expected = { ...expected, collapseBelow: 'md' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={changed.mock.lastCall![0]} catalogue={authoringRowCatalogue} onChange={changed} />)
+    fireEvent.change(screen.getByLabelText('Container density'), { target: { value: 'compact' } })
+    expected = { ...expected, density: 'compact' }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-11: keeps a row whole and starts a new sheet', () => {
+    const initial = authoringRowDraft()
+    const changed = vi.fn()
+    const { rerender } = render(<LayoutAuthoringEditor value={initial} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = initial
+    fireEvent.click(screen.getByLabelText('Block 1 avoid page break'))
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], avoidPageBreak: true }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={changed.mock.lastCall![0]} catalogue={authoringRowCatalogue} onChange={changed} />)
+    fireEvent.click(screen.getByLabelText('Block 1 break before'))
+    expected = { ...expected, blocks: [{ ...expected.blocks[0], breakBefore: true }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+  })
+
+  it('layout-auth-12: writes a second catalogue layout and master only in page medium', () => {
+    const initial = authoringRowDraft()
+    const page = { ...initial, medium: 'page' } satisfies LayoutAuthoringDraft
+    const changed = vi.fn()
+    const { rerender } = render(<LayoutAuthoringEditor value={page} catalogue={authoringRowCatalogue} onChange={changed} />)
+    let expected: LayoutAuthoringDraft = page
+    fireEvent.change(screen.getByLabelText('Page run 1 layout'), { target: { value: 'a4' } })
+    expected = { ...expected, pageRuns: [{ ...expected.pageRuns![0], pageLayoutId: 'a4' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={changed.mock.lastCall![0]} catalogue={authoringRowCatalogue} onChange={changed} />)
+    fireEvent.change(screen.getByLabelText('Page run 1 master'), { target: { value: 'a4-master' } })
+    expected = { ...expected, pageRuns: [{ ...expected.pageRuns![0], pageMasterId: 'a4-master' }] }
+    expect(changed).toHaveBeenLastCalledWith(expected)
+    rerender(<LayoutAuthoringEditor value={{ ...expected, medium: 'screen' }} catalogue={authoringRowCatalogue} onChange={changed} />)
+    expect(screen.queryByLabelText('Page run 1 layout')).toBeNull()
+    expect(screen.queryByLabelText('Page run 1 master')).toBeNull()
   })
 
   it('layout-auth-13..16: binds a block to any of the five kinds and names it from the catalogue', () => {
@@ -480,7 +637,7 @@ describe('LayoutRuntime React projection', () => {
     expect(screen.getByLabelText('Block 1 kind')).toHaveValue('layout.retired')
   })
 
-  it('authors static content on the block rather than looking it up', () => {
+  it('layout-auth-17: authors static content on the block rather than looking it up', () => {
     const changed = vi.fn()
     render(<LayoutAuthoringEditor value={{ ...emptyLayoutAuthoringDraft(), blocks: [{ id: 'notice', kind: 'layout.table', binding: { kind: 'static', name: '' } }] }} catalogue={{ blockKinds: [{ id: 'layout.table', label: 'Table' }], zones: [] }} onChange={changed} />)
     expect(screen.queryByLabelText('Block 1 binding name')).toBeNull()

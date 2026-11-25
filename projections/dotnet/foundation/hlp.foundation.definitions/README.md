@@ -13,11 +13,14 @@ value (`Reserved`). Shipped values are the api's `PackContentKind` and `PackPill
 emits it; the api adds it at that value when it takes 2.0.0 in (T-584). Reserved today: `AssistanceDefinition` 20.
 
 `Export()` writes `_shared/content-kinds/content-kinds.json`, which is embedded in the
-assembly and packed at the same path for the api to consume. Regenerate it with
-`dotnet run --project tooling/content-kind-export -- _shared/content-kinds/content-kinds.json`;
+assembly and packed at the same path for the api to consume. Regenerate it and the nine
+`*PackIdentity.g.cs` files with
+`dotnet run --project tooling/content-kind-export -- --root .`;
 `VerifyCheckedInExport` fails the tests when it is stale. `PackContentKindDriftArchitectureTests` fails
 when any platform `*PackIdentity` constant, or any `PackContentKind`/`PackPillar` enum, disagrees with
 the registry.
+
+Check all generated identities and the export without writing: `dotnet run --project tooling/content-kind-export -- --root . --check`. Normal builds use the checked-in files and do not run generation. The command returns 0 on success, 1 for drift, and 2 for malformed arguments.
 
 ## Solver refusal detail (T-491)
 
