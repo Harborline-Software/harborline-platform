@@ -12,6 +12,22 @@ const fixtures = JSON.parse(readFileSync(resolve(root, 'conformance/hlp.ui.sched
 const catalogue = { types: [{ id: 'types.asset', label: 'Asset' }], legality: [{ id: 'legality.safety', label: 'Safety rules' }], backends: [{ id: 'prototype.exhaustive-proof.v2', label: 'Prototype', guarantees: ['feasible_proof'] }], modules: [{ id: 'precedence', label: 'Precedence', scope: 'chain' as const }] }
 
 describe('Schedule authoring', () => {
+  // Oracle: literal JSON array positions; holes serialize as null, as required by JSON.stringify.
+  it.each([
+    [1, '[null]', '[\n  null\n]'],
+    [2, '[null,null]', '[\n  null,\n  null\n]'],
+  ])('fallback serializer preserves sparse array holes: %s', (length, compact, indented) => {
+    const raw = Object.getOwnPropertyDescriptor(JSON, 'rawJSON')!
+    try {
+      Object.defineProperty(JSON, 'rawJSON', { ...raw, value: undefined })
+      const value = new Array(Number(length))
+      expect(scheduling.stringifyScheduleBody(value)).toBe(compact)
+      expect(scheduling.stringifyScheduleBody(value, 2)).toBe(indented)
+    } finally {
+      Object.defineProperty(JSON, 'rawJSON', raw)
+    }
+  })
+
   // Oracle: literal producer JSON, exact JSON number grammar and the existing numeric-input normalization rule.
   it.each(['no rawJSON', 'no source text', 'neither'])('preserves exact JSON without native support: %s', mode => {
     const nativeParse = JSON.parse

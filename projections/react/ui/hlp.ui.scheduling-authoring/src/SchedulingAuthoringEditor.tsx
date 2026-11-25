@@ -74,7 +74,7 @@ export function stringifyScheduleBody(value: ScheduleJson | undefined, space = 0
     if (ancestors.has(current)) throw new TypeError('Schedule JSON must not contain cycles.')
     ancestors.add(current)
     const array = Array.isArray(current)
-    const parts = array ? current.map(child => encode(child, depth + 1) ?? 'null')
+    const parts = array ? Array.from(current, child => encode(child, depth + 1) ?? 'null')
       : Object.entries(current).filter(([, child]) => child !== undefined).map(([key, child]) => `${JSON.stringify(key)}:${indent ? ' ' : ''}${encode(child, depth + 1)}`)
     ancestors.delete(current)
     const open = array ? '[' : '{'; const close = array ? ']' : '}'
