@@ -207,6 +207,43 @@ public sealed class RecordReferenceWriteTests
     }
 
     [Fact]
+    public async Task records_ck_12_total_row_budget_accumulates_across_ancestor_responses()
+    {
+        using var f = await Fixture.Create();
+        var seed = Created(await f.CreateRow("seed"));
+        var row = (await f.Store.FindAsync(Tenant, seed.Receipt.RecordId))!;
+        var responses = new List<string>();
+        // T-615 scoping item 5: 1,000 ancestor rows across the whole walk, not per response.
+        // Three shallow responses read 333 + 333 + 334 rows (including superseded rows),
+        // each yielding one latest-knowledge piece. No response alone reaches the bound.
+        var port = new ReferencePort(row, (id, from, to) =>
+        {
+            responses.Add(id);
+            var (count, next) = id switch
+            {
+                "first" => (333, "second"),
+                "second" => (333, "third"),
+                "third" => (334, (string?)null),
+                _ => throw new InvalidOperationException("Unexpected ancestor in the literal fixture."),
+            };
+            var body = Fixture.Body(next);
+            return new(true, count, [new(row with
+                { RecordId = id, Body = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(body) }, from, to)]);
+        });
+
+        var result = await f.Compose(port).CreateAsync(new(Tenant, "writer"), new(Type, "accumulated-rows", Fixture.Body("first")));
+
+        Assert.Equal(new[] { "first", "second", "third" }, responses);
+        Assert.False(result.Committed);
+        Assert.Null(result.Receipt);
+        Assert.NotNull(result.Refusal);
+        Assert.Equal("validate", result.Refusal.Stage);
+        Assert.Equal("records.reference.parent_depth_exceeded", result.Refusal.Code);
+        Assert.Equal(["/parent"], result.Refusal.Pointers);
+        Assert.Equal(0, port.Commits);
+    }
+
+    [Fact]
     public async Task records_ck_10_a_transaction_without_a_reference_reader_fails_closed()
     {
         using var f = await Fixture.Create();
