@@ -437,21 +437,23 @@ public sealed record FormAcceptedCommandRevocation(FormAcceptedCommandRevocation
 public sealed record FormAcceptedCommandRevocationQuery(TenantId Tenant, string SubmitterId, FormAcceptedRecordCommand Command);
 
 /// <summary>
-/// ADR-0110 open item 6, the owner's ruling of 2026-11-07: the host's record of revocations, each with its reason. A
-/// compromise or a tenant suspension that took effect at or before the command's claim (the cancel/execute fence, open item 1)
-/// ends the command as an audited terminal refusal, as a won cancel does; one after the claim leaves the command to run and
-/// its result stands (any undo is decision 5's authorized amend or delete). An ordinary revocation never refuses (decision 3).
-/// A conforming host answers every revocation of the submitter's authority in the tenant, and the tenant's suspension, that
-/// took effect at or before the claim; a failure is thrown and the command stays pending. Whether the host's revocations
-/// join the claim's fence atomically is the host adapter's responsibility (T-619, R-0229). A fenced host refuses a
-/// winning revocation atomically while Pending; for a valid claim this lookup returns the retained decision (empty),
-/// including after restart. It must not return current revocations filtered by audit timestamps to reconstruct order.
-/// The legacy timestamp filter below is not a fence witness. Without the port no revocation is known and every accepted
-/// command runs as decision 3 has it; host enablement stays held until a host supplies it.
+/// The host's retained revocation decision for one claimed command (R-0229, ADR-0110 open items 2 and 6).
+/// Revocation checking and the durable claim commit share one fenced write; commit order at that fence decides,
+/// and timestamps are audit evidence only. A winning compromise or tenant suspension refuses the pending command
+/// atomically in the claim call. A valid claim retains its decision and evidence; this lookup returns no winning
+/// revocations for it, including after restart, rather than reconstructing applicability from current revocation clocks.
+/// A compromise or suspension committed after a valid claim leaves the command to run; after the fence, the result stands.
+/// Any undo is a separately authorized amend or delete. Ordinary revocations do not re-decide an accepted command.
+/// For a conforming host the revocation branch of resumed-claim quarantine is unreachable; binding-failure and
+/// Records-refusal quarantine remain applicable.
+/// The compatibility consumer still ignores ordinary rows and filters returned revocations by RevokedAt at or before
+/// the claim instant: it refuses a newly claimed command or quarantines a resumed claim. That filter is not proof of
+/// fence order. A lookup failure leaves the command pending. Without this port no revocation is known; host enablement
+/// remains held until the host supplies the required fenced adapter.
 /// </summary>
 public interface IFormAcceptedCommandRevocations
 {
-    /// <summary>Returns the revocations that affect <paramref name="query"/>'s command; empty when there are none.</summary>
+    /// <summary>Returns retained winning revocations for <paramref name="query"/>; empty for a valid fenced claim.</summary>
     ValueTask<IReadOnlyList<FormAcceptedCommandRevocation>> FindAsync(FormAcceptedCommandRevocationQuery query, CancellationToken cancellationToken = default);
 }
 

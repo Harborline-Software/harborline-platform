@@ -47,26 +47,42 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             await store.ReleaseProjectionLeaseAsync(leased.OutboxId);
             var commands = (IFormAcceptedCommandStore)store;
             var revocationAt = Now.AddMinutes(skewMinutes);
+            var currentRevocation = new FormAcceptedCommandRevocation(FormAcceptedCommandRevocationReason.Compromise, revocationAt);
             var audit = new KernelAuditEvidence("fence-refusal", "sys.forms-worker", revocationAt,
-                "{\"op\":\"accepted-command-refused\",\"code\":\"records.command.revoked_compromise\",\"after_claim\":false}"u8.ToArray())
+                JsonSerializer.SerializeToUtf8Bytes(new
+                {
+                    op = "accepted-command-refused",
+                    command_id = leased.OutboxId,
+                    operation_id = receipt.InstanceId.ToString(),
+                    record_type_id = "notes.entry",
+                    code = "records.command.revoked_compromise",
+                    after_claim = false,
+                }))
                 { AuthoritySnapshot = "host-fence-refusal"u8.ToArray() };
             if (!revocationFirst)
             {
                 Assert.True((await commands.ClaimAcceptedCommandAsync(commandId, Worker, Now))!.Changed);
                 Assert.False((await commands.RefuseAcceptedCommandAsync(commandId, FormAcceptedCommandState.Pending,
                     "records.command.revoked_compromise", audit))!.Changed);
+                // The current revocation committed after the valid claim, even when its audit clock is earlier.
+                var beforeRestart = (await commands.GetAcceptedCommandAsync(Tenant, commandId))!;
+                Assert.Empty(await new RetainedDecisionSink(currentRevocation).FindAsync(new(Tenant, "alice", beforeRestart)));
             }
             (store as IDisposable)?.Dispose();
             store = Open();
             commands = (IFormAcceptedCommandStore)store;
             var retained = (await commands.GetAcceptedCommandAsync(Tenant, commandId))!;
             Assert.Equal(revocationFirst ? FormAcceptedCommandState.Pending : FormAcceptedCommandState.Claimed, retained.State);
-            if (!revocationFirst) AssertClaimEvidence(retained);
+            if (!revocationFirst)
+            {
+                AssertClaimEvidence(retained);
+                Assert.Empty(await new RetainedDecisionSink(currentRevocation).FindAsync(new(Tenant, "alice", retained)));
+            }
             Assert.Equal(ExpectedAcceptanceSnapshot(), retained.AcceptanceSnapshot.ToArray());
 
-            // A conforming host looks up the retained claim outcome. Current revocations are deliberately unavailable:
-            // they cannot re-decide this command. This port has no clock comparison or synthetic order counter.
-            var sink = new RetainedDecisionSink();
+            // The host has a current revocation with an independently skewed audit clock, but reads the durable
+            // claim-time decision. It must not return a later-committed revocation for an already valid claim.
+            var sink = new RetainedDecisionSink(currentRevocation);
             // Keep the row pending until the consumer claims it. The fixture then returns the host's audited refusal.
             var refusingStore = new RefusingClaimStore(store, audit);
             var worker = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(new Decider()),
@@ -88,7 +104,17 @@ public sealed class FormAcceptedCommandFenceHandoffTests
                 var refusalAudit = Assert.Single(audits, entry => entry.AuditId == "fence-refusal");
                 Assert.Equal("sys.forms-worker", refusalAudit.ActorId);
                 Assert.Equal(Now.AddMinutes(skewMinutes), refusalAudit.RecordedAt);
-                Assert.Equal("{\"op\":\"accepted-command-refused\",\"code\":\"records.command.revoked_compromise\",\"after_claim\":false}"u8.ToArray(), refusalAudit.Payload.ToArray());
+                // Frozen interface revision 16, M1: all six lifecycle-audit members, including false after_claim.
+                // Literal member names/values come from the contract; identity binding uses the accepted receipt/outbox.
+                using var refusalPayload = JsonDocument.Parse(refusalAudit.Payload);
+                var payload = refusalPayload.RootElement;
+                Assert.Equal(6, payload.EnumerateObject().Count());
+                Assert.Equal("accepted-command-refused", payload.GetProperty("op").GetString());
+                Assert.Equal(leased.OutboxId, payload.GetProperty("command_id").GetString());
+                Assert.Equal(receipt.InstanceId.ToString(), payload.GetProperty("operation_id").GetString());
+                Assert.Equal("notes.entry", payload.GetProperty("record_type_id").GetString());
+                Assert.Equal("records.command.revoked_compromise", payload.GetProperty("code").GetString());
+                Assert.False(payload.GetProperty("after_claim").GetBoolean());
                 Assert.Equal("host-fence-refusal"u8.ToArray(), refusalAudit.AuthoritySnapshot.ToArray());
                 Assert.Equal("sys.forms-worker", settled.StateActorId);
                 Assert.Equal(Now.AddMinutes(skewMinutes), settled.StateChangedAt);
@@ -96,6 +122,9 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             else
             {
                 AssertClaimEvidence(settled);
+                Assert.Equal(FormAcceptedCommandState.Completed, settled.State);
+                Assert.Null(settled.RefusalCode); // No revocation quarantine, irrespective of either audit clock.
+                Assert.Single(sink.Records.Records);
                 Assert.Equal(ExpectedAcceptanceSnapshot(), Assert.Single(audits).AuthoritySnapshot.ToArray());
             }
             Assert.Equal(ExpectedAcceptanceSnapshot(), settled.AcceptanceSnapshot.ToArray());
@@ -192,8 +221,11 @@ public sealed class FormAcceptedCommandFenceHandoffTests
     private static byte[] ExpectedAcceptanceSnapshot() =>
         """{"tenant":"tenant-engine","principal":"alice","version":2,"steps":[{"ordinal":1,"stage":"act","facts":["kind:Gate","act:forms:submit-gate","target:form/inspection@1.0.0","principal:alice","tenant:tenant-engine","at:2026-08-08T12:00:00.0000000\u002B00:00"]},{"ordinal":2,"stage":"effective-roles","facts":["roles:none","deciding:grant:fixture@1"]},{"ordinal":3,"stage":"standings","facts":["standings:none"]},{"ordinal":4,"stage":"verdict","facts":["verdict:allowed","refusal:None","version:2"]}]}"""u8.ToArray();
 
-    private sealed class RetainedDecisionSink : IFormProjectionSink, IFormAcceptedRecordBodies, IFormAcceptedCommandRevocations
+    private sealed class RetainedDecisionSink(FormAcceptedCommandRevocation? currentRevocation = null)
+        : IFormProjectionSink, IFormAcceptedRecordBodies, IFormAcceptedCommandRevocations
     {
+        // Current host state is deliberately separate from the persisted valid-claim decision in the query.
+        internal FormAcceptedCommandRevocation? CurrentRevocation { get; } = currentRevocation;
         internal RecordsSink Records { get; } = new();
         internal int Lookups { get; private set; }
         internal bool DenyWorker { get; set; }
@@ -213,6 +245,7 @@ public sealed class FormAcceptedCommandFenceHandoffTests
         {
             Lookups++;
             Assert.Equal(FormAcceptedCommandState.Claimed, query.Command.State);
+            // The durable Claimed row is the retained valid decision. CurrentRevocation cannot invalidate it.
             return ValueTask.FromResult<IReadOnlyList<FormAcceptedCommandRevocation>>([]);
         }
     }

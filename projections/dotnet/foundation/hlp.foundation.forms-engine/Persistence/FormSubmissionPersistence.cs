@@ -306,8 +306,11 @@ public interface IFormAcceptedCommandStore
     /// its validity decision and evidence durably; neither audit timestamp establishes order. On recovery the host returns
     /// that same decision, and its revocation port reads the retained decision, not current revocations. The built-in stores
     /// supply lifecycle contract fixtures; they do not implement the API's grant database or its production fence.
-    /// A command already claimed is returned unchanged (an interrupted execution is executed again); a completed,
-    /// refused or cancelled command is returned unchanged and must not be executed. Null when no such command exists.
+    /// Returns Claimed with Changed true when this call durably claims Pending, or Refused with Changed true when this
+    /// call atomically refuses Pending with its audit. An existing Claimed command returns unchanged with Changed false
+    /// and may be resumed. Existing Completed, Refused, Cancelled or Quarantined commands return unchanged with Changed
+    /// false and must not be executed. Null when no such command exists. Execution eligibility is determined by the
+    /// returned state, not Changed alone; Changed reports only whether this call made the durable transition.
     /// </summary>
     ValueTask<FormAcceptedCommandTransition?> ClaimAcceptedCommandAsync(string commandId, string workerId, DateTimeOffset at, CancellationToken cancellationToken = default);
 
