@@ -1,0 +1,77 @@
+{
+  "producerSha": "8e0d3cd99aa502e216fd78d1b6743994f592939d",
+  "producerTree": "b327192de32bead0732f7e582690a8da7a747424",
+  "target": "projections/dotnet/blocks/hlp.blocks.scheduling/Definitions/ScheduleDefinitionAdmission.cs",
+  "targetSha256": "de0736d5309b5ce98e9a9b5129016601943efd97a64d977526241daec2380452",
+  "test": "projections/dotnet/blocks/hlp.blocks.scheduling.tests/ScheduleDurationAdmissionProofTests.cs",
+  "testSha256": "3528aafd4faf115b13a3dbe83974466c5cbf04d4269a96cb93076bff9a20bdc6",
+  "fixtureInputs": "inline literals only",
+  "sdk": "11.0.100",
+  "command": "DOTNET_CLI_USE_MSBUILD_SERVER=0 MSBUILDDISABLENODEREUSE=1 bash <CONTROL>/tools/ci/host-lane.sh run --holder writer --session mb-491-duration-fix --workload <workload> --candidate 8e0d3cd99aa502e216fd78d1b6743994f592939d -- dotnet test projections/dotnet/blocks/hlp.blocks.scheduling.tests/Harborline.Blocks.Scheduling.Tests.csproj -c Release --filter FullyQualifiedName~ScheduleDurationAdmissionProofTests -m:1 -nr:false",
+  "baseline": {
+    "exit": 0,
+    "passed": 15,
+    "failed": 0,
+    "skipped": 0,
+    "logSha256": "8ccf1de4a9f266871b204a5b28760d9e2bd0b591f6e7053824748186b76a7e1b"
+  },
+  "mutants": [
+    {
+      "id": "M1",
+      "line": 185,
+      "before": "CultureInfo.InvariantCulture) * 7}D",
+      "after": "CultureInfo.InvariantCulture) * 6}D",
+      "detectingAssertion": "scheduling_ck_25_duration_admission_ticks: Assert.Equal",
+      "exit": 1,
+      "failed": 3,
+      "passed": 12,
+      "skipped": 0,
+      "logSha256": "f0d2dfc410df970723014e4e31eb7bbef740dea10023393656b6d97478423e34",
+      "restored": {
+        "exit": 0,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "87231aef14fa08be8e1b1e0b8f25ab3962ffbf5f051e1830ef92a28dc29392aa"
+      }
+    },
+    {
+      "id": "M2",
+      "line": 182,
+      "before": " || value.Any(char.IsWhiteSpace)",
+      "after": "",
+      "detectingAssertion": "scheduling_ck_25_duration_admission_rejects_invalid_spelling: Assert.Null",
+      "exit": 1,
+      "failed": 2,
+      "passed": 13,
+      "skipped": 0,
+      "logSha256": "e44f0604e21076c615046f385e50bf499ae724f6b9d6df9a87025fd1601c9820",
+      "restored": {
+        "exit": 0,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "bf99dba230869732b9a32b24779077b7b103e0f9445ccf7249365841167a91e8"
+      }
+    },
+    {
+      "id": "M3",
+      "line": 172,
+      "before": "duration < TimeSpan.Zero",
+      "after": "duration < TimeSpan.MinValue",
+      "detectingAssertion": "scheduling_ck_25_duration_admission_refuses_negative_offset_and_accepts_correction: Assert.Single",
+      "exit": 1,
+      "failed": 1,
+      "passed": 14,
+      "skipped": 0,
+      "logSha256": "4b913f97c8b624d8f6e8add981b9cbca5a8df82023f9a4d091b7eef91ca41593",
+      "restored": {
+        "exit": 0,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "logSha256": "622fb14e2484a08afac3840ea703372cce9ba81c49acc3212c4469caf680dcb2"
+      }
+    }
+  ]
+}
