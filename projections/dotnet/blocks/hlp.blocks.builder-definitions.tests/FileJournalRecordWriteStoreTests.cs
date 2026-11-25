@@ -80,7 +80,11 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         await Assert.ThrowsAnyAsync<ArgumentException>(() => transaction.StageRecordAsync(invalid).AsTask());
 
         Assert.Equal(before, File.ReadAllBytes(PathName));
-        // The prepared transaction now owns the single write lock; its reader sees only committed rows.
+        var reopened = new FileJournalRecordWriteStore(PathName);
+        Assert.Equal("record-1", (await reopened.FindAsync(Key()))!.Receipt!.RecordId);
+        Assert.Null(await reopened.FindAsync(nextKey));
+
+        // Reference reads take the write lock and see only committed rows.
         var reader = Assert.IsAssignableFrom<IRecordReferenceTransaction>(transaction);
         Assert.Equal("record-1", (await reader.FindReferenceAsync(Tenant, "record-1"))!.RecordId);
         Assert.Null(await reader.FindReferenceAsync(Tenant, "record-2"));
@@ -90,7 +94,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         await transaction.StageAuditAsync(new("audit-2", "worker", At, new byte[] { 0, 255, 7 })
         { AuthoritySnapshot = new byte[] { 1, 2, 3 }, OriginatorId = "alice" });
         Assert.Equal(RecordWriteCommitDisposition.Created, (await transaction.CommitAsync()).Disposition);
-        var reopened = new FileJournalRecordWriteStore(PathName);
+        reopened = new FileJournalRecordWriteStore(PathName);
         Assert.Equal("record-1", (await reopened.FindAsync(Key()))!.Receipt!.RecordId);
         var stored = await reopened.FindAsync(nextKey);
         Assert.NotNull(stored);
@@ -130,6 +134,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
     {
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await Stage(store, Key());
+        Assert.Null(await new FileJournalRecordWriteStore(PathName).FindAsync(Key()));
         Assert.Null(await ((IRecordReferenceTransaction)transaction).FindReferenceAsync(Tenant, "record-1"));
         Assert.False(File.Exists(PathName));
         var result = await transaction.CommitAsync();

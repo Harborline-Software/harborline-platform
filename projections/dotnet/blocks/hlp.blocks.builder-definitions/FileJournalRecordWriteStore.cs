@@ -111,11 +111,11 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     /// <inheritdoc />
     public bool HasAuthorityClock => _authorityClock is not null;
 
-    async ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>
+    ValueTask<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>
         IKernelPreparedTransactionPort<RecordTemporalWrite, RecordTemporalCommit>.BeginAsync(CancellationToken cancellationToken)
     {
-        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
-        return new TemporalTransaction(this);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<IKernelPreparedTransaction<RecordTemporalWrite, RecordTemporalCommit>>(new TemporalTransaction(this));
     }
 
     /// <inheritdoc />
@@ -562,10 +562,10 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
     }
 
     /// <inheritdoc />
-    public async ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
+    public ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
     {
-        await Mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
-        return new Transaction(this);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>>(new Transaction(this));
     }
 
     /// <inheritdoc />
@@ -1006,13 +1006,33 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         public override void Write(Utf8JsonWriter writer, SchemaId value, JsonSerializerOptions options) => writer.WriteStringValue(value.Value);
     }
 
-    // The prepared transaction owns Mutation, from Begin through commit/rollback. These reads do not
-    // acquire it again. ADR-0162 D1 / DES-0015 records-ck-31 and section 10 require one stable effective graph.
-    private sealed class ReferenceReader(FileJournalRecordWriteStore owner)
+    // Staging alone leaves public reads free to observe committed rows. Take Mutation at the first
+    // reference read (or at commit for writes without references) and hold it until commit or rollback.
+    // ADR-0162 D1 / DES-0015 records-ck-31 and section 10 require one stable effective graph through publication.
+    private sealed class TransactionJournal(FileJournalRecordWriteStore owner)
     {
+        private bool _ownsMutation;
         private List<Entry>? _entries;
+
+        public async ValueTask AcquireAsync(CancellationToken ct)
+        {
+            if (_ownsMutation) return;
+            await Mutation.WaitAsync(ct).ConfigureAwait(false);
+            _ownsMutation = true;
+        }
+
+        public void Release()
+        {
+            if (!_ownsMutation) return;
+            _ownsMutation = false;
+            Mutation.Release();
+        }
+
         private async ValueTask<List<Entry>> EntriesAsync(CancellationToken ct)
-            => _entries ??= await owner.LoadForCurrentReadAsync(ct).ConfigureAwait(false);
+        {
+            await AcquireAsync(ct).ConfigureAwait(false);
+            return _entries ??= await owner.LoadForCurrentReadAsync(ct).ConfigureAwait(false);
+        }
 
         public async ValueTask<RecordWriteRow?> FindAsync(string tenant, string id, CancellationToken ct)
         {
@@ -1067,24 +1087,17 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         private RecordTemporalWrite? _write;
         private KernelAuditEvidence? _audit;
         private bool _finished;
-        private readonly ReferenceReader _references = new(owner);
-        private bool _released;
-        private void Release()
-        {
-            if (_released) return;
-            _released = true;
-            Mutation.Release();
-        }
+        private readonly TransactionJournal _journal = new(owner);
         public ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
-            return _references.FindAsync(tenant, recordId, cancellationToken);
+            return _journal.FindAsync(tenant, recordId, cancellationToken);
         }
         public ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
             DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
-            return _references.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
+            return _journal.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
         }
 
         private void Open(CancellationToken ct)
@@ -1144,8 +1157,12 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             if (_operation is null || _write is null || _audit is null)
                 throw new InvalidOperationException("Records temporal transaction is incomplete.");
             _finished = true;
-            try { return await owner.CommitTemporalAsync(_operation, _write, _audit, cancellationToken).ConfigureAwait(false); }
-            finally { _operation = null; _write = null; _audit = null; Release(); }
+            try
+            {
+                await _journal.AcquireAsync(cancellationToken).ConfigureAwait(false);
+                return await owner.CommitTemporalAsync(_operation, _write, _audit, cancellationToken).ConfigureAwait(false);
+            }
+            finally { _operation = null; _write = null; _audit = null; _journal.Release(); }
         }
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
@@ -1154,7 +1171,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             _operation = null;
             _write = null;
             _audit = null;
-            Release();
+            _journal.Release();
             return ValueTask.CompletedTask;
         }
 
@@ -1167,24 +1184,17 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
         private RecordWriteRow? _row;
         private KernelAuditEvidence? _audit;
         private bool _finished;
-        private readonly ReferenceReader _references = new(owner);
-        private bool _released;
-        private void Release()
-        {
-            if (_released) return;
-            _released = true;
-            Mutation.Release();
-        }
+        private readonly TransactionJournal _journal = new(owner);
         public ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
-            return _references.FindAsync(tenant, recordId, cancellationToken);
+            return _journal.FindAsync(tenant, recordId, cancellationToken);
         }
         public ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
             DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default)
         {
             Open(cancellationToken);
-            return _references.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
+            return _journal.HistoryAsync(tenant, recordId, from, to, rowBudget, cancellationToken);
         }
 
         private void Open(CancellationToken ct)
@@ -1231,8 +1241,12 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             if (_operation is null || _row is null || _audit is null)
                 throw new InvalidOperationException("Records transaction is incomplete.");
             _finished = true;
-            try { return await owner.CommitAsync(_operation, _row, _audit, cancellationToken).ConfigureAwait(false); }
-            finally { _operation = null; _row = null; _audit = null; Release(); }
+            try
+            {
+                await _journal.AcquireAsync(cancellationToken).ConfigureAwait(false);
+                return await owner.CommitAsync(_operation, _row, _audit, cancellationToken).ConfigureAwait(false);
+            }
+            finally { _operation = null; _row = null; _audit = null; _journal.Release(); }
         }
 
         public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
@@ -1241,7 +1255,7 @@ public sealed class FileJournalRecordWriteStore : IKernelPreparedTransactionPort
             _operation = null;
             _row = null;
             _audit = null;
-            Release();
+            _journal.Release();
             return ValueTask.CompletedTask;
         }
 

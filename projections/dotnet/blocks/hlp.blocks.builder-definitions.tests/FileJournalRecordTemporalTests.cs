@@ -409,7 +409,7 @@ public sealed class FileJournalRecordTemporalTests
         var first = Committed(await fixture.CreateEvent());
         fixture.AuthorityClock.Now = GateAt.AddDays(-1);
         var arrivals = 0;
-        // Prepare is now serialized with commit. Compete before entering that lock, not while holding it.
+        // Start both amendments from the same basis before either can reach the journal.
         var bothAuthorized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         fixture.Access.BeforeDecision = async ct =>
         {
