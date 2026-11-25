@@ -46,6 +46,8 @@ public static class ScheduleDefinitionCodes
     public const string WindowInvalid = "scheduling.definition.window_invalid";
     /// <summary>A generator is missing a member or breaks its own rules.</summary>
     public const string BasisInvalid = "scheduling.definition.basis_invalid";
+    /// <summary>The authored generator is outside the four declared generators.</summary>
+    public const string BasisUnsupported = "scheduling.definition.basis_unsupported";
     /// <summary>A duration is not a non-negative ISO 8601 duration.</summary>
     public const string DurationInvalid = "scheduling.definition.duration_invalid";
     /// <summary>The escalation does not name who it goes to.</summary>
@@ -235,6 +237,17 @@ public sealed class ScheduleDefinitionCatalogue
         else if (body.ContainsKey("solver") && body["solver"] is not null)
             refusals.Add(new("scheduling.definition.solver_invalid", "/solver"));
         if (refusals.Count > 0) return refusals;
+        if (body["basis"] is JsonObject basis && basis["kind"] is JsonValue kind
+            && kind.TryGetValue<string>(out var generator)
+            && generator is not ("completion_offset" or "event_anchored_chain" or "fixed_calendar" or "threshold"))
+            return [new(ScheduleDefinitionCodes.BasisUnsupported, "/basis/kind")
+            {
+                Detail = new()
+                {
+                    ["observed"] = generator,
+                    ["required"] = new JsonArray("completion_offset", "event_anchored_chain", "fixed_calendar", "threshold"),
+                },
+            }];
         ScheduleDefinition definition;
         try
         {
@@ -247,16 +260,28 @@ public sealed class ScheduleDefinitionCatalogue
         return ScheduleDefinitionAdmission.Validate(definition, document, phase, PlatformPackageSeed.ContractWindow);
     }
 
-    // The store has already parsed the body; a duplicate member is the one shape JsonObject still refuses.
+    // Direct admission can bypass store parsing; materialize lazy members here so duplicate keys also refuse.
     private static JsonObject? Parse(string json)
     {
         try
         {
             var body = JsonNode.Parse(json) as JsonObject;
-            _ = body?.Count;
+            Materialize(body);
             return body;
         }
-        catch (ArgumentException) { return null; }
+        catch (Exception exception) when (exception is JsonException or ArgumentException) { return null; }
+
+        static void Materialize(JsonNode? node)
+        {
+            if (node is JsonObject obj)
+            {
+                foreach (var member in obj) Materialize(member.Value);
+            }
+            else if (node is JsonArray array)
+            {
+                foreach (var item in array) Materialize(item);
+            }
+        }
     }
 
     // L491's integer revision is refused wherever a body still carries it; a repeated semantic version must agree.

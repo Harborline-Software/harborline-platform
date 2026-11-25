@@ -74,6 +74,11 @@ internal static class RecordTemporalJournalBinding
         output.OptionalTime(temporal.EffectiveTo);
         output.Optional(temporal.Reason, output.Text);
         output.Time(temporal.AuthorityRecordedAt);
+        if (row.DelegatedActor is not null || audit.DelegatedActor is not null)
+        {
+            output.Optional(row.DelegatedActor, actor => { output.Text(actor.DefinitionKey); output.Text(actor.DefinitionVersion); });
+            output.Optional(audit.DelegatedActor, actor => { output.Text(actor.DefinitionKey); output.Text(actor.DefinitionVersion); });
+        }
         return output.Bytes();
     }
 

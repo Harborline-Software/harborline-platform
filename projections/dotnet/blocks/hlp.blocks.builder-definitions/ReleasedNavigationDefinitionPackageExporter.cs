@@ -4,16 +4,9 @@ using System.Text.Json;
 namespace Harborline.Blocks.BuilderDefinitions;
 
 /// <summary>The additive wire identities for DES-0052 layout-eng-24's released navigation producer.</summary>
-public static class ReleasedNavigationPackIdentity
+public static partial class ReleasedNavigationPackIdentity
 {
-    /// <summary>
-    /// Content kind 21, reserved in <c>PackContentKindRegistry</c>: the next free value after Assistance's 20
-    /// (owner ruling, 2026-09-29). 18 is the api's <c>Resource</c> and was a collision (T-738).
-    /// </summary>
-    public const int ContentKind = 21;
 
-    /// <summary>The Navigation pillar, 3. 13 is Booking's and was a collision (T-738).</summary>
-    public const int Primitive = 3;
 }
 
 /// <summary>A provider-neutral released-navigation entry selected by the shared catalogue.</summary>

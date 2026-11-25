@@ -102,12 +102,37 @@ public sealed class ScheduleDefinitionTests
     }
 
     [Theory(DisplayName = "scheduling-ck-4, scheduling-auth-2: a generator outside the four, none named, or two at once refuses")]
-    [InlineData("""{"kind":"weekly","rrule":"x"}""")]
+    [InlineData("""{"kind":"weekly","rrule":"x"}""", true)]
     [InlineData("""{"rrule":"x"}""")]
+    [InlineData("""{"kind":17}""")]
     [InlineData("""{"kind":"fixed_calendar","rrule":"x","offset":"P1D"}""")]
     [InlineData("""[{"kind":"fixed_calendar","rrule":"x"},{"kind":"completion_offset","offset":"P1D"}]""")]
-    public async Task OnlyOneOfTheFourGeneratorsIsAdmitted(string basis)
-        => Assert.Equal([new DefinitionRefusal(ScheduleDefinitionCodes.BodyInvalid, "")], await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}""")));
+    public async Task OnlyOneOfTheFourGeneratorsIsAdmitted(string basis, bool unsupported = false)
+    {
+        // Oracle: T-491/generator-refusal-detail weekly row and preserved malformed-shape contract.
+        var expected = unsupported
+            ? new DefinitionRefusal("scheduling.definition.basis_unsupported", "/basis/kind")
+            {
+                Detail = System.Text.Json.Nodes.JsonNode.Parse("""{"observed":"weekly","required":["completion_offset","event_anchored_chain","fixed_calendar","threshold"]}""")!.AsObject(),
+            }
+            : new DefinitionRefusal("scheduling.definition.body_invalid", "");
+        Assert.Equal(expected, Assert.Single(await RefusalsAsync(Body("\"" + $$"""basis":{{basis}},"window":{{Offsets}}"""))));
+    }
+
+    [Theory(DisplayName = "scheduling-auth-17: duplicate basis members refuse as an invalid body in every admission phase")]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Author)]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Publish)]
+    [InlineData("""{"basis":{"kind":"unsupported_generator","kind":"fixed_calendar","rrule":"FREQ=DAILY"}}""", DefinitionAdmissionPhase.Install)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Author)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Publish)]
+    [InlineData("""{"basis":{"kind":"fixed_calendar","rrule":"FREQ=DAILY","rrule":"FREQ=WEEKLY"}}""", DefinitionAdmissionPhase.Install)]
+    public void DuplicateBasisMembersRefuse(string body, DefinitionAdmissionPhase phase)
+    {
+        // Oracle: malformed-body contract (NonObjectBodyRefuses), DES-0014 C3.
+        var document = new DefinitionDocument(Key, "inspection.quarterly@1.0.0", "1.0.0", body);
+        Assert.Equal([new DefinitionRefusal("scheduling.definition.body_invalid", "")],
+            ScheduleDefinitionCatalogue.Admission(document, phase));
+    }
 
     [Theory(DisplayName = "scheduling-ck-4: a generator missing what it needs refuses at its member")]
     [InlineData("""{"kind":"fixed_calendar"}""", "scheduling.definition.basis_invalid", "/basis/rrule")]
