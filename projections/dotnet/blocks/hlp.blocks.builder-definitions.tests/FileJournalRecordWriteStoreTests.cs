@@ -84,6 +84,11 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         Assert.Equal("record-1", (await reopened.FindAsync(Key()))!.Receipt!.RecordId);
         Assert.Null(await reopened.FindAsync(nextKey));
 
+        // Reference reads take the write lock and see only committed rows.
+        var reader = Assert.IsAssignableFrom<IRecordReferenceTransaction>(transaction);
+        Assert.Equal("record-1", (await reader.FindReferenceAsync(Tenant, "record-1"))!.RecordId);
+        Assert.Null(await reader.FindReferenceAsync(Tenant, "record-2"));
+
         // The refused row never occupied _row: a lawful stage in this same transaction still works.
         await transaction.StageRecordAsync(lawful);
         await transaction.StageAuditAsync(new("audit-2", "worker", At, new byte[] { 0, 255, 7 })
@@ -130,6 +135,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         var store = new FileJournalRecordWriteStore(PathName);
         await using var transaction = await Stage(store, Key());
         Assert.Null(await new FileJournalRecordWriteStore(PathName).FindAsync(Key()));
+        Assert.Null(await ((IRecordReferenceTransaction)transaction).FindReferenceAsync(Tenant, "record-1"));
         Assert.False(File.Exists(PathName));
         var result = await transaction.CommitAsync();
         Assert.Equal(RecordWriteCommitDisposition.Created, result.Disposition);
@@ -206,9 +212,14 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
     [Fact]
     public async Task two_concurrent_first_writers_in_separate_instances_create_one_record()
     {
-        await using var first = await Stage(new FileJournalRecordWriteStore(PathName), Key(), "first");
-        await using var second = await Stage(new FileJournalRecordWriteStore(PathName), Key(), "second");
-        var results = await Task.WhenAll(Task.Run(() => first.CommitAsync().AsTask()), Task.Run(() => second.CommitAsync().AsTask()));
+        var firstStore = new FileJournalRecordWriteStore(PathName);
+        var secondStore = new FileJournalRecordWriteStore(PathName);
+        async Task<RecordWriteCommit> Write(FileJournalRecordWriteStore store, string id)
+        {
+            await using var transaction = await Stage(store, Key(), id);
+            return await transaction.CommitAsync();
+        }
+        var results = await Task.WhenAll(Task.Run(() => Write(firstStore, "first")), Task.Run(() => Write(secondStore, "second")));
         Assert.Single(results, result => result.Disposition == RecordWriteCommitDisposition.Created);
         Assert.Single(results, result => result.Disposition == RecordWriteCommitDisposition.Replayed);
         Assert.Single(Journal()["Entries"]!.AsArray());
@@ -468,6 +479,7 @@ public sealed class FileJournalRecordWriteStoreTests : IDisposable
         if (omitted != "audit") await transaction.StageAuditAsync(new("audit-1", "worker", At, ReadOnlyMemory<byte>.Empty));
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => transaction.CommitAsync().AsTask());
         Assert.Equal("Records transaction is incomplete.", error.Message);
+        await transaction.RollbackAsync();
         Assert.Null(await new FileJournalRecordWriteStore(PathName).FindAsync(Key()));
         Assert.False(File.Exists(PathName));
     }

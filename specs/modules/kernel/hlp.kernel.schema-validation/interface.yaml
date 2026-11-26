@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.kernel.schema-validation",
-  "interfaceRevision": 3,
+  "interfaceRevision": 4,
   "status": "frozen",
   "purpose": "Register content-addressed JSON Schema draft 2020-12 documents and validate Dynamic Forms payloads with bounded, stable, field-addressable failures without importing schema migration, federation, blob, epoch, or compaction concerns.",
   "dependencies": ["hlp.contracts.fields", "hlp.contracts.identities"],
   "types": {
+    "RecordReferenceEligibility.Admits": "Pure shared predicate: exactly one target type or Class, exact ordinal identity/membership and optional required_trait_id declared by the concrete target type (DES-0015 records-eng-16, records-auth-34; ADR-0054).",
     "SchemaId": "non-empty content-derived string",
     "Schema": ["Id", "JsonSchemaText", "ParentSchemas", "Tags", "ContentAddress"],
     "SchemaValidationError": ["JsonPointer", "Message", "Code", "Params"],
