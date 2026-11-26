@@ -1039,3 +1039,21 @@ test('trusted collector writes eligible receipt bytes consumed by the production
   assert.equal(predicate.receiptSha256, f.hash(readFileSync(resolve(directory, 'release-phase4-receipt.json'))))
   assert.equal(predicate.companionSha256, f.hash(readFileSync(resolve(directory, 'release-receipt.json'))))
 })
+
+// ADR-0198 d1: a headless execution cannot authorize an incomplete full receipt.
+test('full receipt collector requires gallery in both full and headless environments', t => {
+  const f = fixture(t)
+  const gate = {...f.gate, counts: {nativeTests: 37}, results: STEPS.map(id => ({id, passed: true, exitCode: 0}))}
+  const input = {root: f.root, head: f.head, producer: f.args.producer, gate, shards: f.shards}
+  const script = `import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+    import {collectTrustedGateData} from ${JSON.stringify(new URL('../gates/scan-evidence-provenance.mjs', import.meta.url).href)};
+    const input = JSON.parse(readFileSync(0, 'utf8'));
+    assert.equal(collectTrustedGateData(input).results.length, 23);
+    input.gate.results.splice(20, 1);
+    assert.throws(() => collectTrustedGateData(input), /full fresh reported steps required/);`
+  for (const mode of ['0', '1']) {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script],
+      {input: JSON.stringify(input), encoding: 'utf8', env: {...process.env, HARBORLINE_GATE_HEADLESS: mode}})
+    assert.equal(result.status, 0, `headless=${mode}: ${result.stderr}`)
+  }
+})

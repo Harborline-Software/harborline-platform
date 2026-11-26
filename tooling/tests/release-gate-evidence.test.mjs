@@ -10,7 +10,6 @@ import test from 'node:test'
 import * as evidence from '../gates/scan-evidence-provenance.mjs'
 import * as mainGate from '../run-phase-4-gate.mjs'
 import {hashStepInputs} from '../gate-step-evidence.mjs'
-import {requiredStepIds as actualRequiredStepIds} from '../gate-contract.mjs'
 
 // ADR-0198 required-check trust inventory requires the complete phase-4 contract.
 // Independent literal baseline: platform main 0924f437 gate-contract.mjs; never derived at runtime.
@@ -20,8 +19,23 @@ const EXPECTED_RELEASE_STEPS = ['root-clean-install', 'dependency-ledger', 'npm-
   'catalog-preflight', 'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model',
   'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers', 'gallery-gate',
   'release-receipt', 'catalog-final']
-test('independent required inventory detects an omitted production obligation', () => {
-  assert.deepEqual(actualRequiredStepIds, EXPECTED_RELEASE_STEPS)
+// Headless landing coverage is a distinct contract, not a shortened release receipt.
+const EXPECTED_HEADLESS_STEPS = ['root-clean-install', 'dependency-ledger', 'npm-clean-install',
+  'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install',
+  'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority',
+  'catalog-preflight', 'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model',
+  'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers',
+  'release-receipt', 'catalog-final']
+for (const [name, mode, expected] of [
+  ['independent required inventory detects an omitted production obligation', '0', EXPECTED_RELEASE_STEPS],
+  ['independent headless inventory retains every non-browser obligation', '1', EXPECTED_HEADLESS_STEPS],
+]) test(name, () => {
+  const script = `import {requiredStepIds} from ${JSON.stringify(new URL('../gate-contract.mjs', import.meta.url).href)};
+    console.log(JSON.stringify(requiredStepIds));`
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', script],
+    {encoding: 'utf8', env: {...process.env, HARBORLINE_GATE_HEADLESS: mode}})
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), expected)
 })
 
 const workflow = name => readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
@@ -286,7 +300,7 @@ test('release.main-orchestration-inputs: a dirty main executable checkout refuse
   assert.throws(() => mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A}), /main checkout is dirty/)
 })
 
-for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive passes', false, ''],
+for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive passes', false, ''], ['headless refuses', false, 'headless'],
   ['incomplete inventory refuses', false, 'omit'], ['reused result refuses', false, 'reused'],
   ['wrong API refuses', false, 'api'], ['restore overwrite refuses', false, 'overwrite'], ['underlying failure refuses', true, 'underlying'], ['parent integrity refuses', false, 'parent'], ['unstaged product source refuses', false, 'product']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
   assert.equal(typeof mainGate.trustedOrchestrationInventory, 'function')
@@ -312,16 +326,21 @@ for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive
       MAIN_REPORT_MUTATION: mutation, RESTORE_CANARY: ['overwrite', 'underlying', 'product'].includes(mutation) ? '1' : '0',
       OVERWRITE_HELPER: mutation === 'overwrite' ? '1' : '0', OVERWRITE_PRODUCT: mutation === 'product' ? '1' : '0', DOTNET_CLI_USE_MSBUILD_SERVER: '0', MSBUILDDISABLENODEREUSE: '1',
       HARBORLINE_ORCHESTRATION_REVISION: f.A, HARBORLINE_RECEIPT_RUN: '0',
+      HARBORLINE_GATE_HEADLESS: mutation === 'headless' ? '1' : '0',
       HARBORLINE_API_REPO: f.source, HARBORLINE_API_REVISION: mutation === 'api' ? f.B : f.A,
     }})
   const refused = fail || !!mutation
   if (mutation === 'product') assert.match(readFileSync(log, 'utf8'), /product-bytes:.*replaced product source during restore/, 'real restore must overwrite tracked product source')
   assert.equal(result.status, refused ? 1 : 0, result.stdout + result.stderr)
   const calls = readFileSync(log, 'utf8').split('\n')
-  assert.equal(calls.filter(id => id === 'native-tests').length, ['api', 'overwrite'].includes(mutation) ? 0 : 1, mutation === 'overwrite' ? 'restore overwrite must stop production dispatch before native-tests' : 'cached PASS cannot skip the actual main native step')
+  assert.equal(calls.filter(id => id === 'native-tests').length, ['api', 'overwrite', 'headless'].includes(mutation) ? 0 : 1, mutation === 'overwrite' ? 'restore overwrite must stop production dispatch before native-tests' : 'cached PASS cannot skip the actual main native step')
   assert.equal(calls.filter(id => id === 'candidate-gate').length, 0, 'fresh internal Git checkout cannot execute candidate orchestration')
   assert.equal(existsSync(join(f.root, '.git/harborline-phase4-receipt.json')), !refused)
   assert.equal(existsSync(join(f.root, '.git/harborline-release-receipt.json')), !refused)
+  if (mutation === 'headless') {
+    assert.match(result.stderr, /exact-tree receipt requires the complete gallery gate/)
+    assert.equal(calls.filter(Boolean).length, 0, 'headless receipt must refuse before executing any main step')
+  }
   if (mutation === 'parent') assert.match(result.stderr, /trusted orchestration: runtime input changed: tooling\/later-helper.mjs/)
   if (mutation === 'overwrite') {
     assert.equal(calls.filter(id => id === 'dotnet-restore').length, 1, 'actual MSBuild restore target must execute')
@@ -675,6 +694,8 @@ for (const [label, mutate] of [
   ['old SBOM attempt', f => { f.input.sbom.attempt = 2 }],
   ['new producer attempt', f => { f.documents['actions/runs/9002'] = {...f.producerRun, run_attempt: 2, conclusion: 'failure'} }],
   ['new successful producer attempt', f => { f.documents['actions/runs/9002'] = {...f.producerRun, run_attempt: 2} }],
+  ['timed-out producer', f => { f.producerRun.conclusion = 'timed_out' }],
+  ['cancelled producer', f => { f.producerRun.conclusion = 'cancelled' }],
   ['pending producer', f => { f.producerRun.status = 'in_progress'; f.producerRun.conclusion = null }],
   ['wrong producer source', f => { f.producerRun.head_sha = f.B }],
   ['wrong producer workflow', f => { f.producerRun.path = '.github/workflows/release-platform.yml' }],
@@ -836,4 +857,11 @@ test('non-release candidate dispatch selects main controller and explicit produc
   const candidate = job(workflow('verify-gallery-receipt'), 'candidate-phase-4')
   assert.match(candidate, /HARBORLINE_GATE_ROOT: \$\{\{ github.workspace \}\}/)
   assert.match(candidate, /else\n            node \.trusted-orchestration\/tooling\/run-phase-4-gate\.mjs/)
+})
+
+// ADR-0198 d1: existing 90-minute caps bound candidate work and trusted collection.
+test('receipt producer jobs retain explicit finite 90-minute timeouts', () => {
+  const producer = workflow('verify-gallery-receipt')
+  for (const name of ['candidate-phase-4', 'phase-4'])
+    assert.match(job(producer, name), /^    timeout-minutes: 90$/m)
 })

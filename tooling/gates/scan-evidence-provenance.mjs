@@ -114,6 +114,8 @@ const SIGNER_URI = `https://github.com/${SIGNER}@refs/heads/main`
 const GALLERY_STEPS = ['gallery-structure', 'react-gallery-typecheck', 'react-storybook-build',
   'blazor-gallery-clean', 'blazor-gallery-build', 'gallery-tests-typecheck', 'playwright-browser',
   'playwright-browser-launch', 'gallery-accessibility-and-parity']
+// ADR-0198 d1: full receipts never inherit the headless landing contract.
+const receiptStepIds = requiredStepIds.includes('gallery-gate') ? requiredStepIds : [...requiredStepIds.slice(0, -2), 'gallery-gate', ...requiredStepIds.slice(-2)]
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex')
 const checked = value => ({assurance: 'signer-checked', value})
 const reported = value => ({assurance: 'run-reported', value})
@@ -242,7 +244,7 @@ export function collectTrustedGateData({root, head, gate, shards, producer}) {
   const tree = receiptTree(root, head), scope = receiptScope(root, head)
   requireThat(gate?.schemaVersion === 3 && gate.phase === 4 && gate.status === 'PASS', 'reported gate failed or malformed')
   requireThat(gate?.subject?.baseHead === head && gate.subject.testedTree === tree.gitTree, 'reported subject differs')
-  requireThat(gate?.results?.length === requiredStepIds.length && requiredStepIds.every((id, i) =>
+  requireThat(gate?.results?.length === receiptStepIds.length && receiptStepIds.every((id, i) =>
     gate.results[i]?.id === id && gate.results[i].passed === true && gate.results[i].exitCode === 0
       && !gate.results[i].reusedFrom), 'full fresh reported steps required')
   requireThat(Number.isInteger(gate.counts?.nativeTests) && gate.counts.nativeTests > 0, 'reported native test count absent')
@@ -252,7 +254,7 @@ export function collectTrustedGateData({root, head, gate, shards, producer}) {
   requireThat(reconcileChecks(reconciled.observation.checks, scope.expectedChecks) === 'exact', 'raw check reconciliation failed')
   return {schemaVersion: 3, phase: 4, status: 'PASS',
     subject: {repository: 'harborline-platform', baseHead: head, testedTree: tree.gitTree, mode: 'exact-staged-tree'},
-    requiredStepIds: [...requiredStepIds], moduleIds: scope.moduleIds,
+    requiredStepIds: [...receiptStepIds], moduleIds: scope.moduleIds,
     results: gate.results.map(({id, passed, exitCode, report}) => ({id, passed, exitCode, ...(report ? {report} : {})})),
     designReview: gate.designReview,
     counts: {nativeTests: gate.counts.nativeTests, generationSmokeModules: scope.generationSmokeModules, generationSmokeScenarios: scope.scenarios.length,
@@ -273,7 +275,7 @@ export function buildGalleryPredicate({root, head, queue, producer, gate, shards
   const scope = receiptScope(root, head)
   requireThat(gate?.schemaVersion === 3 && gate.phase === 4 && gate.status === 'PASS'
     && gate.subject?.baseHead === head && gate.subject?.testedTree === tree.gitTree, 'phase-4 subject or status differs')
-  const steps = requiredStepIds.includes('gallery-gate') ? requiredStepIds : [...requiredStepIds.slice(0, -2), 'gallery-gate', ...requiredStepIds.slice(-2)]
+  const steps = receiptStepIds
   requireThat(isDeepStrictEqual(gate.requiredStepIds, steps) && gate.results?.length === steps.length
     && steps.every((id, i) => gate.results[i]?.id === id && gate.results[i]?.passed === true && !gate.results[i]?.reusedFrom), 'full fresh phase-4 steps required')
   requireThat(scopeMatchesGate(scope, gate) && gate.scenarioReconciliation === 'exact'
