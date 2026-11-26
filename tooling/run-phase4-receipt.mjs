@@ -14,7 +14,7 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {formatGateFailure, writeGateFailureReport} from './gate-failure-report.mjs'
 import {checkReleaseReceipt, emitReleaseReceipt} from './release-receipt.mjs'
 import {cleanUpScratchOnSignal, killProcessTreeSync, sweepStaleScratchTrees, writeScratchPidFile} from './resolve-command.mjs'
-import {applyTrustedOrchestration, trustedOrchestrationInventory} from './run-phase-4-gate.mjs'
+import {applyTrustedOrchestration, trustedOrchestrationInventory, createTrustedStepExecutor} from './run-phase-4-gate.mjs'
 import {headless, requiredStepIds} from './gate-contract.mjs'
 
 // Ticket 289: one prefix, shared with the self-tests and with anything else that ever mints a
@@ -88,6 +88,9 @@ const inputOutcome = await runPhase4InputAttempt({
         applyTrustedOrchestration({repositoryRoot: testedCheckout, sourceRoot: orchestrationSource, inventory: orchestration})
       }
       const gate = await runGate(testedCheckout, baseHead, testedTree)
+      // Independently reject a child that reports PASS after replacing measured inputs.
+      if (orchestration) createTrustedStepExecutor({repositoryRoot: testedCheckout, inventory: orchestration,
+        execute: () => {}})()
       if (gate.status !== 0) {
         // The gate still prints its full JSON report to stdout on failure (only process.exitCode is
         // non-zero) -- write it whole to disk and name every failed step, rather than throwing with
@@ -158,7 +161,7 @@ const inputOutcome = await runPhase4InputAttempt({
 
     async function runGate(testedCheckout, baseHead, testedTree) {
       inputAttempt.recheck()
-      const child = spawn(process.execPath, ['tooling/run-phase-4-gate.mjs', '--phase4-lock-reentry'], {
+      const child = spawn(process.execPath, [path.join(orchestrationRevision ? orchestrationSource : testedCheckout, 'tooling/run-phase-4-gate.mjs'), '--phase4-lock-reentry'], {
         cwd: testedCheckout,
         stdio: ['ignore', 'pipe', 'inherit', 'ipc'],
         // Its own process group on POSIX, so removeScratch can kill the gate AND its npm/dotnet
@@ -166,7 +169,7 @@ const inputOutcome = await runPhase4InputAttempt({
         // handler kills it explicitly instead.
         detached: process.platform !== 'win32',
         env: {...process.env, HARBORLINE_BASE_HEAD: baseHead, HARBORLINE_TESTED_TREE: testedTree,
-          HARBORLINE_RECEIPT_RUN: '1', NODE_OPTIONS: '', NODE_PATH: ''},
+          HARBORLINE_GATE_ROOT: testedCheckout, HARBORLINE_RECEIPT_RUN: '1', NODE_OPTIONS: '', NODE_PATH: ''},
       })
       gateChild = child
       const chunks = []

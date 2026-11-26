@@ -2,7 +2,7 @@
 
 import {assertPhase4SubjectUnchanged, projectPhase4InputEvidence, runPhase4InputAttempt} from './phase4-input-preflight.mjs'
 import { execFileSync, spawnSync } from 'node:child_process'
-import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs'
+import {existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs'
 import {createHash} from 'node:crypto'
 import { cpus } from 'node:os'
 import {dirname, isAbsolute, relative, resolve, sep} from 'node:path'
@@ -17,7 +17,9 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 import {loadModuleCatalog} from './module-catalog.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const controllerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const root = process.env.HARBORLINE_ORCHESTRATION_REVISION && process.env.HARBORLINE_GATE_ROOT
+  ? resolve(process.env.HARBORLINE_GATE_ROOT) : controllerRoot
 // Importing the step runner must not acquire the gate lock or launch phase 4.
 const orchestrationRoots = ['.config', 'scripts', 'tooling']
 const orchestrationNames = new Set(['package.json', 'pnpm-lock.yaml', 'package-lock.json', 'npm-shrinkwrap.json',
@@ -154,7 +156,47 @@ export function applyTrustedOrchestration({repositoryRoot, sourceRoot = root, in
     && orchestrationGit(repositoryRoot, ['write-tree']).trim() === inventory.testedTree, 'tested Git identity changed during preparation')
 }
 
+// The controller/import closure is loaded from main outside the subject. This measured state
+// stays in controller memory; candidate steps never provide a replacement manifest or verdict.
+export function createTrustedStepExecutor({repositoryRoot, inventory, execute}) {
+  const files = inventory.files.map(file => ({...file}))
+  const deletedPaths = [...inventory.deletedPaths]
+  const check = () => {
+    const names = []
+    const walk = name => {
+      const path = resolve(repositoryRoot, name), stat = lstatSync(path)
+      orchestrationAssert(!stat.isSymbolicLink(), `runtime link: ${name}`)
+      if (stat.isDirectory()) for (const child of readdirSync(path)) walk(`${name}/${child}`)
+      else { orchestrationAssert(stat.isFile(), `runtime non-file: ${name}`); names.push(name) }
+    }
+    for (const directory of orchestrationRoots) if (existsSync(resolve(repositoryRoot, directory))) walk(directory)
+    orchestrationAssert(JSON.stringify(names.sort()) === JSON.stringify(files.map(file => file.path)
+      .filter(name => orchestrationRoots.some(directory => name.startsWith(`${directory}/`))).sort()), 'runtime closure paths changed')
+    for (const name of deletedPaths) orchestrationAssert(!existsSync(resolve(repositoryRoot, name)), `runtime deleted input returned: ${name}`)
+    for (const file of files) {
+      const parts = file.path.split('/')
+      for (let i = 1; i <= parts.length; i++) {
+        const stat = lstatSync(resolve(repositoryRoot, ...parts.slice(0, i)))
+        orchestrationAssert(!stat.isSymbolicLink() && (i === parts.length ? stat.isFile() : stat.isDirectory()), `runtime input redirected: ${file.path}`)
+      }
+      orchestrationAssert(orchestrationDigest(readFileSync(resolve(repositoryRoot, file.path))) === file.sha256,
+        `runtime input changed: ${file.path}`)
+    }
+  }
+  return (...args) => {
+    check() // Immediately before each helper/config consumer executes, including restore.
+    const result = execute(...args)
+    check() // A mutating step cannot supply a PASS or hand off to the next helper.
+    return result
+  }
+}
+
 async function launchGate(inputAttempt) {
+    const executeTrustedStep = process.env.HARBORLINE_ORCHESTRATION_REVISION
+      ? createTrustedStepExecutor({repositoryRoot: root,
+          inventory: trustedOrchestrationInventory({repositoryRoot: root, sourceRoot: controllerRoot,
+            revision: process.env.HARBORLINE_ORCHESTRATION_REVISION}), execute: callback => callback()})
+      : callback => callback()
     const actualSubject = {
       head: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(),
       testedTree: execFileSync('git', ['write-tree'], {cwd: root, encoding: 'utf8'}).trim(),
@@ -209,7 +251,7 @@ async function launchGate(inputAttempt) {
           filePath: resolve(failureEvidenceDirectory, `${id}.log`),
           reportPath: `.claude/gate-evidence/${id}.log`,
         },
-        execute: () => {
+        execute: () => executeTrustedStep(() => {
           const resolved = resolveCommand(executable, args)
           const result = spawnSync(resolved.executable, resolved.args, {
             cwd,
@@ -219,7 +261,7 @@ async function launchGate(inputAttempt) {
           })
           if (result.error) return {result}
           return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
-        },
+        }),
       })
       reports.set(id, report)
       return report
