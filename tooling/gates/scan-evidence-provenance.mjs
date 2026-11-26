@@ -32,7 +32,8 @@
 // T-674: a headless re-record passed a full local gate and failed catalog-final in CI 40 minutes
 // later, with fifteen `assertAccessible=UNBUILT` errors and nothing pointing at the cause.
 import {execFileSync} from 'node:child_process'
-import {readFileSync, writeFileSync, mkdirSync, readdirSync, lstatSync, rmSync} from 'node:fs'
+import {readFileSync, writeFileSync, mkdtempSync, mkdirSync, readdirSync, lstatSync, rmSync} from 'node:fs'
+import {tmpdir} from 'node:os'
 import {createHash} from 'node:crypto'
 import {isDeepStrictEqual} from 'node:util'
 import {reconcileReceiptShards} from '../collect-gallery-shards.mjs'
@@ -710,9 +711,7 @@ export function buildReleaseGatePredicate({root, directory, policy, policySha256
     files, gallery}
 }
 
-export function verifyReleaseGateEvidence({root, directory, approvedCommit, policy, policySha256,
-  execute = execFileSync, readApi = api, now = new Date(), allowActiveProducer = false}) {
-  releaseFileInventory(directory) // Reject links and unknown paths before passing any bytes to gh.
+function verifyReleaseStatement({directory, policy, execute = execFileSync}) {
   const receipt = resolve(directory, 'release-phase4-receipt.json')
   const verified = JSON.parse(execute('gh', ['attestation', 'verify', receipt, '--bundle', resolve(directory, 'release.sigstore.json'),
     '--repo', RECEIPT_REPOSITORY, '--signer-workflow', SIGNER, '--signer-digest', policy.signerRevision,
@@ -720,12 +719,20 @@ export function verifyReleaseGateEvidence({root, directory, approvedCommit, poli
     '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com', '--deny-self-hosted-runners',
     '--predicate-type', RELEASE_GATE_TYPE, '--format', 'json'], {encoding: 'utf8', maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']}))
   releaseRequire(Array.isArray(verified) && verified.length === 1, 'one verified release attestation required')
-  const result = verified[0].verificationResult, statement = result?.statement, predicate = statement?.predicate
+  const result = verified[0].verificationResult, statement = result?.statement
   releaseRequire(result?.verifiedTimestamps?.some(time => time.type === 'Tlog'), 'verified transparency timestamp required')
   releaseRequire(statement?._type === 'https://in-toto.io/Statement/v1' && statement.predicateType === RELEASE_GATE_TYPE
     && statement.subject?.length === 1 && statement.subject[0].name === 'phase4-receipt'
     && Object.keys(statement.subject[0].digest ?? {}).join() === 'sha256'
     && statement.subject[0].digest.sha256 === sha256(readFileSync(receipt)), 'release statement type or exact subject differs')
+  return result
+}
+
+export function verifyReleaseGateEvidence({root, directory, approvedCommit, policy, policySha256,
+  execute = execFileSync, readApi = api, now = new Date(), allowActiveProducer = false}) {
+  releaseFileInventory(directory) // Reject links and unknown paths before passing any bytes to gh.
+  const result = verifyReleaseStatement({directory, policy, execute})
+  const predicate = result.statement.predicate
   releaseRequire(predicate?.subject?.commit === approvedCommit, 'signed commit differs from approved commit')
   const artifact = readApi(`repos/${RECEIPT_REPOSITORY}/actions/artifacts/${predicate.artifact?.id}`)
   releaseRequire(artifact.digest === predicate.artifact.digest, 'producer artifact digest changed')
@@ -1082,7 +1089,31 @@ if (import.meta.main && process.argv.includes('--release-evidence')) {
             'producer artifact census unavailable or truncated')
           const match = artifacts.artifacts.filter(item => item.name === `release-gate-receipt-${run.id}-${run.run_attempt}` && !item.expired)
           releaseRequire(match.length <= 1, 'ambiguous signed release artifact')
-          if (match.length) { selected = {run, artifact: match[0]}; break }
+          if (!match.length) continue
+          const artifact = match[0]
+          releaseRequire(Number.isSafeInteger(artifact.id) && artifact.workflow_run?.id === run.id
+            && /^sha256:[a-f0-9]{64}$/.test(artifact.digest ?? ''), 'no retained release gate evidence')
+          const bytes = execFileSync('gh', ['api', `repos/${RECEIPT_REPOSITORY}/actions/artifacts/${artifact.id}/zip`],
+            {maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']})
+          releaseRequire(`sha256:${sha256(bytes)}` === artifact.digest, 'producer artifact digest changed')
+          // Read only the two bounded attestation inputs; never extract archive paths or execute its files.
+          const files = JSON.parse(execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+            'import sys,io,zipfile,json,base64\nz=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))\nnames=["release-phase4-receipt.json","release.sigstore.json"]\na=z.infolist()\nassert len(a)<=32\nassert all(sum(i.filename==n for i in a)==1 for n in names)\nassert all(i.file_size<=67108864 for i in a if i.filename in names)\nprint(json.dumps({n:base64.b64encode(z.read(n)).decode() for n in names}))'],
+          {input: bytes, encoding: 'utf8', maxBuffer: 192 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe']}))
+          const temporary = mkdtempSync(resolve(process.env.RUNNER_TEMP ?? tmpdir(), 'release-locate-'))
+          try {
+            for (const [name, contents] of Object.entries(files)) writeFileSync(resolve(temporary, name), Buffer.from(contents, 'base64'))
+            const result = verifyReleaseStatement({directory: temporary, policy: loaded.policy})
+            const certificate = result.signature?.certificate
+            releaseRequire(certificate?.buildSignerURI === SIGNER_URI && certificate.buildSignerDigest === loaded.policy.signerRevision
+              && certificate.sourceRepositoryURI === `https://github.com/${RECEIPT_REPOSITORY}`
+              && certificate.sourceRepositoryRef === 'refs/heads/main' && certificate.sourceRepositoryDigest === loaded.policy.signerRevision
+              && certificate.buildTrigger === 'workflow_run' && certificate.runnerEnvironment === 'github-hosted'
+              && certificate.runInvocationURI === `https://github.com/${RECEIPT_REPOSITORY}/actions/runs/${run.id}/attempts/${run.run_attempt}`,
+            'certificate signer differs from current policy')
+            if (result.statement.predicate?.subject?.commit !== approvedCommit) continue
+            selected = {run, artifact}; break
+          } finally { rmSync(temporary, {recursive: true, force: true}) }
         }
         releaseRequire(selected && Number.isSafeInteger(selected.artifact.id) && /^sha256:[a-f0-9]{64}$/.test(selected.artifact.digest ?? ''), 'no retained release gate evidence')
         output({'artifact-id': selected.artifact.id, 'producer-run': selected.run.id, 'producer-attempt': selected.run.run_attempt})

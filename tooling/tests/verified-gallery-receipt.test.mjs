@@ -268,7 +268,9 @@ test('release evidence refuses altered receipt/companion bytes, inventory replac
   assert.throws(f.verify)
 })
 
-test('actual external release CLI locates exact producer output, verifies it and installs only attested corroboration', t => {
+for (const newerOther of [false, true]) test(newerOther
+  ? 'release locator selects older matching signed subject despite newer receipt for another commit'
+  : 'actual external release CLI locates exact producer output, verifies it and installs only attested corroboration', t => {
   const f = releaseFixture(t), external = resolve(f.root, '.external-verifier')
   git(f.root, 'worktree', 'add', '--detach', external, f.A)
   const output = resolve(f.root, 'cli-output'), log = resolve(f.root, 'cli-requests'), fixturePath = resolve(f.root, 'cli-data.json')
@@ -278,10 +280,31 @@ test('actual external release CLI locates exact producer output, verifies it and
   f.routes[`actions/workflows/verify-gallery-receipt.yml/runs?event=workflow_run&head_sha=${f.A}&per_page=100`] = {total_count: 1, workflow_runs: [producer]}
   f.routes['actions/artifacts/888'] = retained
   f.routes['actions/runs/9002/artifacts?per_page=100'].artifacts[1] = retained
+  put(f.directory, 'release.sigstore.json', {})
+  const archive = (bundle = {}) => execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+    'import sys,io,zipfile;b=io.BytesIO();z=zipfile.ZipFile(b,"w");z.writestr("release-phase4-receipt.json",sys.stdin.buffer.read());z.writestr("release.sigstore.json",sys.argv[1]);z.close();sys.stdout.buffer.write(b.getvalue())', JSON.stringify(bundle)],
+    {input: readFileSync(resolve(f.directory, 'release-phase4-receipt.json'))})
+  const bytes = archive()
+  retained.digest = `sha256:${f.hash(bytes)}`
+  f.routes['actions/artifacts/888/zip'] = {archiveBase64: bytes.toString('base64')}
+  const other = structuredClone(f.result)
+  other.verificationResult.statement.predicate.subject.commit = 'c'.repeat(40)
+  other.verificationResult.statement.predicate.producer.id = 9005
+  other.verificationResult.signature.certificate.runInvocationURI = `https://github.com/${REPO}/actions/runs/9005/attempts/1`
+  if (newerOther) {
+    const runs = f.routes[`actions/workflows/verify-gallery-receipt.yml/runs?event=workflow_run&head_sha=${f.A}&per_page=100`]
+    runs.total_count = 2; runs.workflow_runs.push({...producer, id: 9005})
+    f.routes['actions/runs/9005/artifacts?per_page=100'] = {total_count: 1, artifacts: [
+      {...retained, id: 889, name: 'release-gate-receipt-9005-1', workflow_run: {id: 9005}}]}
+    const otherBytes = archive({fixtureSubject: 'other'})
+    f.routes['actions/runs/9005/artifacts?per_page=100'].artifacts[0].digest = `sha256:${f.hash(otherBytes)}`
+    f.routes['actions/artifacts/889/zip'] = {archiveBase64: otherBytes.toString('base64')}
+  }
   put(f.root, 'cli-hook.mjs', GH_BOUNDARY)
   put(f.root, 'cli-requests', '')
-  const writeFixture = () => put(f.root, 'cli-data.json', {log, now: f.now.getTime(), rejectVerification: false, rejectPaths: [],
-    verification: [f.result], routes: Object.fromEntries(Object.entries(f.routes).map(([path, value]) => [`repos/${REPO}/${path}`, value]))})
+  let rejectVerification = false
+  const writeFixture = () => put(f.root, 'cli-data.json', {log, now: f.now.getTime(), rejectVerification, rejectPaths: [],
+    verification: [f.result], otherVerification: [other], routes: Object.fromEntries(Object.entries(f.routes).map(([path, value]) => [`repos/${REPO}/${path}`, value]))})
   writeFixture()
   put(f.root, 'producer-event.json', {workflow_run: {...f.routes['actions/runs/9001'], updated_at: '2026-11-21T16:00:00Z'}})
   const run = (mode, overrides = {}) => {
@@ -326,6 +349,29 @@ test('actual external release CLI locates exact producer output, verifies it and
   const located = run('locate')
   assert.equal(located.status, 0, located.stderr)
   assert.match(readFileSync(output, 'utf8'), /artifact-id=888\nproducer-run=9002\nproducer-attempt=1\n/)
+  if (newerOther) {
+    other.verificationResult.statement.predicate.subject.commit = f.B
+    writeFixture(); writeFileSync(output, '')
+    const newestMatching = run('locate')
+    assert.equal(newestMatching.status, 0, newestMatching.stderr)
+    assert.equal(readFileSync(output, 'utf8'), 'artifact-id=889\nproducer-run=9005\nproducer-attempt=1\n')
+    other.verificationResult.statement.predicate.subject.commit = 'c'.repeat(40)
+    f.result.verificationResult.statement.predicate.subject.commit = 'c'.repeat(40)
+    const refusal = 'release evidence refused: current policy, live invocation, signature or exact bytes could not be established\n'
+    writeFixture()
+    const noSubject = run('locate')
+    assert.equal(noSubject.status, 1); assert.equal(noSubject.stderr, refusal)
+    f.result.verificationResult.statement.predicate.subject.commit = f.B
+    other.verificationResult.signature.certificate.buildSignerDigest = f.B
+    writeFixture()
+    const wrongSigner = run('locate')
+    assert.equal(wrongSigner.status, 1); assert.equal(wrongSigner.stderr, refusal)
+    other.verificationResult.signature.certificate.buildSignerDigest = f.A
+    rejectVerification = true; writeFixture()
+    const badSignature = run('locate')
+    assert.equal(badSignature.status, 1); assert.equal(badSignature.stderr, refusal)
+    rejectVerification = false; writeFixture()
+  }
   assert.equal(existsSync(resolve(f.root, '.git/harborline-phase4-receipt.json')), false)
   const verified = run('verify')
   assert.equal(verified.status, 0, verified.stderr)
@@ -623,7 +669,9 @@ childProcess.execFileSync = (command, args, options) => {
   if (args[0] === 'attestation') {
     appendFileSync(fixture.log, JSON.stringify({command: 'attestation'}) + '\\n')
     if (fixture.rejectVerification) throw new Error('fixture verification refusal')
-    return JSON.stringify(fixture.verification)
+    if (!fixture.otherVerification) return JSON.stringify(fixture.verification)
+    const bundle = JSON.parse(readFileSync(args[args.indexOf('--bundle') + 1], 'utf8'))
+    return JSON.stringify(bundle.fixtureSubject === 'other' ? fixture.otherVerification : fixture.verification)
   }
   if (args[0] !== 'api') throw new Error('unexpected gh command')
   const methodIndex = args.indexOf('--method')
