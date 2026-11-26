@@ -11,6 +11,7 @@
 {
     <CascadingValue Value="@store" IsFixed="true">
     <CascadingValue Name="SchemaFormReadOnly" Value="@ReadOnly">
+    <CascadingValue Value="@this">
         <form @ref="formElement" aria-label="@ResolvedTitle" class="@CombineClasses("hl-schema-form")" dir="@Direction"
               novalidate style="@CombineStyles()" @onsubmit="HandleSubmitAsync" @onsubmit:preventDefault
               @attributes="AdditionalAttributes">
@@ -64,6 +65,7 @@
         </form>
     </CascadingValue>
     </CascadingValue>
+    </CascadingValue>
 }
 
 @code {
@@ -85,6 +87,8 @@
     [Parameter] public IReadOnlyList<string> LocaleChain { get; set; } = [];
     [Parameter] public IReadOnlyDictionary<string, SchemaFormControlRenderer>? Controls { get; set; }
     [Parameter] public EventCallback<SchemaFormAction> OnBlockAction { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, RecordCreateCapability> RecordCreateCapabilities { get; set; } = new Dictionary<string, RecordCreateCapability>(StringComparer.Ordinal);
+    [Parameter] public EventCallback<RecordCreateRequest> OnRecordCreate { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public bool ReadOnly { get; set; }
 

@@ -15,6 +15,7 @@ import { TextBox } from '@harborline-platform/hlp.ui.text-box'
 import { resolveText } from '@harborline-platform/hlp.ui.form-view'
 
 import type { ControlArgs, ControlRegistry } from './SchemaForm.types'
+import { RecordCreateContext } from './RecordCreateContext'
 
 function fieldConfig(args: ControlArgs): Record<string, unknown> {
   return args.field.config ?? {}
@@ -34,8 +35,17 @@ function selectOptions(args: ControlArgs): SelectOption[] {
 
 function DomainPickerControl({ args }: { args: ControlArgs }) {
   const options = React.useMemo(() => selectOptions(args), [args.chain, args.field])
-  if (args.field.permittedValues?.length === 0) return <></>
+  const host = React.useContext(RecordCreateContext)
+  const capability = args.field.controlHint?.toLowerCase() === 'recordpicker' ? host.recordCreateCapabilities?.[args.field.name] : undefined
+  const format = (template: string, text: string) => template.replace(/\{kind\}|\{text\}|\{indefiniteKind\}/g,
+    token => token === '{kind}' ? capability?.displayName ?? '' : token === '{text}' ? text : capability?.indefiniteName ?? '')
+  if (args.field.permittedValues?.length === 0 && !capability) return <></>
   return <SelectField searchable name={args.field.name} value={args.strValue}
+    trailingAction={capability?.canCreate ? {
+      label: text => format(args.strings.recordCreate, text),
+      invoke: text => { if (!args.disabled && capability.canCreate) host.onRecordCreate?.({ fieldName: args.field.name, targetKind: capability.targetKind, text }) },
+    } : undefined}
+    noMatchesMessage={capability && !capability.canCreate ? text => format(args.strings.recordCreatePrerequisite, text) : undefined}
     options={options} disabled={args.disabled} required={args.required} error={args.hasError}
     onValueChange={value => {
       if (!args.disabled && args.field.permittedValues?.includes(value)) args.onChange(value)

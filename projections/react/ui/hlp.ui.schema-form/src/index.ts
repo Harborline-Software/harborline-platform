@@ -2,6 +2,8 @@ export { SchemaForm } from './SchemaForm'
 export { DEFAULT_CONTROLS } from './controls'
 export { projectRuleOutcomes } from './useFormRuleGraph'
 export type {
+  RecordCreateCapability,
+  RecordCreateRequest,
   ControlArgs,
   ControlRegistry,
   ControlRenderer,

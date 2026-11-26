@@ -171,6 +171,10 @@ public sealed record SchemaFormValidationResult(bool IsValid, IReadOnlyList<Sche
 /// <summary>The fixed text a schema form shows, such as button labels and messages.</summary>
 public sealed record SchemaFormStrings
 {
+    /// <summary>Create entry label with {kind} and {text} placeholders.</summary>
+    public string RecordCreate { get; init; } = "Create {kind} '{text}'";
+    /// <summary>Prerequisite sentence with {kind}, {text} and {indefiniteKind} placeholders.</summary>
+    public string RecordCreatePrerequisite { get; init; } = "No {kind} you can see match '{text}'. Creating {indefiniteKind} needs permission you don't have.";
     /// <summary>Label of the submit button.</summary>
     public string Submit { get; init; } = "Submit";
     /// <summary>Label of the submit button while submitting.</summary>

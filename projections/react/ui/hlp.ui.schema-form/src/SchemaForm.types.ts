@@ -10,6 +10,8 @@ import type {
 } from '@harborline-platform/hlp.ui.form-view'
 
 export interface SchemaFormStrings {
+  recordCreate: string
+  recordCreatePrerequisite: string
   submit: string
   submitting: string
   errorSummaryTitle: string
@@ -43,6 +45,8 @@ export type ControlRenderer = (args: ControlArgs) => React.ReactElement
 export type ControlRegistry = Record<string, ControlRenderer> & { text: ControlRenderer }
 
 export interface SchemaFormProps {
+  recordCreateCapabilities?: Readonly<Record<string, RecordCreateCapability>>
+  onRecordCreate?: (request: RecordCreateRequest) => void
   view: FormView
   ruleGraph?: RuleGraphLike | null
   initialValues?: FormValues
@@ -59,3 +63,12 @@ export interface SchemaFormProps {
   controls?: Record<string, ControlRenderer>
   onBlockAction?: (action: FormActionConfig) => void
 }
+
+export interface RecordCreateCapability {
+  targetKind: string
+  displayName: string
+  indefiniteName: string
+  canCreate: boolean
+}
+
+export interface RecordCreateRequest { fieldName: string; targetKind: string; text: string }
