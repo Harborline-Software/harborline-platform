@@ -77,28 +77,44 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
     public ValueTask<DefinitionRevision> SaveDraftAsync(DefinitionDocument document, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(document);
-        return Apply(document.Key, expectedRevision, requestId, Signature("draft", document),
-            DefinitionAdmissionPhase.Author, () =>
-            {
-                if (_revisions.TryGetValue((document.Key, document.VersionId), out var current))
+        try
+        {
+            ArgumentNullException.ThrowIfNull(document);
+            return Apply(document.Key, expectedRevision, requestId, Signature("draft", document),
+                DefinitionAdmissionPhase.Author, () =>
                 {
-                    if (current.Status == DefinitionStatus.Published)
-                        throw Refuse("definition.version_immutable", "/versionId", DefinitionAdmissionPhase.Author);
-                    if (!StringComparer.Ordinal.Equals(current.Document.Version, document.Version))
-                        throw Refuse("definition.version_conflict", "/version", DefinitionAdmissionPhase.Author);
-                }
-                return Snapshot(document, DefinitionStatus.Draft);
-            }, cancellationToken);
+                    if (_revisions.TryGetValue((document.Key, document.VersionId), out var current))
+                    {
+                        if (current.Status == DefinitionStatus.Published)
+                            throw Refuse("definition.version_immutable", "/versionId", DefinitionAdmissionPhase.Author);
+                        if (!StringComparer.Ordinal.Equals(current.Document.Version, document.Version))
+                            throw Refuse("definition.version_conflict", "/version", DefinitionAdmissionPhase.Author);
+                    }
+                    return Snapshot(document, DefinitionStatus.Draft);
+                }, cancellationToken);
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(document?.Key?.Tenant, document?.Key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision> PublishAsync(DefinitionKey key, string versionId, long expectedRevision,
         string requestId, CancellationToken cancellationToken = default)
     {
-        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
-        return Apply(key, expectedRevision, requestId, Signature("publish", versionId),
-            DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish), cancellationToken);
+        try
+        {
+            Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+            return Apply(key, expectedRevision, requestId, Signature("publish", versionId),
+                DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish), cancellationToken);
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -107,40 +123,56 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(conditions);
-        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
         if (conditions.Count == 0) return PublishAsync(key, versionId, expectedRevision, requestId, cancellationToken);
-        var snapshot = conditions.OrderBy(condition => condition.Key.Tenant, StringComparer.Ordinal)
-            .ThenBy(condition => condition.Key.Kind).ThenBy(condition => condition.Key.DefinitionId, StringComparer.Ordinal)
-            .ThenBy(condition => condition.Pointer, StringComparer.Ordinal).ThenBy(condition => condition.Revision).ToArray();
-        foreach (var condition in snapshot)
+        try
         {
-            ValidateKey(condition.Key, DefinitionAdmissionPhase.Publish);
-            if (condition.Revision <= 0)
-                throw Refuse("definition.published_head_conflict", condition.Pointer, DefinitionAdmissionPhase.Publish);
+            Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+            var snapshot = conditions.OrderBy(condition => condition.Key.Tenant, StringComparer.Ordinal)
+                .ThenBy(condition => condition.Key.Kind).ThenBy(condition => condition.Key.DefinitionId, StringComparer.Ordinal)
+                .ThenBy(condition => condition.Pointer, StringComparer.Ordinal).ThenBy(condition => condition.Revision).ToArray();
+            foreach (var condition in snapshot)
+            {
+                ValidateKey(condition.Key, DefinitionAdmissionPhase.Publish);
+                if (condition.Revision <= 0)
+                    throw Refuse("definition.published_head_conflict", condition.Pointer, DefinitionAdmissionPhase.Publish);
+            }
+            return Apply(key, expectedRevision, requestId, Signature("publish", new { versionId, conditions = snapshot }),
+                DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish),
+                cancellationToken, snapshot);
         }
-        return Apply(key, expectedRevision, requestId, Signature("publish", new { versionId, conditions = snapshot }),
-            DefinitionAdmissionPhase.Publish, () => Find(key, versionId, DefinitionAdmissionPhase.Publish),
-            cancellationToken, snapshot);
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision?> GetPublicationReplayAsync(DefinitionKey key, string versionId,
         long expectedRevision, string requestId, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        ValidateKey(key, DefinitionAdmissionPhase.Publish);
-        Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
-        Require(requestId, "definition.request_id_required", "/requestId", DefinitionAdmissionPhase.Publish);
-        if (expectedRevision < 0)
-            throw Refuse("definition.revision_conflict", "/expectedRevision", DefinitionAdmissionPhase.Publish);
-        lock (_gate)
+        try
         {
-            if (!_requests.TryGetValue((key, requestId), out var replay))
-                return ValueTask.FromResult<DefinitionRevision?>(null);
-            if (replay.ExpectedRevision != expectedRevision
-                || !StringComparer.Ordinal.Equals(replay.PublicationVersionId, versionId))
-                throw Refuse("definition.replay_conflict", "/requestId", DefinitionAdmissionPhase.Publish);
-            return ValueTask.FromResult<DefinitionRevision?>(replay.Result);
+            cancellationToken.ThrowIfCancellationRequested();
+            ValidateKey(key, DefinitionAdmissionPhase.Publish);
+            Require(versionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+            Require(requestId, "definition.request_id_required", "/requestId", DefinitionAdmissionPhase.Publish);
+            if (expectedRevision < 0)
+                throw Refuse("definition.revision_conflict", "/expectedRevision", DefinitionAdmissionPhase.Publish);
+            lock (_gate)
+            {
+                if (!_requests.TryGetValue((key, requestId), out var replay))
+                    return ValueTask.FromResult<DefinitionRevision?>(null);
+                if (replay.ExpectedRevision != expectedRevision
+                    || !StringComparer.Ordinal.Equals(replay.PublicationVersionId, versionId))
+                    throw Refuse("definition.replay_conflict", "/requestId", DefinitionAdmissionPhase.Publish);
+                return ValueTask.FromResult<DefinitionRevision?>(replay.Result);
+            }
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
         }
     }
 
@@ -149,86 +181,126 @@ public sealed class InMemoryVersionedDefinitionStore : IVersionedDefinitionStore
         string draftVersionId, string draftVersion, long expectedRevision, string requestId,
         CancellationToken cancellationToken = default)
     {
-        Require(sourceVersionId, "definition.version_id_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
-        return Apply(key, expectedRevision, requestId,
-            Signature("restore", new { sourceVersionId, draftVersionId, draftVersion }),
-            DefinitionAdmissionPhase.Author, () =>
-            {
-                var source = Find(key, sourceVersionId, DefinitionAdmissionPhase.Author);
-                if (source.Status != DefinitionStatus.Published)
-                    throw Refuse("definition.published_version_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
-                if (_revisions.ContainsKey((key, draftVersionId)))
-                    throw Refuse("definition.version_conflict", "/versionId", DefinitionAdmissionPhase.Author);
-                return Snapshot(source.Document with { VersionId = draftVersionId, Version = draftVersion },
-                    DefinitionStatus.Draft) with { RestoredFromVersionId = sourceVersionId };
-            }, cancellationToken);
+        try
+        {
+            Require(sourceVersionId, "definition.version_id_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
+            return Apply(key, expectedRevision, requestId,
+                Signature("restore", new { sourceVersionId, draftVersionId, draftVersion }),
+                DefinitionAdmissionPhase.Author, () =>
+                {
+                    var source = Find(key, sourceVersionId, DefinitionAdmissionPhase.Author);
+                    if (source.Status != DefinitionStatus.Published)
+                        throw Refuse("definition.published_version_required", "/sourceVersionId", DefinitionAdmissionPhase.Author);
+                    if (_revisions.ContainsKey((key, draftVersionId)))
+                        throw Refuse("definition.version_conflict", "/versionId", DefinitionAdmissionPhase.Author);
+                    return Snapshot(source.Document with { VersionId = draftVersionId, Version = draftVersion },
+                        DefinitionStatus.Draft) with { RestoredFromVersionId = sourceVersionId };
+                }, cancellationToken);
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<DefinitionRevision>> ListHistoryAsync(DefinitionKey key,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        // Plain history read, outside any admission. Every current caller composes authoring views
-        // (RuleDefinitionCatalog Load/LoadVersion/Resolve), so Author is the explicit stage.
-        ValidateKey(key, DefinitionAdmissionPhase.Author);
-        lock (_gate)
-            return ValueTask.FromResult<IReadOnlyList<DefinitionRevision>>(
-                _history.TryGetValue(key, out var history) ? history.ToArray() : []);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Plain history read, outside any admission. Every current caller composes authoring views
+            // (RuleDefinitionCatalog Load/LoadVersion/Resolve), so Author is the explicit stage.
+            ValidateKey(key, DefinitionAdmissionPhase.Author);
+            lock (_gate)
+                return ValueTask.FromResult<IReadOnlyList<DefinitionRevision>>(
+                    _history.TryGetValue(key, out var history) ? history.ToArray() : []);
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision?> GetPublishedHeadAsync(DefinitionKey key,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        // Same reasoning as ListHistoryAsync: a plain read whose current callers are all authoring
-        // composition (LoadAsync's published-head fallback, ResolveAsync's Latest policy).
-        ValidateKey(key, DefinitionAdmissionPhase.Author);
-        lock (_gate)
-            return ValueTask.FromResult(Head(key));
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Same reasoning as ListHistoryAsync: a plain read whose current callers are all authoring
+            // composition (LoadAsync's published-head fallback, ResolveAsync's Latest policy).
+            ValidateKey(key, DefinitionAdmissionPhase.Author);
+            lock (_gate)
+                return ValueTask.FromResult(Head(key));
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(key?.Tenant, key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionRevision?> ResolvePublishedAsync(DefinitionBinding binding,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        ArgumentNullException.ThrowIfNull(binding);
-        // Unlike the other plain reads, this one binds an immutable *published* pin — the shape used
-        // by release materialization and future install-time resolution — so Publish is the explicit
-        // stage rather than Author.
-        ValidateKey(binding.Key, DefinitionAdmissionPhase.Publish);
-        Require(binding.VersionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
-        lock (_gate)
-            return ValueTask.FromResult(_revisions.TryGetValue((binding.Key, binding.VersionId), out var revision)
-                && revision.Status == DefinitionStatus.Published ? revision : null);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ArgumentNullException.ThrowIfNull(binding);
+            // Unlike the other plain reads, this one binds an immutable *published* pin — the shape used
+            // by release materialization and future install-time resolution — so Publish is the explicit
+            // stage rather than Author.
+            ValidateKey(binding.Key, DefinitionAdmissionPhase.Publish);
+            Require(binding.VersionId, "definition.version_id_required", "/versionId", DefinitionAdmissionPhase.Publish);
+            lock (_gate)
+                return ValueTask.FromResult(_revisions.TryGetValue((binding.Key, binding.VersionId), out var revision)
+                    && revision.Status == DefinitionStatus.Published ? revision : null);
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(binding?.Key?.Tenant, binding?.Key?.DefinitionId, refusal);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public ValueTask<DefinitionDependencies> ReadDependenciesAsync(string tenant, string definitionType, string definitionId,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        Require(tenant, "definition.tenant_required", "/tenant", DefinitionAdmissionPhase.Author);
-        Require(definitionType, "definition.type_required", "/definitionType", DefinitionAdmissionPhase.Author);
-        Require(definitionId, "definition.id_required", "/definitionId", DefinitionAdmissionPhase.Author);
-        if (_derivations.Count == 0)
-            throw Refuse("definition.dependencies_unsupported", "/dependencies", DefinitionAdmissionPhase.Author);
-        lock (_gate)
+        try
         {
-            // Only each definition's published head counts, so a later published version replaces the edges of an
-            // earlier one, and an edge appears in Dependents exactly when its source still depends on the definition.
-            var edges = _history.Keys
-                .Where(key => key.Tenant == tenant)
-                .OrderBy(key => key.DefinitionId, StringComparer.Ordinal).ThenBy(key => key.Kind)
-                .SelectMany(key => Head(key) is { } head && _dependencies.TryGetValue((key, head.Document.VersionId), out var stored)
-                    ? stored : [])
-                .ToArray();
-            bool Names(CatalogueDefinitionReference end) => end.DefinitionType == definitionType && end.DefinitionId == definitionId;
-            return ValueTask.FromResult(new DefinitionDependencies(
-                edges.Where(edge => Names(edge.FromDefinitionId)).ToArray(),
-                edges.Where(edge => Names(edge.ToDefinitionId)).ToArray()));
+            cancellationToken.ThrowIfCancellationRequested();
+            Require(tenant, "definition.tenant_required", "/tenant", DefinitionAdmissionPhase.Author);
+            Require(definitionType, "definition.type_required", "/definitionType", DefinitionAdmissionPhase.Author);
+            Require(definitionId, "definition.id_required", "/definitionId", DefinitionAdmissionPhase.Author);
+            if (_derivations.Count == 0)
+                throw Refuse("definition.dependencies_unsupported", "/dependencies", DefinitionAdmissionPhase.Author);
+            lock (_gate)
+            {
+                // Only each definition's published head counts, so a later published version replaces the edges of an
+                // earlier one, and an edge appears in Dependents exactly when its source still depends on the definition.
+                var edges = _history.Keys
+                    .Where(key => key.Tenant == tenant)
+                    .OrderBy(key => key.DefinitionId, StringComparer.Ordinal).ThenBy(key => key.Kind)
+                    .SelectMany(key => Head(key) is { } head && _dependencies.TryGetValue((key, head.Document.VersionId), out var stored)
+                        ? stored : [])
+                    .ToArray();
+                bool Names(CatalogueDefinitionReference end) => end.DefinitionType == definitionType && end.DefinitionId == definitionId;
+                return ValueTask.FromResult(new DefinitionDependencies(
+                    edges.Where(edge => Names(edge.FromDefinitionId)).ToArray(),
+                    edges.Where(edge => Names(edge.ToDefinitionId)).ToArray()));
+            }
+        }
+        catch (DefinitionRefusalException refusal)
+        {
+            DefinitionRefusalTelemetry.Record(tenant, definitionId, refusal);
+            throw;
         }
     }
 

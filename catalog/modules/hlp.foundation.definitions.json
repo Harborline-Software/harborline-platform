@@ -3,12 +3,12 @@
   "module": {
     "interface": {
       "path": "specs/modules/foundation/hlp.foundation.definitions/interface.yaml",
-      "revision": 2
+      "revision": 3
     },
     "moduleKind": "compatibility",
     "presentation": {
       "disposition": "not-applicable",
-      "rationale": "A foundation-tier home for four pure data/exception types; there is no UI surface at any tier."
+      "rationale": "A foundation-tier home for the shared refusal envelope, content-kind registry and content-free definition refusal meter Harborline.Definitions (definition.refusals); there is no UI surface at any tier."
     },
     "owner": "platform-foundation",
     "dependencies": [],
