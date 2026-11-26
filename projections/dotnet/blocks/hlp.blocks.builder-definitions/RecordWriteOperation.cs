@@ -1639,6 +1639,7 @@ public sealed class RecordWriteOperation
         string writtenId, DateTimeOffset from, DateTimeOffset? to, IRecordReferenceTransaction? reader, CancellationToken ct)
     {
         var rowsRead = 0;
+        var targetTypesById = new Dictionary<string, string>(StringComparer.Ordinal);
         var types = new Dictionary<string, RecordTypeDocument?>(StringComparer.Ordinal);
         var retainedTypes = new Dictionary<(string Type, string? Publication, string Version, SchemaId Schema), RecordTypeDocument?>();
         async ValueTask<RecordTypeDocument?> TypeAsync(string type)
@@ -1669,14 +1670,21 @@ public sealed class RecordWriteOperation
             var values = reference.Cardinality == ReferenceCardinality.Many ? ((JsonArray)supplied).ToArray() : [supplied];
             for (var i = 0; i < values.Length; i++)
             {
+                ct.ThrowIfCancellationRequested();
                 var at = reference.Cardinality == ReferenceCardinality.Many ? pointer + "/" + i.ToString(CultureInfo.InvariantCulture) : pointer;
                 if (reader is null) Reject("target_unresolved", at);
                 var value = values[i]!;
                 var id = value["id"]!.GetValue<string>();
                 var type = value["type"]!.GetValue<string>();
-                var target = await reader!.FindReferenceAsync(tenant, id, ct).ConfigureAwait(false);
-                if (target is null || !StringComparer.Ordinal.Equals(target.RecordTypeId, type)
-                    || !StringComparer.Ordinal.Equals(target.Tenant, tenant)) Reject("target_unresolved", at);
+                // The transaction gives this tenant one committed view. Check each submitted type
+                // and field declaration even when another value already resolved the same ID.
+                if (!targetTypesById.TryGetValue(id, out var storedType))
+                {
+                    var target = await reader!.FindReferenceAsync(tenant, id, ct).ConfigureAwait(false);
+                    if (target is null || !StringComparer.Ordinal.Equals(target.Tenant, tenant)) Reject("target_unresolved", at);
+                    targetTypesById[id] = storedType = target!.RecordTypeId;
+                }
+                if (!StringComparer.Ordinal.Equals(storedType, type)) Reject("target_unresolved", at);
                 var targetType = await TypeAsync(type).ConfigureAwait(false);
                 if (targetType is null) Reject("target_unresolved", at);
                 if (!RecordReferenceEligibility.Admits(reference, type, targetType!.ClassId, targetType.Traits))
@@ -1697,7 +1705,7 @@ public sealed class RecordWriteOperation
                     var document = await TypeAsync(ancestor.Type).ConfigureAwait(false);
                     if (document is null) Reject("target_unresolved", at);
                     if (document!.HistoryPolicy != RecordHistoryPolicy.Enabled) Reject("parent_history_unavailable", at);
-                    var history = await reader.ReadParentHistoryAsync(tenant, ancestor.Id, ancestor.From, ancestor.To,
+                    var history = await reader!.ReadParentHistoryAsync(tenant, ancestor.Id, ancestor.From, ancestor.To,
                         1000 - rowsRead, ct).ConfigureAwait(false);
                     if (!history.Available) Reject("parent_history_unavailable", at); // ADR-0162 D5: never a root.
                     rowsRead += history.RowsRead;

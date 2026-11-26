@@ -110,6 +110,38 @@ public sealed class RecordReferenceWriteTests
         }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task records_ck_10_many_references_lookup_each_id_once_and_check_each_qualified_type(bool wrongType)
+    {
+        using var f = await Fixture.Create(parent: false, many: true);
+        var seed = Created(await f.CreateRow("seed"));
+        var row = (await f.Store.FindAsync(Tenant, seed.Receipt.RecordId))!;
+        var port = new ReferencePort(row, (_, _, _) => throw new InvalidOperationException("These references are not parents."));
+        var body = new JsonObject
+        {
+            ["parent"] = new JsonArray(
+                new JsonObject { ["type"] = Type, ["id"] = "first" },
+                new JsonObject { ["type"] = Type, ["id"] = "first" },
+                new JsonObject { ["type"] = Type, ["id"] = "second" },
+                new JsonObject { ["type"] = wrongType ? "eam.other" : Type, ["id"] = "first" }),
+        };
+
+        var result = await f.Compose(port).CreateAsync(new(Tenant, "writer"), new(Type, "repeated-targets", body));
+
+        Assert.Equal(!wrongType, result.Committed);
+        Assert.Equal(wrongType ? 0 : 1, port.Commits);
+        if (wrongType)
+        {
+            Assert.Equal("records.reference.target_unresolved", result.Refusal!.Code);
+            Assert.Equal(["/parent/3"], result.Refusal.Pointers);
+        }
+        // T-615 item 1 looks up the committed identity and checks each claimed qualified type.
+        // The literal IDs above require exactly two store lookups, in first-occurrence order.
+        Assert.Equal(new[] { "first", "second" }, port.Lookups);
+    }
+
     // ADR-0162 D5 and DES-0015 past availability: unavailable never means a root.
     [Theory]
     [InlineData("compacted")]
@@ -263,6 +295,7 @@ public sealed class RecordReferenceWriteTests
         private readonly Func<string, DateTimeOffset, DateTimeOffset?, RecordReferenceHistory> _history = history;
         public bool HasReader { get; init; } = true;
         public int Commits { get; private set; }
+        public List<string> Lookups { get; } = [];
         public ValueTask<RecordWriteCommittedOperation?> FindAsync(RecordWriteOperationKey key, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<RecordWriteCommittedOperation?>(null);
         public ValueTask<IKernelPreparedTransaction<RecordWriteRow, RecordWriteCommit>> BeginAsync(CancellationToken cancellationToken = default)
@@ -287,7 +320,10 @@ public sealed class RecordReferenceWriteTests
         private sealed class ReadingTransaction(ReferencePort owner) : Transaction(owner), IRecordReferenceTransaction
         {
             public ValueTask<RecordWriteRow?> FindReferenceAsync(string tenant, string recordId, CancellationToken cancellationToken = default)
-                => ValueTask.FromResult<RecordWriteRow?>(Owner._identity with { RecordId = recordId });
+            {
+                Owner.Lookups.Add(recordId);
+                return ValueTask.FromResult<RecordWriteRow?>(Owner._identity with { RecordId = recordId });
+            }
             public ValueTask<RecordReferenceHistory> ReadParentHistoryAsync(string tenant, string recordId, DateTimeOffset from,
                 DateTimeOffset? to, int rowBudget, CancellationToken cancellationToken = default)
                 => ValueTask.FromResult(Owner._history(recordId, from, to));
