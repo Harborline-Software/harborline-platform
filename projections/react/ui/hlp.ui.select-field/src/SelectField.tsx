@@ -8,6 +8,8 @@ export type SelectFieldSize = 'sm' | 'md' | 'lg'
 export interface SelectOption { value: string; label: string; disabled?: boolean }
 
 interface SelectFieldBaseProps {
+  trailingAction?: { label: (query: string) => string; invoke: (query: string) => void }
+  noMatchesMessage?: (query: string) => string
   name: string
   options: readonly SelectOption[]
   placeholder?: string
@@ -39,7 +41,8 @@ function nativeAttributes<T extends SelectFieldProps>(props: T) {
     options: _options, value: _value, onValueChange: _onValueChange, multiple: _multiple,
     searchable: _searchable, maxVisibleOptions: _maxVisibleOptions, size: _size,
     accessibleName: _accessibleName, open: _open, onOpenChange: _onOpenChange,
-    error: _error, required: _required, readOnly: _readOnly, ...attributes
+    error: _error, required: _required, readOnly: _readOnly,
+    trailingAction: _trailingAction, noMatchesMessage: _noMatchesMessage, ...attributes
   } = props
   return attributes
 }
@@ -81,6 +84,7 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
   const selectedValues = props.multiple ? props.value : [props.value]
   const selectedLabel = selectedValues.map(selected => options.find(option => option.value === selected)?.label).filter(label => label !== undefined).join(', ')
   const [query, setQuery] = React.useState(multiple ? '' : selectedLabel)
+  const [queryTyped, setQueryTyped] = React.useState(false)
   const [localOpen, setLocalOpen] = React.useState(false)
   const renderedOpen = open ?? localOpen
   const [active, setActive] = React.useState<string | null>(null)
@@ -105,11 +109,11 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
     previous.current = { options, value, multiple }
     if (optionsChanged || selectionChanged) {
       // A controlled acknowledgment keeps navigation; unrelated replacement cancels stale state.
-      if (!acknowledged) { setQuery(multiple ? '' : selectedLabel); setActive(null) }
+      if (!acknowledged) { setQuery(multiple ? '' : selectedLabel); setQueryTyped(false); setActive(null) }
       pendingToggle.current = null
     }
   }
-  const visible = React.useMemo(() => {
+  const matches = React.useMemo(() => {
     if (!searchable) return options
     const matches: SelectOption[] = []
     const needle = query.toLowerCase()
@@ -119,16 +123,19 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
     }
     return matches
   }, [options, searchable, query, maxVisibleOptions])
+  const actionIdentity = listId + '-action'
+  const hasAction = searchable && !multiple && queryTyped && Boolean(props.trailingAction) && query.trim().length > 0
+  const visible = hasAction && props.trailingAction ? [...matches, { value: actionIdentity, label: props.trailingAction.label(query) }] : matches
   const activeIndex = visible.findIndex(option => option.value === active && !option.disabled)
   const optionIndices = React.useMemo(() => new Map(options.map((option, index) => [option.value, index])), [options])
-  const optionId = (option: SelectOption) => listId + '-option-' + optionIndices.get(option.value)
+  const optionId = (option: SelectOption) => option.value === actionIdentity ? actionIdentity : listId + '-option-' + optionIndices.get(option.value)
   const activeId = activeIndex >= 0 ? optionId(visible[activeIndex]!) : undefined
   React.useImperativeHandle(forwardedRef, () => (input.current ?? trigger.current)!)
 
   const requestOpen = React.useCallback((next: boolean) => {
     if (effectiveDisabled) return
     if (next && locked) return
-    if (!next) { pendingToggle.current = null; setQuery(multiple ? '' : selectedLabel); setActive(null) }
+    if (!next) { pendingToggle.current = null; setQuery(multiple ? '' : selectedLabel); setQueryTyped(false); setActive(null) }
     if (next === renderedOpen) return
     if (next) {
       setActive(searchable && !multiple ? null : options.find(option => (Array.isArray(value) ? value.includes(option.value) : option.value === value) && !option.disabled)?.value ?? options.find(option => !option.disabled)?.value ?? null)
@@ -138,7 +145,7 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
   }, [effectiveDisabled, locked, multiple, selectedLabel, renderedOpen, searchable, options, value, onOpenChange, open])
   const focusTrigger = () => (input.current ?? trigger.current)?.focus()
   React.useEffect(() => {
-    if (!renderedOpen) { pendingToggle.current = null; setQuery(multiple ? '' : selectedLabel); setActive(null) }
+    if (!renderedOpen) { pendingToggle.current = null; setQuery(multiple ? '' : selectedLabel); setQueryTyped(false); setActive(null) }
   }, [renderedOpen, multiple, selectedLabel])
   React.useEffect(() => {
     if (renderedOpen && multiple) (search.current ?? list.current)?.focus()
@@ -157,6 +164,14 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
   current.current = props
   function choose(identity: string) {
     const latest = current.current
+    if (identity === actionIdentity) {
+      if (locked || latest.disabled || latest.readOnly || !hasAction || !latest.trailingAction) return
+      const text = query
+      requestOpen(false)
+      focusTrigger()
+      latest.trailingAction.invoke(text)
+      return
+    }
     const member = latest.options.find(option => option.value === identity)
     if (locked || latest.disabled || latest.readOnly || !member || member.disabled) return
     if (latest.multiple) {
@@ -235,7 +250,7 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
           className={className} size={size} invalid={error} ref={input} readOnly={readOnly}
           role="combobox" aria-autocomplete="list" aria-activedescendant={renderedOpen ? activeId : undefined}
           autoComplete="off" placeholder={placeholder ?? t('forms.selectPlaceholder')} value={renderedOpen ? query : selectedLabel}
-          onChange={event => { if (!locked) { requestOpen(true); setQuery(event.target.value); setActive(null) } }}
+          onChange={event => { if (!locked) { requestOpen(true); setQuery(event.target.value); setQueryTyped(true); setActive(null) } }}
           onFocus={event => { props.onFocus?.(event); requestOpen(true) }}
           onBlur={props.onBlur}
           onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }}
@@ -264,13 +279,15 @@ export const SelectField: React.NamedExoticComponent<SelectFieldWithRefProps> = 
             onKeyDown={event => keyDown(event, false)}>
             {visible.map(option => (
               <div key={option.value} id={optionId(option)} role="option" aria-disabled={option.disabled || undefined}
-                aria-selected={selectedValues.includes(option.value)} className="hl-select-field__option"
+                aria-selected={option.value !== actionIdentity && selectedValues.includes(option.value)} className="hl-select-field__option"
+                data-hl-action={option.value === actionIdentity ? 'create' : undefined}
                 data-hl-active={option.value === active || undefined} onClick={() => choose(option.value)}
                 onMouseDown={event => event.preventDefault()}>
                 <span className="hl-select-field__check" aria-hidden="true">{selectedValues.includes(option.value) ? '✓' : ''}</span><span>{option.label}</span>
               </div>
             ))}
           </div>
+          {matches.length === 0 && queryTyped && query.trim() && props.noMatchesMessage ? <div role="status">{props.noMatchesMessage(query)}</div> : null}
         </div>
       ) : null}
     </span>

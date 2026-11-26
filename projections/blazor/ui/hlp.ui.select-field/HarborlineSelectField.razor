@@ -43,7 +43,8 @@
         class="hl-select-field__listbox" tabindex="-1" @onkeydown="HandleListKeyAsync">
         @foreach (var option in visible)
         {
-          <div @key="option.Value" role="option" id="@OptionId(option)" aria-selected="@IsSelected(option.Value).ToString().ToLowerInvariant()"
+          <div @key="option.Value" role="option" id="@OptionId(option)" aria-selected="@((option.Value != ActionIdentity && IsSelected(option.Value)).ToString().ToLowerInvariant())"
+            data-hl-action="@(option.Value == ActionIdentity ? "create" : null)"
             aria-disabled="@(option.Disabled ? "true" : null)" tabindex="@(!Multiple && !Searchable && option.Value == active ? 0 : -1)"
             class="hl-select-field__option" data-hl-option="@option.Value" data-hl-active="@(option.Value == active ? "true" : null)"
             @onmousedown:preventDefault="true" @onclick="() => SelectAsync(option.Value)">
@@ -51,6 +52,10 @@
           </div>
         }
       </div>
+      @if (queryTyped && !visible.Any(option => option.Value != ActionIdentity) && !string.IsNullOrWhiteSpace(query) && NoMatchesMessage is not null)
+      {
+        <div role="status">@NoMatchesMessage(query)</div>
+      }
     </div>
   }
 </span>
@@ -65,6 +70,9 @@
   [Parameter] public IReadOnlyList<string> Values { get; set; } = [];
   [Parameter] public EventCallback<IReadOnlyList<string>> ValuesChanged { get; set; }
   [Parameter] public bool Searchable { get; set; }
+  [Parameter] public Func<string, string>? TrailingActionLabel { get; set; }
+  [Parameter] public EventCallback<string> TrailingAction { get; set; }
+  [Parameter] public Func<string, string>? NoMatchesMessage { get; set; }
   [Parameter] public int MaxVisibleOptions { get; set; } = 25;
   [Parameter] public bool ReadOnly { get; set; }
   [Parameter, EditorRequired] public IReadOnlyList<SelectOption> Options { get; set; } = [];
@@ -86,6 +94,7 @@
   private bool previousMultiple;
   private string? active;
   private string query = "", typeahead = "";
+  private bool queryTyped;
   private long typeaheadTime;
   private string? previousSelection;
   private string? pendingToggle;
@@ -96,6 +105,8 @@
   private DotNetObjectReference<HarborlineSelectField>? reference;
   private IJSObjectReference? module, binding;
   private string ListboxId { get; } = $"hl-select-{Guid.NewGuid():N}";
+  private string ActionIdentity => ListboxId + "-action";
+  private bool HasAction => Searchable && !Multiple && queryTyped && TrailingActionLabel is not null && !string.IsNullOrWhiteSpace(query);
   private bool IsOpen => Open ?? localOpen;
   private bool ResolvedDisabled => Disabled ?? FieldContext?.Disabled ?? false;
   private bool Locked => ResolvedDisabled || ReadOnly;
@@ -129,7 +140,7 @@
     if (previousSelection != selection || previousMultiple != Multiple || optionsChanged || closed)
     {
       var acknowledged = Multiple && IsOpen && !optionsChanged && pendingToggle is not null && pendingToggle == selection;
-      if (!acknowledged) { query = Multiple ? "" : SelectedLabel; active = null; }
+      if (!acknowledged) { query = Multiple ? "" : SelectedLabel; queryTyped = false; active = null; }
       pendingToggle = null;
     }
     previousSelection = selection;
@@ -167,15 +178,23 @@
     return attributes;
   }
 
-  private void RefreshMatches() => visible = Searchable
-    ? Options.Where(option => option.Label.Contains(query, StringComparison.OrdinalIgnoreCase)).Take(MaxVisibleOptions).ToArray()
-    : Options;
+  private void RefreshMatches()
+  {
+    visible = Searchable
+      ? Options.Where(option => option.Label.Contains(query, StringComparison.OrdinalIgnoreCase)).Take(MaxVisibleOptions).ToArray()
+      : Options;
+    if (HasAction)
+    {
+      visible = [.. visible, new SelectOption(ActionIdentity, TrailingActionLabel!(query))];
+      optionIndices[ActionIdentity] = Options.Count;
+    }
+  }
 
   private async Task SetOpenAsync(bool next, bool restoreFocus = false)
   {
     if (ResolvedDisabled) return;
     if (next && Locked) return;
-    if (!next) { pendingToggle = null; query = Multiple ? "" : SelectedLabel; active = null; RefreshMatches(); }
+    if (!next) { pendingToggle = null; query = Multiple ? "" : SelectedLabel; queryTyped = false; active = null; RefreshMatches(); }
     restoreOnRender |= restoreFocus;
     if (next != IsOpen)
     {
@@ -194,10 +213,18 @@
   {
     if (Locked) return;
     await SetOpenAsync(true);
-    query = draft; active = null; RefreshMatches();
+    query = draft; queryTyped = true; active = null; RefreshMatches();
   }
   private async Task SelectAsync(string identity)
   {
+    if (identity == ActionIdentity)
+    {
+      if (Locked || !HasAction) return;
+      var text = query;
+      await SetOpenAsync(false, true);
+      await TrailingAction.InvokeAsync(text);
+      return;
+    }
     var current = Options.FirstOrDefault(option => option.Value == identity);
     if (Locked || current is null || current.Disabled) return;
     if (Multiple)

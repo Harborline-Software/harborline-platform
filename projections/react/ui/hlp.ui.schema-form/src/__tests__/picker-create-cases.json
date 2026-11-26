@@ -1,0 +1,9 @@
+[
+  { "id": "granted-matches", "members": ["Alpha", "Alpine", "Beta"], "permission": "granted", "query": "Al", "expected": [{"kind":"match","label":"Alpha"},{"kind":"match","label":"Alpine"},{"kind":"create","label":"Create asset 'Al'"}] },
+  { "id": "granted-empty", "members": [], "permission": "granted", "query": "New", "expected": [{"kind":"create","label":"Create asset 'New'"}] },
+  { "id": "denied-matches", "members": ["Alpha", "Beta"], "permission": "denied", "query": "Al", "expected": [{"kind":"match","label":"Alpha"}] },
+  { "id": "denied-empty", "members": ["Alpha"], "permission": "denied", "query": "New", "expected": [] },
+  { "id": "absent", "members": ["Alpha"], "permission": "absent", "query": "Al", "expected": [{"kind":"match","label":"Alpha"}] },
+  { "id": "empty-text", "members": ["Alpha"], "permission": "granted", "query": "", "expected": [{"kind":"match","label":"Alpha"}] },
+  { "id": "literal-text", "members": [], "permission": "granted", "query": "{kind}'<new>", "expected": [{"kind":"create","label":"Create asset '{kind}'<new>'"}] }
+]

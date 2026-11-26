@@ -23,8 +23,11 @@ import type {
   SchemaFormStrings,
 } from './SchemaForm.types'
 import { useFormRuleGraph } from './useFormRuleGraph'
+import { RecordCreateContext } from './RecordCreateContext'
 
 const DEFAULT_STRINGS: SchemaFormStrings = {
+  recordCreate: "Create {kind} '{text}'",
+  recordCreatePrerequisite: "No {kind} you can see match '{text}'. Creating {indefiniteKind} needs permission you don't have.",
   submit: 'Submit',
   submitting: 'Submitting…',
   errorSummaryTitle: 'Please fix the following errors',
@@ -561,6 +564,8 @@ export function SchemaForm({
   readOnly = false,
   controls,
   onBlockAction,
+  recordCreateCapabilities,
+  onRecordCreate,
 }: SchemaFormProps) {
   const copy = React.useMemo(() => ({ ...DEFAULT_STRINGS, ...strings }), [strings])
   const registry = React.useMemo<ControlRegistry>(() => ({
@@ -673,7 +678,7 @@ export function SchemaForm({
     <ReadOnlyContext.Provider value={readOnly}>
     <ControlRegistryContext.Provider value={registry}>
       <FormValueStoreContext.Provider value={valueStore}>
-        <form
+        <RecordCreateContext.Provider value={{ recordCreateCapabilities, onRecordCreate }}><form
           aria-label={title || undefined}
           className={cn('hl-schema-form', className)}
           dir={RTL_PRIMARY_SUBTAGS.has(localeChain[0]?.split('-')[0]?.toLocaleLowerCase() ?? '') ? 'rtl' : undefined}
@@ -730,7 +735,7 @@ export function SchemaForm({
             {submitting ? copy.submitting : copy.submit}
           </Button>
         ) : null}
-        </form>
+        </form></RecordCreateContext.Provider>
       </FormValueStoreContext.Provider>
     </ControlRegistryContext.Provider>
     </ReadOnlyContext.Provider>

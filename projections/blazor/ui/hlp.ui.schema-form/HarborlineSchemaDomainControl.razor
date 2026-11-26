@@ -1,7 +1,7 @@
 @namespace Harborline.UIAdapters.Blazor.Components.Forms
 @using Harborline.UIAdapters.Blazor.Components.Forms.Inputs
 
-@if (Editor != "none" && Members.Count > 0)
+@if (Editor != "none" && (Members.Count > 0 || Capability is not null))
 {
     @if (Editor == "radiogroup")
     {
@@ -13,13 +13,23 @@
     {
         <HarborlineSelectField Name="@Args.Field.Name" Value="@SelectedValue" Options="@selectOptions"
           Searchable="@(Editor is "recordpicker" or "taxonomypicker")" MaxVisibleOptions="25"
+          TrailingActionLabel="@(Capability?.CanCreate == true ? CreateLabel : null)" TrailingAction="@CreateAsync"
+          NoMatchesMessage="@(Capability?.CanCreate == false ? Prerequisite : null)"
           ValueChanged="@SelectAsync" Disabled="@Args.Disabled" Required="@Args.Required" Error="@Args.HasError" />
     }
 }
 
 @code {
+    [CascadingParameter] private HarborlineSchemaForm? FormHost { get; set; }
     [Parameter, EditorRequired] public SchemaFormControlArgs Args { get; set; } = default!;
     private string Editor => Args.Field.ControlHint?.ToLowerInvariant() ?? "none";
+    private RecordCreateCapability? Capability => Editor == "recordpicker" && FormHost?.RecordCreateCapabilities.TryGetValue(Args.Field.Name, out var capability) == true ? capability : null;
+    private string Format(string template, string text) => System.Text.RegularExpressions.Regex.Replace(template, "\\{kind\\}|\\{text\\}|\\{indefiniteKind\\}",
+        match => match.Value == "{kind}" ? Capability?.DisplayName ?? "" : match.Value == "{text}" ? text : Capability?.IndefiniteName ?? "");
+    private string CreateLabel(string text) => Format(Args.Strings.RecordCreate, text);
+    private string Prerequisite(string text) => Format(Args.Strings.RecordCreatePrerequisite, text);
+    private Task CreateAsync(string text) => !Args.Disabled && Capability is { CanCreate: true } capability && FormHost is not null
+        ? FormHost.OnRecordCreate.InvokeAsync(new RecordCreateRequest(Args.Field.Name, capability.TargetKind, text)) : Task.CompletedTask;
     private IReadOnlyList<string> Members => Args.Field.PermittedValues ?? [];
     private string SelectedValue => Args.Value is string value && Members.Contains(value, StringComparer.Ordinal) ? value : "";
     private IReadOnlyList<HarborlineRadioOption> RadioOptions => Members.Select(value => new HarborlineRadioOption(value, value)).ToArray();
