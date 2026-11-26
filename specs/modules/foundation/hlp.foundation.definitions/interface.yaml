@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "moduleId": "hlp.foundation.definitions",
-  "interfaceRevision": 2,
+  "interfaceRevision": 3,
   "status": "frozen",
-  "purpose": "Own the shared definition-admission refusal envelope (DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport, DefinitionRefusalException) at the foundation tier, so a foundation-tier producer (Documents) and blocks-tier producers (Layout, Calendar, Rules) resolve the exact same runtime type. hlp.blocks.builder-definitions forwards its former public names here with [TypeForwardedTo] for binary compatibility (owner ruling Q48, T-724 ruling 116); this module owns the types, that one keeps every existing consumer's identity and reference unchanged.",
+  "purpose": "Own the shared definition-admission refusal envelope (DefinitionAdmissionPhase, DefinitionRefusal, DefinitionRefusalReport, DefinitionRefusalException) at the foundation tier, so a foundation-tier producer (Documents) and blocks-tier producers (Layout, Calendar, Rules) resolve the exact same runtime type. hlp.blocks.builder-definitions forwards its former public names here with [TypeForwardedTo] for binary compatibility (owner ruling Q48, T-724 ruling 116); this module owns the types, that one keeps every existing consumer's identity and reference unchanged. Own the content-free definition refusal meter next to that envelope, emitted with System.Diagnostics.Metrics and subscribed to by the host.",
   "dependencies": [],
   "callerInterface": {
-    "name": "DefinitionAdmissionPhase / DefinitionRefusal / DefinitionRefusalReport / DefinitionRefusalException",
+    "name": "DefinitionAdmissionPhase / DefinitionRefusal / DefinitionRefusalReport / DefinitionRefusalException / DefinitionRefusalTelemetry",
     "operations": [
       "DefinitionAdmissionPhase -> the four-stage admission boundary (Author, Publish, Install, Render) every refusal names explicitly; no default stage (T-724 ruling 79)",
       "DefinitionRefusal(Code, Pointer, Target?) -> one stable, localizable refusal at an RFC 6901 pointer; Target is present only when revealing it is safe and authorized",
@@ -14,7 +14,8 @@
       "DefinitionRefusalReport(Stage, Refusals) -> a pure admission verdict, empty Refusals meaning admitted",
       "DefinitionRefusalException(Stage, Refusals) -> the shared refused-operation exception every producer throws; history and published head are unchanged when it throws",
       "PackContentKindRegistry.Kinds / Pillars / Kind(name) / PillarOf(kindName) -> the one content-kind and pillar registry (T-738): every kind's wire value, pillar and Shipped or Reserved status; shipped values are the api's and never renumber; an unknown name throws",
-      "PackContentKindRegistry.Export / LoadCheckedInExport / VerifyCheckedInExport -> the indented, newline-terminated JSON the api consumes, checked in at _shared/content-kinds/content-kinds.json, embedded and packed at the same path"
+      "PackContentKindRegistry.Export / LoadCheckedInExport / VerifyCheckedInExport -> the indented, newline-terminated JSON the api consumes, checked in at _shared/content-kinds/content-kinds.json, embedded and packed at the same path",
+      "DefinitionRefusalTelemetry.Record(tenantId, definitionId, refusal) -> counts one per DefinitionRefusal on meter Harborline.Definitions, instrument definition.refusals (public MeterName and InstrumentName constants), with exactly tenant_id, stage (DefinitionAdmissionPhase name), definition_id and code. Listener failures never change admission. Refusals with no tenant or no definition id are not counted (including blank values); no placeholder or reduced attribute set is emitted."
     ]
   }
 }

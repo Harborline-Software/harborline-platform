@@ -25,3 +25,12 @@ Check all generated identities and the export without writing: `dotnet run --pro
 ## Solver refusal detail (T-491)
 
 DefinitionRefusal keeps its three-argument constructor and Deconstruct. Its optional init-only Detail is a JSON object, serialized as detail and omitted when null (DES-0014 C3). Equality compares detail values structurally, ignoring object member order and preserving array order; Target still names only a safely exposed fetchable definition.
+
+## Refusal telemetry (T-1257)
+
+`DefinitionRefusalTelemetry` exposes `MeterName` (`Harborline.Definitions`) and
+`InstrumentName` (`definition.refusals`) for host subscription. `Record` counts each refusal with
+exactly `tenant_id`, `stage` (the admission phase name), `definition_id` and `code`. It counts only
+when the opaque tenant and definition id are both non-blank; constructor and key-listing refusals
+have no definition identity and are not counted. Listener faults cannot replace the refusal.
+The emitter uses `System.Diagnostics.Metrics`; hosts compose their own OpenTelemetry listener.
