@@ -38,7 +38,7 @@ import {isDeepStrictEqual} from 'node:util'
 import {reconcileReceiptShards} from '../collect-gallery-shards.mjs'
 import {expectedChecks, reconcileChecks} from '../gallery-observations.mjs'
 import {requiredStepIds} from '../gate-contract.mjs'
-import {checkReleaseReceipt} from '../release-receipt.mjs'
+import {checkReleaseReceipt, emitReleaseReceipt} from '../release-receipt.mjs'
 import {isAbsolute, relative, resolve, sep} from 'node:path'
 
 export const EVIDENCE_PATH = 'docs/evidence/phase-4/gate.json'
@@ -201,6 +201,71 @@ export function queueIdentity(run, expected) {
     && Number(run.run_attempt) === Number(expected.attempt), 'queue run identity/event/head/attempt differs')
   return {id: run.id, attempt: run.run_attempt, event: run.event, head: run.head_sha,
     repository: run.repository.full_name, status: run.status, workflow: run.path, conclusion: run.conclusion}
+}
+
+export function verifyObservationArchive({artifact, expected, bytes}) {
+  requireThat(Number.isSafeInteger(artifact?.id) && artifact.id > 0 && !artifact.expired
+    && artifact.workflow_run?.id === expected.runId && artifact.name === expected.name
+    && artifact.digest === `sha256:${sha256(bytes)}`, 'raw artifact identity or digest differs')
+}
+
+function downloadObservations({directory, producer}) {
+  const listing = api(`repos/${RECEIPT_REPOSITORY}/actions/runs/${producer.runId}/artifacts?per_page=100`)
+  requireThat(Array.isArray(listing.artifacts) && listing.total_count === listing.artifacts.length && listing.total_count <= 100,
+    'incomplete raw artifact census')
+  const inputs = [{name: `candidate-phase4-${producer.runId}-${producer.attempt}`, file: 'phase4.json'},
+    ...[1,2,3,4,5,6].map(id => ({name: `receipt-shard-${producer.runId}-${producer.attempt}-${id}`, file: `gallery-shard-${id}.json`}))]
+  const identities = []
+  mkdirSync(directory, {recursive: true})
+  for (const input of inputs) {
+    const matches = listing.artifacts.filter(row => row.name === input.name)
+    requireThat(matches.length === 1, 'missing or duplicate raw artifact')
+    const artifact = matches[0]
+    requireThat(Number.isSafeInteger(artifact.id) && artifact.id > 0, 'invalid raw artifact id')
+    const bytes = execFileSync('gh', ['api', `repos/${RECEIPT_REPOSITORY}/actions/artifacts/${artifact.id}/zip`],
+      {maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']})
+    verifyObservationArchive({artifact, expected: {runId: producer.runId, attempt: producer.attempt, name: input.name}, bytes})
+    // Standard-library ZIP parsing only; no archive path is extracted or executed. One bounded JSON file.
+    const data = execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+      'import sys,io,zipfile\nz=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))\na=z.infolist()\nassert len(a)==1 and a[0].filename==sys.argv[1] and a[0].file_size<=67108864\nsys.stdout.buffer.write(z.read(a[0]))', input.file],
+      {input: bytes, maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe']})
+    JSON.parse(data)
+    writeFileSync(resolve(directory, input.file), data)
+    identities.push({id: artifact.id, name: input.name, digest: artifact.digest, file: input.file, sha256: sha256(data)})
+  }
+  return identities
+}
+
+// Candidate processes may forge their observations. Only the fresh data-only job owns
+// the expected inventory and reconciliation; Git blobs, never a mutable checkout, own scope.
+export function collectTrustedGateData({root, head, gate, shards, producer}) {
+  const tree = receiptTree(root, head), scope = receiptScope(root, head)
+  requireThat(gate?.schemaVersion === 3 && gate.phase === 4 && gate.status === 'PASS', 'reported gate failed or malformed')
+  requireThat(gate?.subject?.baseHead === head && gate.subject.testedTree === tree.gitTree, 'reported subject differs')
+  requireThat(gate?.results?.length === requiredStepIds.length && requiredStepIds.every((id, i) =>
+    gate.results[i]?.id === id && gate.results[i].passed === true && gate.results[i].exitCode === 0
+      && !gate.results[i].reusedFrom), 'full fresh reported steps required')
+  requireThat(Number.isInteger(gate.counts?.nativeTests) && gate.counts.nativeTests > 0, 'reported native test count absent')
+  requireThat(shards.length > 0 && shards.every(shard => shard.provenance?.sourceHead === head
+    && String(shard.provenance.runId) === String(producer.runId)), 'shard invocation differs')
+  const reconciled = reconcileReceiptShards(shards, scope.scenarios, GALLERY_STEPS, scope.allowedSkippedIds)
+  requireThat(reconcileChecks(reconciled.observation.checks, scope.expectedChecks) === 'exact', 'raw check reconciliation failed')
+  return {schemaVersion: 3, phase: 4, status: 'PASS',
+    subject: {repository: 'harborline-platform', baseHead: head, testedTree: tree.gitTree, mode: 'exact-staged-tree'},
+    requiredStepIds: [...requiredStepIds], moduleIds: scope.moduleIds,
+    results: gate.results.map(({id, passed, exitCode, report}) => ({id, passed, exitCode, ...(report ? {report} : {})})),
+    designReview: gate.designReview,
+    counts: {nativeTests: gate.counts.nativeTests, generationSmokeModules: scope.generationSmokeModules, generationSmokeScenarios: scope.scenarios.length,
+      galleryScenarios: scope.scenarios.length, qualityCases: scope.qualityCases, sharedResults: scope.sharedResults,
+      scenarioBrowserTests: reconciled.observation.scenarioBrowserTests, galleryChecks: reconciled.observation.checks},
+    invariants: {expectedSharedResults: scope.sharedResults, expectedGenerationSmokeModules: scope.generationSmokeModules},
+    scenarioReconciliation: 'exact', checkReconciliation: 'exact',
+    assurance: {status: 'run-reported', results: 'run-reported', designReview: 'run-reported', requiredStepIds: 'signer-checked',
+      subject: 'signer-checked', invariants: 'signer-checked',
+      counts: {nativeTests: 'run-reported', generationSmokeModules: 'signer-checked', generationSmokeScenarios: 'signer-checked',
+        galleryScenarios: 'signer-checked', qualityCases: 'signer-checked', sharedResults: 'signer-checked',
+        scenarioBrowserTests: 'signer-checked', galleryChecks: 'signer-checked'},
+      scenarioReconciliation: 'signer-checked', checkReconciliation: 'signer-checked'}}
 }
 
 export function buildGalleryPredicate({root, head, queue, producer, gate, shards, artifacts, artifactFiles, now = new Date()}) {
@@ -745,6 +810,42 @@ if (import.meta.main && process.argv.includes('--receipt')) {
           mkdirSync(output, {recursive: true})
           writeFileSync(resolve(output, file), `${field}: ${value}\n`)
         }
+      }
+    } else if (mode === 'collect') {
+      let head, revision, queueCompletedAt
+      if (process.env.GITHUB_EVENT_NAME === 'push') {
+        const event = jsonFile(process.env.GITHUB_EVENT_PATH)
+        revision = head = objectId(process.env.GITHUB_SHA)
+        requireThat(process.env.GITHUB_REF === 'refs/heads/main' && process.env.GITHUB_REPOSITORY === RECEIPT_REPOSITORY
+          && event.after === head && git(root, 'rev-parse', 'HEAD') === head, 'collector requires landed main')
+        queueCompletedAt = event.head_commit?.timestamp
+      } else {
+        const context = workflowContext(root)
+        head = context.expected.head; revision = context.revision; queueCompletedAt = context.run.updated_at
+      }
+      const directory = resolve(process.env.RECEIPT_DIRECTORY ?? 'receipt')
+      requireThat(git(root, 'status', '--porcelain') === '', 'trusted data checkout is dirty')
+      const producer = {revision, runId: Number(process.env.GITHUB_RUN_ID), attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+        queueCompletedAt}
+      const rawDirectory = resolve(process.env.RUNNER_TEMP, 'raw-observations')
+      const inputs = downloadObservations({directory: rawDirectory, producer})
+      const gate = collectTrustedGateData({root, head: head, producer,
+        gate: jsonFile(resolve(rawDirectory, 'phase4.json')),
+        shards: [1,2,3,4,5,6].map(id => jsonFile(resolve(rawDirectory, `gallery-shard-${id}.json`)))})
+      mkdirSync(directory, {recursive: true})
+      for (const input of inputs.filter(input => input.file !== 'phase4.json'))
+        writeFileSync(resolve(directory, input.file), readFileSync(resolve(rawDirectory, input.file)))
+      writeFileSync(resolve(directory, 'phase4.json'), JSON.stringify(gate))
+      if (process.env.GITHUB_EVENT_NAME === 'workflow_run' && process.env.RELEASE_APPROVED_COMMIT === head) {
+        const loaded = loadReleaseGatePolicy({root, approvedCommit: head})
+        const receipt = {schemaVersion: 3, phase: 4, repository: 'harborline-platform',
+          baseHead: head, testedTree: receiptTree(root, head).gitTree,
+          recordedAt: new Date().toISOString(), reportSha256: sha256(Buffer.from(JSON.stringify(gate))), gate,
+          orchestration: {revision, apiRevision: loaded.policy.apiRevision}, observations: inputs}
+        writeFileSync(resolve(directory, 'release-phase4-receipt.json'), JSON.stringify(receipt))
+        const companion = emitReleaseReceipt(root, {baseHead: head, testedTree: receipt.testedTree, mode: 'exact-staged-tree'})
+        requireThat(!checkReleaseReceipt(root, companion, {requireAttestation: false}), 'companion data refused')
+        writeFileSync(resolve(directory, 'release-receipt.json'), companion)
       }
     } else if (['plan-refresh', 'publish-refresh', 'refresh-alert'].includes(mode)) {
       requireThat(process.env.GITHUB_EVENT_NAME === 'push' && process.env.GITHUB_REF === 'refs/heads/main'

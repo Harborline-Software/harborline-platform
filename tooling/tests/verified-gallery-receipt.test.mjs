@@ -87,7 +87,7 @@ function fixture(t) {
         tests: [{status: 'expected', results: [{status: 'passed', annotations: i === 0 ? annotations : []}]}]}))}]}}]
   const gate = {schemaVersion: 3, phase: 4, status: 'PASS', subject: {baseHead: head, testedTree: tree},
     moduleIds: ['hlp.ui.button'], requiredStepIds: STEPS, results: STEPS.map(id => ({id, passed: true})),
-    counts: {generationSmokeModules: 1, generationSmokeScenarios: 2, galleryScenarios: 2, qualityCases: 3,
+    counts: {nativeTests: 37, generationSmokeModules: 1, generationSmokeScenarios: 2, galleryScenarios: 2, qualityCases: 3,
       sharedResults: 2, scenarioBrowserTests: 2, galleryChecks: Object.fromEntries(Object.entries(CHECKS).filter(([, count]) => count > 0))},
     scenarioReconciliation: 'exact', checkReconciliation: 'exact'}
   const now = new Date('2026-11-10T15:01:00Z')
@@ -422,13 +422,14 @@ test('main producer and reusable signer preserve credential and execution bounda
   const signer = readWorkflow('sign-gallery-receipt.yml')
   assert.match(producer, /workflow_run:\n    workflows: \[verify\]\n    types: \[completed\]/)
   assert.match(producer, /workflow_run.event == 'merge_group'/)
-  for (const id of ['gallery-shard', 'phase-4']) {
+  for (const id of ['gallery-shard', 'candidate-phase-4', 'phase-4']) {
     const job = producer.split(`\n  ${id}:\n`)[1].split(/\n  [a-z-]+:\n/)[0]
     assert.match(job, /runs-on: ubuntu-latest/)
     assert.match(job, /contents: read/)
     assert.doesNotMatch(job, /secrets\.|id-token:|environment:|contents: write/)
     assert.match(job, /needs.plan.outputs.revision/)
-    assert.match(job, /trusted-orchestration\/tooling/)
+    if (id === 'phase-4') assert.match(job, /--receipt collect/)
+    else assert.match(job, /trusted-orchestration\/tooling/)
   }
   const poster = producer.split('\n  post:\n')[1].split(/\n  [a-z-]+:\n/)[0]
   assert.match(poster, /environment: gallery-receipt/)
@@ -637,7 +638,8 @@ childProcess.execFileSync = (command, args, options) => {
   if (fixture.rejectPaths.includes(endpoint)) throw new Error('fixture API refusal')
   if (method !== 'GET') return '{}'
   if (!Object.hasOwn(fixture.routes, endpoint)) throw new Error('unexpected fixture API route')
-  return JSON.stringify(fixture.routes[endpoint])
+  const response = fixture.routes[endpoint]
+  return response?.archiveBase64 ? Buffer.from(response.archiveBase64, 'base64') : JSON.stringify(response)
 }
 syncBuiltinESMExports()
 `
@@ -868,4 +870,172 @@ test('every external action in the receipt workflow is pinned; only the two same
     assert.match(reference, /^[\w.-]+\/[\w./-]+@[0-9a-f]{40} # v\d+(?:\s.*)?$/,
       `receipt workflow action must use an immutable commit and version comment: ${reference}`)
   }
+})
+
+// ADR-0139 d1-2 / ADR-0198 d2,4,9: raw observations cannot author checked facts.
+test('trusted split derives inventory and reconciliation from Git data, not candidate tallies', t => {
+  assert.equal(typeof releaseEvidence.collectTrustedGateData, 'function')
+  const f = fixture(t)
+  const reported = {...f.gate, counts: {nativeTests: 37, galleryScenarios: 999}, requiredStepIds: ['forged'],
+    results: STEPS.map(id => ({id, passed: true, exitCode: 0}))}
+  const collected = releaseEvidence.collectTrustedGateData({...f.args, gate: reported})
+  assert.equal(collected.counts.galleryScenarios, 2)
+  assert.equal(collected.counts.generationSmokeModules, 1)
+  assert.equal(collected.invariants?.expectedSharedResults, 2)
+  assert.equal(collected.invariants?.expectedGenerationSmokeModules, 1)
+  assert.equal(collected.counts.nativeTests, 37)
+  assert.equal(collected.assurance.counts.nativeTests, 'run-reported')
+  assert.deepEqual(collected.requiredStepIds, STEPS)
+  assert.equal(collected.scenarioReconciliation, 'exact')
+  assert.equal(collected.assurance.results, 'run-reported')
+  assert.equal(collected.assurance.requiredStepIds, 'signer-checked')
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: {...reported, status: 'FAIL'}}), /reported gate/)
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: {...reported,
+    subject: {...reported.subject, testedTree: 'a'.repeat(40)}}}), /subject/)
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: {...reported,
+    results: reported.results.slice(1)}}), /fresh.*steps/)
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: reported, shards: []}), /shard/)
+  for (const provenance of [{sourceHead: 'b'.repeat(40), runId: '202'}, {sourceHead: f.head, runId: '9001'}])
+    assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: reported,
+      shards: [{...f.shards[0], provenance}]}), /shard invocation/)
+  const incomplete = structuredClone(f.shards); incomplete[0].playwrightReport.suites[0].specs[0].tests[0].results[0].annotations = []
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: reported, shards: incomplete}), /check reconciliation/)
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: {...reported, counts: {nativeTests: 0}}}), /native test count/)
+  const failed = structuredClone(reported); failed.results[7].passed = false; failed.results[7].exitCode = 1
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: failed}), /fresh.*steps/)
+})
+
+// ADR-0139 d1: candidate code can forge results, but cannot supply main's checked reconciliation.
+test('restore-time gallery runner overwrite supplies only untrusted observations', t => {
+  const f = fixture(t)
+  const raw = structuredClone(f.shards[0])
+  raw.playwrightReport.suites[0].specs[0].tests[0].results[0].annotations = []
+  raw.counts = {galleryScenarios: 999, galleryChecks: CHECKS}
+  put(f.root, 'tooling/run-gallery-gate.mjs', 'throw new Error("original runner must be overwritten")')
+  put(f.root, 'overwrite.cjs', `require('node:fs').writeFileSync('tooling/run-gallery-gate.mjs', ${JSON.stringify(`console.log(${JSON.stringify(JSON.stringify(raw))})`)})`)
+  put(f.root, 'candidate.proj', '<Project><Target Name="Restore"><Exec Command="node overwrite.cjs" /></Target></Project>')
+  const restore = spawnSync('dotnet', ['msbuild', 'candidate.proj', '-t:Restore', '-m:1', '-nr:false'],
+    {cwd: f.root, encoding: 'utf8', env: {...process.env, DOTNET_CLI_USE_MSBUILD_SERVER: '0', MSBUILDDISABLENODEREUSE: '1'}})
+  assert.equal(restore.status, 0, restore.stderr + restore.stdout)
+  const runner = spawnSync(process.execPath, ['tooling/run-gallery-gate.mjs'], {cwd: f.root, encoding: 'utf8'})
+  assert.equal(runner.status, 0, runner.stderr)
+  const forged = JSON.parse(runner.stdout)
+  assert.equal(forged.passed, true) // Literal attacker output; this is not a trusted PASS.
+  const reported = {...f.gate, results: STEPS.map(id => ({id, passed: true, exitCode: 0}))}
+  assert.throws(() => releaseEvidence.collectTrustedGateData({...f.args, gate: reported, shards: [forged]}),
+    /raw check reconciliation failed/)
+})
+
+for (const eventName of ['workflow_run', 'push']) test(`trusted collector CLI digests and reconciles raw archives on ${eventName}`, t => {
+  const f = fixture(t), work = mkdtempSync(resolve(tmpdir(), 'collector-cli-'))
+  t.after(() => rmSync(work, {recursive: true, force: true}))
+  // Commit fixture setup so the real CLI enforces a clean main data checkout.
+  git(f.root, 'add', '.'); git(f.root, '-c', 'core.hooksPath=', 'commit', '-m', 'trusted fixture data')
+  const revision = git(f.root, 'rev-parse', 'HEAD'), head = eventName === 'push' ? revision : f.head
+  const gate = {...f.gate, subject: {baseHead: head, testedTree: git(f.root, 'rev-parse', `${head}^{tree}`)},
+    counts: {nativeTests: 37, galleryScenarios: 999}, results: STEPS.map(id => ({id, passed: true, exitCode: 0}))}
+  const files = [{name: 'candidate-phase4-202-1', file: 'phase4.json', data: gate},
+    ...[1, 2, 3, 4, 5, 6].map(id => ({name: `receipt-shard-202-1-${id}`, file: `gallery-shard-${id}.json`,
+      data: {...f.shards[0], shard: id, shards: 6, provenance: {sourceHead: head, runId: '202'},
+        playwrightReport: id === 1 ? f.shards[0].playwrightReport : {stats: {expected: 0, unexpected: 0, skipped: 0, flaky: 0}, suites: []}}}))]
+  const routes = {}, artifacts = []
+  for (const [i, input] of files.entries()) {
+    const bytes = execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+      'import sys,io,zipfile;b=io.BytesIO();z=zipfile.ZipFile(b,"w");z.writestr(sys.argv[1],sys.stdin.buffer.read());z.close();sys.stdout.buffer.write(b.getvalue())', input.file],
+      {input: JSON.stringify(input.data)})
+    artifacts.push({id: i + 10, name: input.name, expired: false, workflow_run: {id: 202},
+      digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex')})
+    routes[`repos/${REPO}/actions/artifacts/${i + 10}/zip`] = {archiveBase64: bytes.toString('base64')}
+  }
+  routes[`repos/${REPO}/actions/runs/202/artifacts?per_page=100`] = {total_count: 7, artifacts}
+  routes[`repos/${REPO}/actions/runs/101/attempts/2`] = {...f.run, head_sha: head}
+  put(work, 'event.json', eventName === 'push' ? {after: head} : {workflow_run: {...f.run, head_sha: head,
+    updated_at: '2026-11-10T15:00:00Z'}})
+  put(work, 'boundary.mjs', GH_BOUNDARY)
+  put(work, 'requests.jsonl', '')
+  put(work, 'fixture.json', {routes, log: resolve(work, 'requests.jsonl'), rejectPaths: [], now: f.args.now.getTime()})
+  const cli = resolve(import.meta.dirname, '../gates/scan-evidence-provenance.mjs')
+  const run = () => spawnSync(process.execPath, ['--import', pathToFileURL(resolve(work, 'boundary.mjs')).href,
+    cli, '--receipt', 'collect'], {cwd: f.root, encoding: 'utf8', timeout: 30000, env: {...process.env,
+      RECEIPT_CLI_FIXTURE: resolve(work, 'fixture.json'), GITHUB_EVENT_PATH: resolve(work, 'event.json'),
+      GITHUB_EVENT_NAME: eventName, GITHUB_REF: 'refs/heads/main', GITHUB_REPOSITORY: REPO,
+      GITHUB_SHA: revision, GITHUB_RUN_ID: '202', GITHUB_RUN_ATTEMPT: '1', RUNNER_TEMP: work,
+      RECEIPT_DIRECTORY: resolve(work, 'receipt'), RELEASE_APPROVED_COMMIT: ''}})
+  const result = run()
+  assert.equal(result.status, 0, result.stderr)
+  const collected = JSON.parse(readFileSync(resolve(work, 'receipt/phase4.json')))
+  assert.equal(collected.counts.galleryScenarios, 2)
+  assert.equal(collected.subject.testedTree, git(f.root, 'rev-parse', `${head}^{tree}`))
+  assert.equal(collected.assurance.results, 'run-reported')
+  // A new invocation with altered archive metadata must fail before collection.
+  const originalDigest = artifacts[0].digest
+  const save = () => put(work, 'fixture.json', {routes, log: resolve(work, 'requests.jsonl'), rejectPaths: [], now: f.args.now.getTime()})
+  artifacts[0].digest = 'sha256:' + '0'.repeat(64); save()
+  assert.equal(run().status, 1, 'altered archive bytes refuse')
+  artifacts[0].digest = originalDigest
+  routes[`repos/${REPO}/actions/runs/202/artifacts?per_page=100`].total_count = 8; save()
+  assert.equal(run().status, 1, 'incomplete artifact census refuses')
+  routes[`repos/${REPO}/actions/runs/202/artifacts?per_page=100`].total_count = 7
+  artifacts.push({...artifacts[0], id: 99})
+  routes[`repos/${REPO}/actions/runs/202/artifacts?per_page=100`].total_count = 8; save()
+  assert.equal(run().status, 1, 'duplicate artifact name refuses')
+  artifacts.pop(); routes[`repos/${REPO}/actions/runs/202/artifacts?per_page=100`].total_count = 7
+  const archiveRoute = routes[`repos/${REPO}/actions/artifacts/10/zip`], originalArchive = archiveRoute.archiveBase64
+  const extra = execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+    'import sys,io,zipfile;b=io.BytesIO();z=zipfile.ZipFile(b,"w");z.writestr("phase4.json",sys.stdin.buffer.read());z.writestr("extra.mjs","throw 1");z.close();sys.stdout.buffer.write(b.getvalue())'], {input: JSON.stringify(gate)})
+  archiveRoute.archiveBase64 = extra.toString('base64')
+  artifacts[0].digest = 'sha256:' + createHash('sha256').update(extra).digest('hex'); save()
+  assert.equal(run().status, 1, 'extra archive entry refuses even with correct transport digest')
+  archiveRoute.archiveBase64 = originalArchive; artifacts[0].digest = originalDigest; save()
+  put(f.root, 'untracked-candidate-helper.mjs', 'throw new Error("must never run")')
+  assert.equal(run().status, 1, 'dirty trusted checkout refuses')
+})
+
+test('trusted collector writes eligible receipt bytes consumed by the production release signer', t => {
+  const f = releaseFixture(t), work = mkdtempSync(resolve(tmpdir(), 'collector-release-'))
+  t.after(() => rmSync(work, {recursive: true, force: true}))
+  const root = resolve(work, 'main'), directory = resolve(work, 'receipt'), routes = {}
+  execFileSync('git', ['clone', '--no-checkout', f.root, root], {stdio: 'pipe'})
+  git(root, 'checkout', '--detach', f.A)
+  const inputs = [{file: 'phase4.json', name: 'candidate-phase4-9002-1'},
+    ...[1, 2, 3, 4, 5, 6].map(id => ({file: `gallery-shard-${id}.json`, name: `receipt-shard-9002-1-${id}`}))]
+  const artifacts = []
+  for (const [i, input] of inputs.entries()) {
+    const bytes = execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
+      'import sys,io,zipfile;b=io.BytesIO();z=zipfile.ZipFile(b,"w");z.writestr(sys.argv[1],sys.stdin.buffer.read());z.close();sys.stdout.buffer.write(b.getvalue())', input.file],
+      {input: readFileSync(resolve(f.directory, input.file))})
+    artifacts.push({id: i + 10, name: input.name, expired: false, workflow_run: {id: 9002},
+      digest: 'sha256:' + f.hash(bytes)})
+    routes[`repos/${REPO}/actions/artifacts/${i + 10}/zip`] = {archiveBase64: bytes.toString('base64')}
+  }
+  routes[`repos/${REPO}/actions/runs/9002/artifacts?per_page=100`] = {total_count: 7, artifacts}
+  routes[`repos/${REPO}/actions/runs/9001/attempts/2`] = f.routes['actions/runs/9001/attempts/2']
+  put(work, 'event.json', {workflow_run: {...f.routes['actions/runs/9001/attempts/2'], updated_at: '2026-11-21T16:00:00Z'}})
+  put(work, 'boundary.mjs', GH_BOUNDARY); put(work, 'requests.jsonl', '')
+  put(work, 'fixture.json', {routes, log: resolve(work, 'requests.jsonl'), rejectPaths: [], now: f.now.getTime()})
+  const value = JSON.stringify(f.policy), envelope = Buffer.from(JSON.stringify({schemaVersion: 1, repository: REPO,
+    runId: '9002', attempt: '1', revision: f.A, response: {name: 'RELEASE_GATE_POLICY', value}})).toString('base64')
+  const result = spawnSync(process.execPath, ['--import', pathToFileURL(resolve(work, 'boundary.mjs')).href,
+    resolve(import.meta.dirname, '../gates/scan-evidence-provenance.mjs'), '--receipt', 'collect'],
+    {cwd: root, encoding: 'utf8', timeout: 30000, env: {...process.env, RECEIPT_CLI_FIXTURE: resolve(work, 'fixture.json'),
+      GITHUB_EVENT_PATH: resolve(work, 'event.json'), GITHUB_EVENT_NAME: 'workflow_run', GITHUB_REF: 'refs/heads/main',
+      GITHUB_REPOSITORY: REPO, GITHUB_SHA: f.A, GITHUB_RUN_ID: '9002', GITHUB_RUN_ATTEMPT: '1', RUNNER_TEMP: work,
+      RECEIPT_DIRECTORY: directory, RELEASE_APPROVED_COMMIT: f.B, RELEASE_POLICY_ENVELOPE: envelope,
+      RELEASE_POLICY_SHA256: f.policySha256}})
+  assert.equal(result.status, 0, result.stderr)
+  for (const name of ['phase4.json', 'release-phase4-receipt.json', 'release-receipt.json'])
+    assert.equal(existsSync(resolve(directory, name)), true, `trusted writer must produce ${name}`)
+  const receipt = JSON.parse(readFileSync(resolve(directory, 'release-phase4-receipt.json')))
+  assert.equal(receipt.baseHead, f.B)
+  assert.equal(receipt.reportSha256, f.hash(readFileSync(resolve(directory, 'phase4.json'))))
+  assert.equal(receipt.observations.length, 7)
+  assert.equal(receipt.gate.assurance.results, 'run-reported')
+  for (const file of ['sbom.spdx.json', 'sbom-evidence.json', 'license-policy.cjs', 'syft.yaml'])
+    put(directory, `sbom/${file}`, readFileSync(resolve(f.directory, 'sbom', file)).toString('utf8'))
+  const sealed = releaseEvidence.sealReleaseGateEvidence({root, directory, head: f.B, producer: {id: 9002, attempt: 1, revision: f.A},
+    queue: {id: 9001, attempt: 2}, sbom: {id: 9003, attempt: 1}, policySha256: f.policySha256,
+    queueCompletedAt: '2026-11-21T16:00:00Z', now: f.now})
+  const predicate = releaseEvidence.buildReleaseGatePredicate({...f.args, root, directory, expected: {...f.args.expected, ...sealed}})
+  assert.equal(predicate.receiptSha256, f.hash(readFileSync(resolve(directory, 'release-phase4-receipt.json'))))
+  assert.equal(predicate.companionSha256, f.hash(readFileSync(resolve(directory, 'release-receipt.json'))))
 })

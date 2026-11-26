@@ -14,7 +14,7 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {formatGateFailure, writeGateFailureReport} from './gate-failure-report.mjs'
 import {checkReleaseReceipt, emitReleaseReceipt} from './release-receipt.mjs'
 import {cleanUpScratchOnSignal, killProcessTreeSync, sweepStaleScratchTrees, writeScratchPidFile} from './resolve-command.mjs'
-import {applyTrustedOrchestration, trustedOrchestrationInventory, createTrustedStepExecutor} from './run-phase-4-gate.mjs'
+import {applyTrustedOrchestration, trustedOrchestrationInventory, createTrustedStepExecutor, assertOriginalSubjectInputs} from './run-phase-4-gate.mjs'
 import {headless, requiredStepIds} from './gate-contract.mjs'
 
 // Ticket 289: one prefix, shared with the self-tests and with anything else that ever mints a
@@ -91,6 +91,7 @@ const inputOutcome = await runPhase4InputAttempt({
       // Independently reject a child that reports PASS after replacing measured inputs.
       if (orchestration) createTrustedStepExecutor({repositoryRoot: testedCheckout, inventory: orchestration,
         execute: () => {}})()
+      if (orchestration) assertOriginalSubjectInputs({repositoryRoot: testedCheckout, inventory: orchestration})
       if (gate.status !== 0) {
         // The gate still prints its full JSON report to stdout on failure (only process.exitCode is
         // non-zero) -- write it whole to disk and name every failed step, rather than throwing with

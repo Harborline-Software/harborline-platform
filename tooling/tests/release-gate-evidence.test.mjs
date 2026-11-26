@@ -100,7 +100,7 @@ test('R-0224: actual isolated reader makes fresh credentialed requests, transfer
 
 test('R-0225: every owned test-bearing gate provisions pinned Syft and exports its path before execution', () => {
   for (const [file, name] of [['verify', 'phase-4-gate'], ['verify-gallery-receipt', 'gallery-shard'],
-    ['verify-gallery-receipt', 'phase-4']]) {
+    ['verify-gallery-receipt', 'candidate-phase-4']]) {
     const text = job(workflow(file), name)
     assert.match(text, /id: test-syft/)
     assert.match(text, /uses: anchore\/sbom-action\/download-syft@e22c389904149dbc22b58101806040fa8d37a610/)
@@ -113,7 +113,7 @@ test('R-0225: every owned test-bearing gate provisions pinned Syft and exports i
 
 test('release.main-orchestration-inputs: producer selects immutable API data and invokes the main receipt entry outside the subject', () => {
   const producer = workflow('verify-gallery-receipt')
-  for (const name of ['gallery-shard', 'phase-4']) {
+  for (const name of ['gallery-shard', 'candidate-phase-4']) {
     const steps = job(producer, name)
     assert.match(steps, /API_REVISION: \$\{\{ needs.plan.outputs.api-revision \}\}/)
     assert.match(steps, /git checkout --detach "\$API_REVISION"/)
@@ -121,7 +121,7 @@ test('release.main-orchestration-inputs: producer selects immutable API data and
     assert.ok(steps.indexOf('package-manager-cache: false') < steps.indexOf('--prepare-trusted-orchestration'))
     assert.ok(steps.indexOf('--prepare-trusted-orchestration') < steps.indexOf('pnpm/action-setup@'))
   }
-  const phase4 = job(producer, 'phase-4')
+  const phase4 = job(producer, 'candidate-phase-4')
   assert.match(phase4, /HARBORLINE_SUBJECT_ROOT: \$\{\{ github.workspace \}\}/)
   assert.match(phase4, /node \.trusted-orchestration\/tooling\/run-phase4-receipt.mjs/)
   assert.match(phase4, /HARBORLINE_ORCHESTRATION_REVISION: \$\{\{ needs.plan.outputs.revision \}\}/)
@@ -159,7 +159,7 @@ function orchestrationFixture(t) {
     import {createReusableStepRunner} from './main-gate-logic.mjs';
     import {loadPreviousPassEvidence} from './gate-step-evidence.mjs';
     const requiredStepIds = ${JSON.stringify(EXPECTED_RELEASE_STEPS)};
-    export {trustedOrchestrationInventory, applyTrustedOrchestration, createTrustedStepExecutor} from './main-gate-logic.mjs';
+    export {trustedOrchestrationInventory, applyTrustedOrchestration, createTrustedStepExecutor, assertOriginalSubjectInputs} from './main-gate-logic.mjs';
     if (import.meta.main) process.once('message', () => {
       const root = resolve(process.env.HARBORLINE_GATE_ROOT ?? resolve(import.meta.dirname, '..')), results = [], reports = new Map();
       const dispatch = mainLogic.createPhase4StepDispatcher({repositoryRoot: root,
@@ -167,8 +167,12 @@ function orchestrationFixture(t) {
         results, reports, failureEvidenceDirectory: resolve(root, '.claude/gate-evidence')});
       const run = id => {
         appendFileSync(process.env.ORCHESTRATION_LOG, id + '\\n');
-        if (id === 'dotnet-restore' && process.env.RESTORE_CANARY === '1')
-          return dispatch(id, 'dotnet', ['msbuild', 'projections/restore.proj', '-t:Restore', '-m:1', '-nr:false', '-v:quiet']);
+        if (id === 'dotnet-restore' && process.env.RESTORE_CANARY === '1') {
+          const report = dispatch(id, 'dotnet', ['msbuild', 'projections/restore.proj', '-t:Restore', '-m:1', '-nr:false', '-v:quiet']);
+          if (process.env.OVERWRITE_PRODUCT === '1') appendFileSync(process.env.ORCHESTRATION_LOG,
+            'product-bytes:' + JSON.stringify(readFileSync(resolve(root, 'projections/product.cs'), 'utf8')) + '\\n');
+          return report;
+        }
         if (id === 'native-tests') return dispatch(id, process.execPath, ['tooling/later-helper.mjs']);
         return dispatch(id, process.execPath, ['-e', 'process.exit(0)']);
       };
@@ -219,7 +223,7 @@ function orchestrationFixture(t) {
   put('package.json', '{"packageManager":"pnpm@99.0.0"}')
   put('projections/product.cs', '// candidate product/test input must run\n')
   // Literal adversarial MSBuild target: write an unstaged success helper during restore.
-  put('projections/restore.proj', `<Project><Target Name="Restore"><WriteLinesToFile Condition="'$(OVERWRITE_HELPER)' == '1'" File="../tooling/later-helper.mjs" Lines="process.exit(0)" Overwrite="true" /></Target></Project>`)
+  put('projections/restore.proj', `<Project><Target Name="Restore"><WriteLinesToFile Condition="'$(OVERWRITE_HELPER)' == '1'" File="../tooling/later-helper.mjs" Lines="process.exit(0)" Overwrite="true" /><WriteLinesToFile Condition="'$(OVERWRITE_PRODUCT)' == '1'" File="product.cs" Lines="// replaced product source during restore" Overwrite="true" /></Target></Project>`)
 
   git('add', '.')
   // Cache setup is not the assertion oracle: the independently stated obligation is that main's
@@ -284,7 +288,7 @@ test('release.main-orchestration-inputs: a dirty main executable checkout refuse
 
 for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive passes', false, ''],
   ['incomplete inventory refuses', false, 'omit'], ['reused result refuses', false, 'reused'],
-  ['wrong API refuses', false, 'api'], ['restore overwrite refuses', false, 'overwrite'], ['underlying failure refuses', true, 'underlying'], ['parent integrity refuses', false, 'parent']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
+  ['wrong API refuses', false, 'api'], ['restore overwrite refuses', false, 'overwrite'], ['underlying failure refuses', true, 'underlying'], ['parent integrity refuses', false, 'parent'], ['unstaged product source refuses', false, 'product']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
   assert.equal(typeof mainGate.trustedOrchestrationInventory, 'function')
   assert.equal(typeof mainGate.createPhase4StepDispatcher, 'function', 'production dispatch seam required')
   const f = orchestrationFixture(t)
@@ -305,12 +309,13 @@ for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive
     {encoding: 'utf8', timeout: 60000, cwd: f.root, env: {...process.env,
       TEMP: scratch, TMP: scratch, TMPDIR: scratch, FIXTURE_MAIN: f.A, ORCHESTRATION_LOG: log,
       MAIN_SHOULD_FAIL: fail ? '1' : '0', HARBORLINE_SUBJECT_ROOT: f.root,
-      MAIN_REPORT_MUTATION: mutation, RESTORE_CANARY: ['overwrite', 'underlying'].includes(mutation) ? '1' : '0',
-      OVERWRITE_HELPER: mutation === 'overwrite' ? '1' : '0', DOTNET_CLI_USE_MSBUILD_SERVER: '0', MSBUILDDISABLENODEREUSE: '1',
+      MAIN_REPORT_MUTATION: mutation, RESTORE_CANARY: ['overwrite', 'underlying', 'product'].includes(mutation) ? '1' : '0',
+      OVERWRITE_HELPER: mutation === 'overwrite' ? '1' : '0', OVERWRITE_PRODUCT: mutation === 'product' ? '1' : '0', DOTNET_CLI_USE_MSBUILD_SERVER: '0', MSBUILDDISABLENODEREUSE: '1',
       HARBORLINE_ORCHESTRATION_REVISION: f.A, HARBORLINE_RECEIPT_RUN: '0',
       HARBORLINE_API_REPO: f.source, HARBORLINE_API_REVISION: mutation === 'api' ? f.B : f.A,
     }})
   const refused = fail || !!mutation
+  if (mutation === 'product') assert.match(readFileSync(log, 'utf8'), /product-bytes:.*replaced product source during restore/, 'real restore must overwrite tracked product source')
   assert.equal(result.status, refused ? 1 : 0, result.stdout + result.stderr)
   const calls = readFileSync(log, 'utf8').split('\n')
   assert.equal(calls.filter(id => id === 'native-tests').length, ['api', 'overwrite'].includes(mutation) ? 0 : 1, mutation === 'overwrite' ? 'restore overwrite must stop production dispatch before native-tests' : 'cached PASS cannot skip the actual main native step')
@@ -783,4 +788,52 @@ test('release.shared-signer-policy: a separate main poster checks evidence with 
   assert.match(poster, /--receipt post/)
   assert.doesNotMatch(poster, /id-token:|attestations:|contents: write|run-phase-4-gate|pnpm install/)
   assert.match(poster, /needs\.sign\.outputs\.artifact-id/)
+})
+
+// ADR-0139 d2: the receipt writer must never share a job with candidate execution.
+test('job split keeps receipt computation off candidate runners and pins raw artifacts as data', () => {
+  const producer = workflow('verify-gallery-receipt'), trusted = job(producer, 'phase-4')
+  assert.match(job(producer, 'candidate-phase-4'), /run-phase4-receipt.mjs/)
+  assert.match(trusted, /--receipt collect/)
+  assert.doesNotMatch(trusted, /dotnet restore|run-phase4-receipt.mjs|pnpm install|pnpm\/action-setup|trusted-orchestration/)
+  assert.match(trusted, /ref: \$\{\{ needs.plan.outputs.revision \}\}/)
+  assert.match(trusted, /git fetch --no-tags origin/)
+  assert.match(job(producer, 'gallery-shard'), /Run-reported observations/)
+})
+
+test('split transport refuses wrong run, attempt-name or byte digest before parsing data', () => {
+  assert.equal(typeof evidence.verifyObservationArchive, 'function')
+  const bytes = Buffer.from('literal untrusted archive bytes')
+  const expected = {runId: 9002, attempt: 1, name: 'candidate-phase4-9002-1'}
+  const artifact = {id: 7, name: 'candidate-phase4-9002-1', expired: false,
+    workflow_run: {id: 9002}, digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex')}
+  assert.doesNotThrow(() => evidence.verifyObservationArchive({artifact, expected, bytes}))
+  for (const change of [{expired: true}, {workflow_run: {id: 9001}}, {name: 'candidate-phase4-9002-2'},
+    {digest: 'sha256:' + '0'.repeat(64)}])
+    assert.throws(() => evidence.verifyObservationArchive({artifact: {...artifact, ...change}, expected, bytes}), /artifact/)
+})
+
+test('original subject check permits only the two documented generated gate reports', t => {
+  const root = mkdtempSync(resolve(tmpdir(), 'subject-content-'))
+  t.after(() => rmSync(root, {recursive: true, force: true}))
+  execFileSync('git', ['init', '-b', 'main'], {cwd: root, stdio: 'pipe'})
+  const bytes = Buffer.from('literal original product input\n')
+  const blob = execFileSync('git', ['hash-object', '-w', '--stdin'], {cwd: root, input: bytes, encoding: 'utf8'}).trim()
+  const paths = ['product.cs', 'docs/evidence/another-input.txt',
+    'docs/evidence/phase-4/gate.json', 'docs/evidence/gate-model/ui-gate-model.json']
+  for (const path of paths) { mkdirSync(dirname(resolve(root, path)), {recursive: true}); writeFileSync(resolve(root, path), bytes) }
+  const inventory = {subjectInputs: paths.map(path => ({path, type: 'blob', blob}))}
+  for (const path of paths.slice(2)) writeFileSync(resolve(root, path), 'new generated report')
+  assert.doesNotThrow(() => mainGate.assertOriginalSubjectInputs({repositoryRoot: root, inventory}))
+  for (const path of paths.slice(0, 2)) {
+    writeFileSync(resolve(root, path), 'forged source input')
+    assert.throws(() => mainGate.assertOriginalSubjectInputs({repositoryRoot: root, inventory}), /subject input changed/)
+    writeFileSync(resolve(root, path), bytes)
+  }
+})
+
+test('non-release candidate dispatch selects main controller and explicit product root', () => {
+  const candidate = job(workflow('verify-gallery-receipt'), 'candidate-phase-4')
+  assert.match(candidate, /HARBORLINE_GATE_ROOT: \$\{\{ github.workspace \}\}/)
+  assert.match(candidate, /else\n            node \.trusted-orchestration\/tooling\/run-phase-4-gate\.mjs/)
 })

@@ -156,8 +156,27 @@ export function applyTrustedOrchestration({repositoryRoot, sourceRoot = root, in
     && orchestrationGit(repositoryRoot, ['write-tree']).trim() === inventory.testedTree, 'tested Git identity changed during preparation')
 }
 
-// The controller/import closure is loaded from main outside the subject. This measured state
-// stays in controller memory; candidate steps never provide a replacement manifest or verdict.
+// These checks are diagnostics in the candidate-executing job. Authoritative inventory and
+// receipt fields are recomputed on a separate runner that never executes candidate code.
+export function assertOriginalSubjectInputs({repositoryRoot, inventory}) {
+  // This is a fail-closed observation in the untrusted execution job, not proof of test honesty.
+  // Checked subject identity in the separate data job must still come from Git objects.
+  for (const file of inventory.subjectInputs) {
+    // Explicit generated reports: recordPhase4Gate and run-ui-gate-model.mjs:124-126.
+    if (['docs/evidence/phase-4/gate.json', 'docs/evidence/gate-model/ui-gate-model.json'].includes(file.path)) continue
+    if (file.type !== 'blob') throw new Error('subject input is not a regular blob')
+    const parts = file.path.split('/')
+    for (let i = 1; i <= parts.length; i++) {
+      const stat = lstatSync(resolve(repositoryRoot, ...parts.slice(0, i)))
+      orchestrationAssert(!stat.isSymbolicLink() && (i === parts.length ? stat.isFile() : stat.isDirectory()),
+        `subject input redirected: ${file.path}`)
+    }
+    const expected = orchestrationGit(repositoryRoot, ['cat-file', 'blob', file.blob], {encoding: 'buffer'})
+    orchestrationAssert(readFileSync(resolve(repositoryRoot, file.path)).equals(expected),
+      `subject input changed: ${file.path}`)
+  }
+}
+
 export function createTrustedStepExecutor({repositoryRoot, inventory, execute}) {
   const files = inventory.files.map(file => ({...file}))
   const deletedPaths = [...inventory.deletedPaths]
