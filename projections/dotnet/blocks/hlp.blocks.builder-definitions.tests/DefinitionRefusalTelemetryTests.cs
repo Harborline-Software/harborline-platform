@@ -1,4 +1,6 @@
 using System.Diagnostics.Metrics;
+using System.Reflection;
+using System.Runtime.Loader;
 using Xunit;
 
 namespace Harborline.Blocks.BuilderDefinitions.Tests;
@@ -9,6 +11,74 @@ public sealed class DefinitionRefusalTelemetryCollection;
 [Collection("Definition refusal telemetry")]
 public sealed class DefinitionRefusalTelemetryTests
 {
+    [Fact]
+    public void PublicationFaultPreservesTheRefusalAndLaterRecordingRecovers()
+    {
+        // A fresh emitter is required even if another test already published the default context's counter.
+        var context = new RefusalTelemetryLoadContext();
+        try
+        {
+            var assembly = context.LoadFromAssemblyPath(typeof(DefinitionRefusalTelemetryTests).Assembly.Location);
+            assembly.GetType(typeof(DefinitionRefusalTelemetryTests).FullName!)!
+                .GetMethod(nameof(RunPublicationFailureScenario), BindingFlags.NonPublic | BindingFlags.Static)!
+                .Invoke(null, null);
+        }
+        finally
+        {
+            context.Unload();
+        }
+    }
+
+    private static void RunPublicationFailureScenario()
+    {
+        var original = new DefinitionRefusalException(DefinitionAdmissionPhase.Author,
+            [new("fixture.publication", "/body", "secret-sentinel")]);
+        var store = new InMemoryVersionedDefinitionStore(new Dictionary<DefinitionKind, DefinitionAdmission>
+        {
+            [DefinitionKind.Rules] = (_, _) => throw original
+        });
+        var document = new DefinitionDocument(new("opaque-a", DefinitionKind.Rules, "definition-a"), "v1", "1.0.0", "{}");
+        var publications = 0;
+        using (var listener = new MeterListener())
+        {
+            listener.Start();
+            listener.InstrumentPublished = (instrument, _) =>
+            {
+                if (instrument.Meter.Name != "Harborline.Definitions" || instrument.Name != "definition.refusals") return;
+                publications++;
+                throw new InvalidOperationException("publication fault");
+            };
+
+            var error = Assert.Throws<DefinitionRefusalException>(() => { _ = store.SaveDraftAsync(document, 0, "first"); });
+
+            Assert.Same(original, error);
+            Assert.Equal("definition.refused", error.Message);
+            Assert.Equal(DefinitionAdmissionPhase.Author, error.Stage);
+            Assert.Equal(new DefinitionRefusal[] { new("fixture.publication", "/body", "secret-sentinel") }, error.Refusals);
+            Assert.Equal(1, publications);
+        }
+
+        using var capture = new Capture();
+        var later = Assert.Throws<DefinitionRefusalException>(() => { _ = store.SaveDraftAsync(document, 0, "later"); });
+
+        Assert.Same(original, later);
+        var measurement = Assert.Single(capture.Measurements);
+        Assert.Equal(1, measurement.Count);
+        Assert.Equal(new KeyValuePair<string, object?>[]
+        {
+            new("tenant_id", "opaque-a"), new("stage", "Author"), new("definition_id", "definition-a"),
+            new("code", "fixture.publication")
+        }, measurement.Tags);
+    }
+
+    private sealed class RefusalTelemetryLoadContext() : AssemblyLoadContext(isCollectible: true)
+    {
+        protected override Assembly? Load(AssemblyName name)
+            => name.Name is "Harborline.Foundation.Definitions" or "Harborline.Blocks.BuilderDefinitions"
+                ? LoadFromAssemblyPath(Path.Combine(AppContext.BaseDirectory, name.Name + ".dll"))
+                : null;
+    }
+
     [Fact]
     public async Task UnkeyedRefusalsStayUnchangedAndEmitNothing()
     {
