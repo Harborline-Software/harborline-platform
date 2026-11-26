@@ -38,6 +38,7 @@ import {isDeepStrictEqual} from 'node:util'
 import {reconcileReceiptShards} from '../collect-gallery-shards.mjs'
 import {expectedChecks, reconcileChecks} from '../gallery-observations.mjs'
 import {requiredStepIds} from '../gate-contract.mjs'
+import {checkReleaseReceipt} from '../release-receipt.mjs'
 import {isAbsolute, relative, resolve, sep} from 'node:path'
 
 export const EVIDENCE_PATH = 'docs/evidence/phase-4/gate.json'
@@ -92,7 +93,7 @@ export function checkEvidenceProvenance(root, bytes) {
   return null
 }
 
-if (import.meta.main && !process.argv.includes('--receipt') && !process.argv.includes('--release-policy')) {
+if (import.meta.main && !process.argv.includes('--receipt') && !process.argv.includes('--release-policy') && !process.argv.includes('--release-evidence')) {
   const root = resolve(process.argv[2] ?? '.')
   let bytes
   // No recorded evidence is nothing to bind. Its absence is validate-repository.mjs's business.
@@ -320,7 +321,7 @@ export function releaseRunPrerequisites({head, queueId, actionsAppId, readApi = 
 // Certificate fields here must come from gh's authenticated verification result, never the
 // predicate. The policy revision is supplied by the separately selected external verifier.
 export function verifyReleaseInvocation({root, approvedCommit, testedCommit, testedTree,
-  acceptedSignerRevision, actionsAppId, queue, sbom, producer, certificate, readApi = api}) {
+  acceptedSignerRevision, actionsAppId, queue, sbom, producer, certificate, readApi = api, allowActiveProducer = false}) {
   const require = (condition, reason) => {
     if (!condition) throw new Error(`release invocation: ${reason}`)
   }
@@ -358,7 +359,8 @@ export function verifyReleaseInvocation({root, approvedCommit, testedCommit, tes
   require(latest?.id === producer.id && latest.run_attempt === producer.attempt
     && latest.event === 'workflow_run' && latest.path === '.github/workflows/verify-gallery-receipt.yml'
     && latest.head_sha === acceptedSignerRevision && latest.repository?.full_name === RECEIPT_REPOSITORY
-    && latest.status === 'completed' && latest.conclusion === 'success', 'latest producer source or result differs')
+    && ((latest.status === 'completed' && latest.conclusion === 'success')
+      || (allowActiveProducer && latest.status === 'in_progress' && latest.conclusion === null)), 'latest producer source or result differs')
   const attempt = read(`actions/runs/${producer.id}/attempts/${producer.attempt}`)
   require(['id', 'run_attempt', 'event', 'path', 'head_sha', 'status', 'conclusion']
     .every(field => attempt?.[field] === latest[field])
@@ -525,6 +527,159 @@ export function verifyGalleryReceipt({root, directory, head, queue, revision, ex
     now: new Date(details.finishedAt)})
   requireThat(isDeepStrictEqual(rebuilt, predicate), 'signed claims do not reconcile against tree')
   return predicate.phase4.value
+}
+
+
+export const RELEASE_GATE_TYPE = 'https://harborline.software/attestations/release-gate/v1'
+const releaseRequire = (value, reason) => { if (!value) throw new Error(`release evidence: ${reason}`) }
+const RELEASE_FILES = ['phase4.json', 'release-phase4-receipt.json', 'release-receipt.json',
+  ...[1, 2, 3, 4, 5, 6].map(id => `gallery-shard-${id}.json`),
+  'sbom/sbom.spdx.json', 'sbom/sbom-evidence.json', 'sbom/license-policy.cjs', 'sbom/syft.yaml'].sort()
+function releaseFileInventory(directory) {
+  const names = []
+  const walk = (where, prefix = '') => {
+    for (const entry of readdirSync(where)) {
+      const name = prefix + entry, path = resolve(where, entry), stat = lstatSync(path)
+      releaseRequire(!stat.isSymbolicLink(), 'linked artifact entry')
+      if (stat.isDirectory()) { releaseRequire(name === 'sbom', 'unexpected artifact directory'); walk(path, `${name}/`) }
+      else {
+        releaseRequire(stat.isFile(), 'non-regular artifact entry')
+        if (!['release-inputs.json', 'release-predicate.json', 'release.sigstore.json'].includes(name)) names.push(name)
+      }
+    }
+  }
+  walk(directory)
+  releaseRequire(isDeepStrictEqual(names.sort(), RELEASE_FILES), 'incomplete or extra release evidence files')
+  return names.map(name => ({name, sha256: sha256(readFileSync(resolve(directory, name)))}))
+}
+
+export function sealReleaseGateEvidence({root, directory, head, policySha256, queue, sbom, producer,
+  queueCompletedAt, now = new Date()}) {
+  const files = releaseFileInventory(directory)
+  const manifest = {schemaVersion: 1, subject: {commit: head, tree: git(root, 'rev-parse', `${objectId(head)}^{tree}`)},
+    queue, sbom, producer, policySha256, queueCompletedAt, recordedAt: now.toISOString(), files}
+  const bytes = Buffer.from(JSON.stringify(manifest))
+  writeFileSync(resolve(directory, 'release-inputs.json'), bytes)
+  return {inventorySha256: sha256(bytes), receiptSha256: files.find(file => file.name === 'release-phase4-receipt.json').sha256,
+    companionSha256: files.find(file => file.name === 'release-receipt.json').sha256}
+}
+
+export function buildReleaseGatePredicate({root, directory, policy, policySha256, expected, artifact,
+  readApi = api, now = new Date()}) {
+  const files = releaseFileInventory(directory)
+  const bytes = readFileSync(resolve(directory, 'release-inputs.json')), manifest = JSON.parse(bytes)
+  releaseRequire(/^[0-9a-f]{64}$/.test(expected?.inventorySha256 ?? '') && sha256(bytes) === expected.inventorySha256,
+    'producer inventory digest differs')
+  releaseRequire(manifest.schemaVersion === 1 && isDeepStrictEqual(files, manifest.files), 'producer file inventory differs')
+  const receiptBytes = readFileSync(resolve(directory, 'release-phase4-receipt.json'))
+  const companionBytes = readFileSync(resolve(directory, 'release-receipt.json'))
+  releaseRequire(sha256(receiptBytes) === expected.receiptSha256 && sha256(companionBytes) === expected.companionSha256,
+    'exact receipt or companion bytes differ from producer outputs')
+  const {subject, producer, queue, sbom} = manifest
+  releaseRequire(subject?.commit === expected.head && producer?.id === expected.runId && producer?.attempt === expected.attempt,
+    'producer invocation or tested commit differs')
+  releaseRequire(OBJECT_ID.test(policy?.signerRevision ?? '') && producer.revision === policy.signerRevision
+    && policy.signerRevision !== subject.commit && succeeds(root, 'merge-base', '--is-ancestor', policy.signerRevision, subject.commit)
+    && !policy.revokedSignerRevisions?.includes(policy.signerRevision), 'source policy or strict ancestry differs')
+  releaseRequire(manifest.policySha256 === policySha256, 'policy byte binding differs')
+  releaseRequire(subject.tree === git(root, 'rev-parse', `${objectId(subject.commit)}^{tree}`), 'tested tree differs')
+  const age = now.getTime() - Date.parse(manifest.recordedAt)
+  releaseRequire(Number.isFinite(age) && age >= 0 && age < 90 * 86400000, 'expired or future evidence')
+  releaseRequire(Number.isSafeInteger(artifact?.id) && artifact.id === expected.artifactId && !artifact.expired
+    && artifact.workflow_run?.id === producer.id && /^sha256:[a-f0-9]{64}$/.test(artifact.digest ?? '')
+    && artifact.name === `release-gate-inputs-${producer.id}-${producer.attempt}`, 'exact producer artifact differs')
+  const prerequisites = releaseRunPrerequisites({head: subject.commit, queueId: queue?.id, actionsAppId: policy.actionsAppId, readApi})
+  releaseRequire(isDeepStrictEqual(prerequisites, {queue, sbom}), 'latest prerequisite attempt differs')
+  const receipt = JSON.parse(receiptBytes), gate = receipt.gate, companion = JSON.parse(companionBytes)
+  releaseRequire(receipt.schemaVersion === 3 && receipt.phase === 4 && receipt.repository === 'harborline-platform'
+    && receipt.baseHead === subject.commit && receipt.testedTree === subject.tree
+    && gate?.subject?.mode === 'exact-staged-tree' && sha256(Buffer.from(JSON.stringify(gate))) === receipt.reportSha256,
+    'exact phase-4 receipt differs')
+  releaseRequire(receipt.orchestration?.revision === policy.signerRevision && receipt.orchestration.apiRevision === policy.apiRevision,
+    'main orchestration or API input differs')
+  releaseRequire(gate.results?.every(result => result.exitCode === 0), 'main step result failed')
+  releaseRequire(isDeepStrictEqual(jsonFile(resolve(directory, 'phase4.json')), gate), 'raw gate report differs')
+  releaseRequire(companion.commit === subject.commit && companion.tree === subject.tree
+    && companion.transcript?.baseHead === subject.commit && companion.transcript.testedTree === subject.tree
+    && companion.transcript.mode === 'exact-staged-tree', 'companion subject differs')
+  // Corroboration comes from the byte-bound receipt above, not a local .git file in this data-only signer.
+  releaseRequire(!checkReleaseReceipt(root, companionBytes, {requireAttestation: false}), 'companion seed/evidence contract refused')
+  const sbomRecord = jsonFile(resolve(directory, 'sbom/sbom-evidence.json'))
+  const freshSbomArtifact = readApi(`repos/${RECEIPT_REPOSITORY}/actions/artifacts/${expected.sbomArtifactId}`)
+  releaseRequire(Number.isSafeInteger(expected.sbomArtifactId) && freshSbomArtifact?.id === expected.sbomArtifactId
+    && !freshSbomArtifact.expired && freshSbomArtifact.workflow_run?.id === producer.id
+    && freshSbomArtifact.name === `main-sbom-${producer.id}-${producer.attempt}`
+    && /^sha256:[a-f0-9]{64}$/.test(freshSbomArtifact.digest ?? ''), 'fresh main SBOM artifact differs')
+  releaseRequire(expected.sbomTestedTree === subject.tree && expected.sbomSha256 === sbomRecord.sbomSha256
+    && expected.sbomPolicySha256 === sbomRecord.policySha256, 'fresh read-only SBOM job outputs differ')
+  releaseRequire(sbomRecord.result === 'PASS' && sbomRecord.testedCommit === subject.commit && sbomRecord.testedTree === subject.tree
+    && sbomRecord.producerRevision === producer.revision && String(sbomRecord.runId) === String(producer.id)
+    && String(sbomRecord.attempt) === String(producer.attempt) && sbomRecord.scanner?.version === '1.57.2'
+    && sbomRecord.scanner.action === 'e22c389904149dbc22b58101806040fa8d37a610', 'fresh main SBOM invocation differs')
+  for (const [field, file] of [['sbomSha256', 'sbom.spdx.json'], ['policySha256', 'license-policy.cjs'], ['configSha256', 'syft.yaml']])
+    releaseRequire(sbomRecord[field] === sha256(readFileSync(resolve(directory, 'sbom', file))), 'fresh SBOM bytes differ')
+  const mainWorkflow = git(root, 'show', `${producer.revision}:.github/workflows/license-sbom.yml`).replaceAll('\r\n', '\n')
+  const blocks = {
+    'license-policy.cjs': mainWorkflow.match(/cat > "\$RUNNER_TEMP\/license-policy.cjs" <<'NODE'\n([\s\S]*?)\n          NODE/),
+    'syft.yaml': mainWorkflow.match(/cat > "\$RUNNER_TEMP\/syft.yaml" <<'SYFT'\n([\s\S]*?)\n          SYFT/),
+  }
+  for (const [file, block] of Object.entries(blocks))
+    releaseRequire(block && readFileSync(resolve(directory, 'sbom', file), 'utf8') === block[1].split('\n').map(line => line.slice(10)).join('\n') + '\n',
+      'SBOM policy/config is not from trusted source')
+  const report = jsonFile(resolve(directory, 'sbom/sbom.spdx.json'))
+  releaseRequire(['SPDX-2.2', 'SPDX-2.3'].includes(report.spdxVersion) && report.packages?.length > 0, 'missing main SPDX packages')
+  releaseRequire(!report.packages.some(pkg => /GPL-2\.0-only|GPL-3\.0|AGPL|SSPL|BUSL|CC-BY-NC/i.test(`${pkg.licenseDeclared} ${pkg.licenseConcluded}`)), 'main license policy refused')
+  const shards = [1, 2, 3, 4, 5, 6].map(id => jsonFile(resolve(directory, `gallery-shard-${id}.json`)))
+  const gallery = buildGalleryPredicate({root, head: subject.commit, queue: queueIdentity(readApi(`repos/${RECEIPT_REPOSITORY}/actions/runs/${queue.id}/attempts/${queue.attempt}`),
+    {id: queue.id, attempt: queue.attempt, head: subject.commit}), producer: {revision: producer.revision, runId: producer.id,
+      attempt: producer.attempt, queueCompletedAt: manifest.queueCompletedAt}, gate, shards,
+    artifacts: [{id: artifact.id, name: artifact.name, digest: artifact.digest}], artifactFiles: files,
+    now: new Date(manifest.recordedAt)})
+  return {schemaVersion: 1, subject, producer, queue, sbom, policySha256, apiRevision: policy.apiRevision,
+    freshSbom: {artifactId: freshSbomArtifact.id, artifactDigest: freshSbomArtifact.digest,
+      reportSha256: expected.sbomSha256, policySha256: expected.sbomPolicySha256, testedTree: expected.sbomTestedTree},
+    inventorySha256: expected.inventorySha256, receiptSha256: expected.receiptSha256, companionSha256: expected.companionSha256,
+    artifact: {id: artifact.id, name: artifact.name, digest: artifact.digest}, recordedAt: manifest.recordedAt,
+    files, gallery}
+}
+
+export function verifyReleaseGateEvidence({root, directory, approvedCommit, policy, policySha256,
+  execute = execFileSync, readApi = api, now = new Date(), allowActiveProducer = false}) {
+  releaseFileInventory(directory) // Reject links and unknown paths before passing any bytes to gh.
+  const receipt = resolve(directory, 'release-phase4-receipt.json')
+  const verified = JSON.parse(execute('gh', ['attestation', 'verify', receipt, '--bundle', resolve(directory, 'release.sigstore.json'),
+    '--repo', RECEIPT_REPOSITORY, '--signer-workflow', SIGNER, '--signer-digest', policy.signerRevision,
+    '--source-ref', 'refs/heads/main', '--source-digest', policy.signerRevision,
+    '--cert-oidc-issuer', 'https://token.actions.githubusercontent.com', '--deny-self-hosted-runners',
+    '--predicate-type', RELEASE_GATE_TYPE, '--format', 'json'], {encoding: 'utf8', maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe']}))
+  releaseRequire(Array.isArray(verified) && verified.length === 1, 'one verified release attestation required')
+  const result = verified[0].verificationResult, statement = result?.statement, predicate = statement?.predicate
+  releaseRequire(result?.verifiedTimestamps?.some(time => time.type === 'Tlog'), 'verified transparency timestamp required')
+  releaseRequire(statement?._type === 'https://in-toto.io/Statement/v1' && statement.predicateType === RELEASE_GATE_TYPE
+    && statement.subject?.length === 1 && statement.subject[0].name === 'phase4-receipt'
+    && Object.keys(statement.subject[0].digest ?? {}).join() === 'sha256'
+    && statement.subject[0].digest.sha256 === sha256(readFileSync(receipt)), 'release statement type or exact subject differs')
+  releaseRequire(predicate?.subject?.commit === approvedCommit, 'signed commit differs from approved commit')
+  const artifact = readApi(`repos/${RECEIPT_REPOSITORY}/actions/artifacts/${predicate.artifact?.id}`)
+  releaseRequire(artifact.digest === predicate.artifact.digest, 'producer artifact digest changed')
+  const rebuilt = buildReleaseGatePredicate({root, directory, policy, policySha256, artifact, readApi, now,
+    expected: {head: approvedCommit, runId: predicate.producer?.id, attempt: predicate.producer?.attempt,
+      artifactId: predicate.artifact?.id, inventorySha256: predicate.inventorySha256,
+      receiptSha256: predicate.receiptSha256, companionSha256: predicate.companionSha256,
+      sbomArtifactId: predicate.freshSbom?.artifactId, sbomSha256: predicate.freshSbom?.reportSha256,
+      sbomPolicySha256: predicate.freshSbom?.policySha256, sbomTestedTree: predicate.freshSbom?.testedTree}})
+  releaseRequire(isDeepStrictEqual(rebuilt, predicate), 'signed release claims differ from exact files')
+  verifyReleaseInvocation({root, approvedCommit, testedCommit: predicate.subject.commit, testedTree: predicate.subject.tree,
+    acceptedSignerRevision: policy.signerRevision, actionsAppId: policy.actionsAppId,
+    queue: predicate.queue, sbom: predicate.sbom, producer: predicate.producer,
+    certificate: result.signature?.certificate, readApi, allowActiveProducer})
+  if (!allowActiveProducer) {
+    const retained = readApi(`repos/${RECEIPT_REPOSITORY}/actions/runs/${predicate.producer.id}/artifacts?per_page=100`)
+    releaseRequire(Array.isArray(retained?.artifacts) && retained.total_count === retained.artifacts.length
+      && retained.artifacts.filter(item => item.name === `release-gate-receipt-${predicate.producer.id}-${predicate.producer.attempt}` && !item.expired).length === 1,
+      'signed release evidence is no longer retained')
+  }
+  return predicate
 }
 
 // workflow_run is immutable runner-provided context. Do not accept a queue head selected by an
@@ -768,4 +923,83 @@ export function refreshPublication({root, head, report, runId, execute = execFil
     return existing.length ? writeApi('PATCH', `repos/${RECEIPT_REPOSITORY}/pulls/${existing[0].number}`, body)
       : writeApi('POST', `repos/${RECEIPT_REPOSITORY}/pulls`, {...body, head: branch, base: 'main', draft: true})
   } finally { rmSync(temporary, {force: true}); rmSync(`${temporary}.lock`, {force: true}) }
+}
+
+
+if (import.meta.main && process.argv.includes('--release-evidence')) {
+  try {
+    const offset = process.argv.indexOf('--release-evidence')
+    const [mode, directoryArg, approvedCommit] = process.argv.slice(offset + 1)
+    const root = resolve(process.env.GITHUB_WORKSPACE ?? '.'), directory = resolve(directoryArg ?? '.')
+    const loaded = loadReleaseGatePolicy({root, approvedCommit})
+    const sourceRoot = resolve(import.meta.dirname, '../..')
+    const output = values => {
+      if (process.env.GITHUB_OUTPUT) for (const [key, value] of Object.entries(values))
+        writeFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`, {flag: 'a'})
+    }
+    if (['seal', 'build', 'verify-produced'].includes(mode)) {
+      const context = workflowContext(sourceRoot)
+      releaseRequire(context.expected.head === approvedCommit && loaded.policy.signerRevision === context.revision
+        && process.env.RELEASE_APPROVED_COMMIT === approvedCommit, 'not the designated exact trusted producer')
+      const producer = {id: Number(process.env.GITHUB_RUN_ID), attempt: Number(process.env.GITHUB_RUN_ATTEMPT), revision: context.revision}
+      const prerequisites = releaseRunPrerequisites({head: approvedCommit, queueId: context.expected.id, actionsAppId: loaded.policy.actionsAppId})
+      if (mode === 'seal') {
+        const sealed = sealReleaseGateEvidence({root, directory, head: approvedCommit, policySha256: loaded.sha256,
+          ...prerequisites, producer, queueCompletedAt: context.run.updated_at})
+        output({'inventory-sha256': sealed.inventorySha256, 'receipt-sha256': sealed.receiptSha256, 'companion-sha256': sealed.companionSha256})
+      } else if (mode === 'build') {
+        const artifactId = Number(process.env.RELEASE_INPUT_ARTIFACT_ID)
+        const predicate = buildReleaseGatePredicate({root, directory, policy: loaded.policy, policySha256: loaded.sha256,
+          artifact: api(`repos/${RECEIPT_REPOSITORY}/actions/artifacts/${artifactId}`),
+          expected: {head: approvedCommit, runId: producer.id, attempt: producer.attempt, artifactId,
+            inventorySha256: process.env.RELEASE_INPUT_INVENTORY_SHA256, receiptSha256: process.env.RELEASE_INPUT_RECEIPT_SHA256,
+            companionSha256: process.env.RELEASE_INPUT_COMPANION_SHA256,
+            sbomArtifactId: Number(process.env.RELEASE_SBOM_ARTIFACT_ID), sbomSha256: process.env.RELEASE_SBOM_SHA256,
+            sbomPolicySha256: process.env.RELEASE_SBOM_POLICY_SHA256, sbomTestedTree: process.env.RELEASE_SBOM_TESTED_TREE}})
+        writeFileSync(resolve(directory, 'release-predicate.json'), JSON.stringify(predicate))
+        output({digest: `sha256:${predicate.receiptSha256}`})
+      } else {
+        const verified = verifyReleaseGateEvidence({root, directory, approvedCommit, policy: loaded.policy, policySha256: loaded.sha256, allowActiveProducer: true})
+        releaseRequire(isDeepStrictEqual(verified.producer, producer), 'signed producer differs from current invocation')
+      }
+    } else {
+      releaseRequire(git(sourceRoot, 'rev-parse', 'HEAD') === loaded.policy.verifierRevision
+        && git(sourceRoot, 'status', '--porcelain') === '', 'external verifier differs from current policy')
+      if (mode === 'locate') {
+        const runs = api(`repos/${RECEIPT_REPOSITORY}/actions/workflows/verify-gallery-receipt.yml/runs?event=workflow_run&head_sha=${loaded.policy.signerRevision}&per_page=100`)
+        releaseRequire(Array.isArray(runs.workflow_runs) && runs.total_count === runs.workflow_runs.length && runs.total_count <= 100,
+          'producer run census unavailable or truncated')
+        let selected
+        for (const run of [...runs.workflow_runs].sort((a, b) => b.id - a.id)) {
+          if (run.status !== 'completed' || run.conclusion !== 'success' || run.head_sha !== loaded.policy.signerRevision
+            || run.event !== 'workflow_run' || run.path !== '.github/workflows/verify-gallery-receipt.yml'
+            || run.repository?.full_name !== RECEIPT_REPOSITORY) continue
+          const artifacts = api(`repos/${RECEIPT_REPOSITORY}/actions/runs/${run.id}/artifacts?per_page=100`)
+          releaseRequire(Array.isArray(artifacts.artifacts) && artifacts.total_count === artifacts.artifacts.length && artifacts.total_count <= 100,
+            'producer artifact census unavailable or truncated')
+          const match = artifacts.artifacts.filter(item => item.name === `release-gate-receipt-${run.id}-${run.run_attempt}` && !item.expired)
+          releaseRequire(match.length <= 1, 'ambiguous signed release artifact')
+          if (match.length) { selected = {run, artifact: match[0]}; break }
+        }
+        releaseRequire(selected && Number.isSafeInteger(selected.artifact.id) && /^sha256:[a-f0-9]{64}$/.test(selected.artifact.digest ?? ''), 'no retained release gate evidence')
+        output({'artifact-id': selected.artifact.id, 'producer-run': selected.run.id, 'producer-attempt': selected.run.run_attempt})
+      } else if (mode === 'verify') {
+        const verified = verifyReleaseGateEvidence({root, directory, approvedCommit, policy: loaded.policy, policySha256: loaded.sha256})
+        const selected = api(`repos/${RECEIPT_REPOSITORY}/actions/artifacts/${Number(process.env.RELEASE_SELECTED_ARTIFACT_ID)}`)
+        releaseRequire(!selected.expired && selected.workflow_run?.id === verified.producer.id
+          && selected.name === `release-gate-receipt-${verified.producer.id}-${verified.producer.attempt}`
+          && String(verified.producer.id) === process.env.RELEASE_SELECTED_RUN_ID
+          && String(verified.producer.attempt) === process.env.RELEASE_SELECTED_ATTEMPT, 'downloaded signed artifact invocation differs')
+        releaseRequire(git(root, 'rev-parse', 'HEAD') === approvedCommit && git(root, 'write-tree') === verified.subject.tree,
+          'approved checkout changed before verified receipt installation')
+        const gitDir = resolve(root, git(root, 'rev-parse', '--git-dir'))
+        writeFileSync(resolve(gitDir, 'harborline-phase4-receipt.json'), readFileSync(resolve(directory, 'release-phase4-receipt.json')))
+        writeFileSync(resolve(gitDir, 'harborline-release-receipt.json'), readFileSync(resolve(directory, 'release-receipt.json')))
+        process.stdout.write(JSON.stringify({status: 'PASS', subject: verified.subject, producer: verified.producer}) + '\n')
+      } else throw new Error('unknown release evidence mode')
+    }
+  } catch {
+    process.stderr.write('release evidence refused: current policy, live invocation, signature or exact bytes could not be established\n')
+    process.exitCode = 1
+  }
 }

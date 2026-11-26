@@ -10,7 +10,19 @@ import test from 'node:test'
 import * as evidence from '../gates/scan-evidence-provenance.mjs'
 import * as mainGate from '../run-phase-4-gate.mjs'
 import {hashStepInputs} from '../gate-step-evidence.mjs'
-import {requiredStepIds} from '../gate-contract.mjs'
+import {requiredStepIds as actualRequiredStepIds} from '../gate-contract.mjs'
+
+// ADR-0198 required-check trust inventory requires the complete phase-4 contract.
+// Independent literal baseline: platform main 0924f437 gate-contract.mjs; never derived at runtime.
+const EXPECTED_RELEASE_STEPS = ['root-clean-install', 'dependency-ledger', 'npm-clean-install',
+  'forms-contracts-clean-install', 'rule-runtime-clean-install', 'rule-authoring-clean-install',
+  'copilot-contracts-clean-install', 'dotnet-restore', 'generation-smoke', 'ui-spec-authority',
+  'catalog-preflight', 'tooling-selftests', 'sibling-package-origins', 'prop-vocabulary', 'ui-gate-model',
+  'build', 'native-tests', 'perf-budgets', 'ui-shared-conformance', 'package-consumers', 'gallery-gate',
+  'release-receipt', 'catalog-final']
+test('independent required inventory detects an omitted production obligation', () => {
+  assert.deepEqual(actualRequiredStepIds, EXPECTED_RELEASE_STEPS)
+})
 
 const workflow = name => readFileSync(new URL(`../../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
 const job = (text, name) => text.split(`\n  ${name}:\n`)[1]?.split(/\n  [a-z][a-z0-9-]*:\n/)[0]
@@ -88,7 +100,7 @@ test('R-0224: actual isolated reader makes fresh credentialed requests, transfer
 
 test('R-0225: every owned test-bearing gate provisions pinned Syft and exports its path before execution', () => {
   for (const [file, name] of [['verify', 'phase-4-gate'], ['verify-gallery-receipt', 'gallery-shard'],
-    ['verify-gallery-receipt', 'phase-4'], ['release-platform', 'stage']]) {
+    ['verify-gallery-receipt', 'phase-4']]) {
     const text = job(workflow(file), name)
     assert.match(text, /id: test-syft/)
     assert.match(text, /uses: anchore\/sbom-action\/download-syft@e22c389904149dbc22b58101806040fa8d37a610/)
@@ -145,7 +157,7 @@ function orchestrationFixture(t) {
     import {appendFileSync, readFileSync} from 'node:fs'; import {resolve} from 'node:path';
     import {createReusableStepRunner} from './main-gate-logic.mjs';
     import {loadPreviousPassEvidence} from './gate-step-evidence.mjs';
-    import {requiredStepIds} from './gate-contract.mjs';
+    const requiredStepIds = ${JSON.stringify(EXPECTED_RELEASE_STEPS)};
     export {trustedOrchestrationInventory, applyTrustedOrchestration} from './main-gate-logic.mjs';
     if (import.meta.main) process.once('message', () => {
       const root = resolve(import.meta.dirname, '..'), results = [], reports = new Map();
@@ -180,8 +192,8 @@ function orchestrationFixture(t) {
   put('_shared/packs/platform/platform-pack.export.json', `${seed.slice(0, -1)},"digest":{"algorithm":"sha256","value":"${seedDigest}"}}\n`)
   git('add', '.'); git('commit', '-m', 'trusted A')
   const A = git('rev-parse', 'HEAD'), treeA = git('rev-parse', 'HEAD^{tree}')
-  const fakeReport = `({schemaVersion:3,phase:4,status:'PASS',requiredStepIds:${JSON.stringify(requiredStepIds)},
-    results:${JSON.stringify(requiredStepIds)}.map(id=>({id,passed:true,exitCode:0,report:{tests:1,pass:1}})),
+  const fakeReport = `({schemaVersion:3,phase:4,status:'PASS',requiredStepIds:${JSON.stringify(EXPECTED_RELEASE_STEPS)},
+    results:${JSON.stringify(EXPECTED_RELEASE_STEPS)}.map(id=>({id,passed:true,exitCode:0,report:{tests:1,pass:1}})),
     subject:{repository:'harborline-platform',baseHead:process.env.HARBORLINE_BASE_HEAD,
       testedTree:process.env.HARBORLINE_TESTED_TREE,mode:'exact-staged-tree'},designReview:{expired:[]}})`
   put('tooling/run-phase-4-gate.mjs', `import {appendFileSync} from 'node:fs'; process.once('message',()=>{

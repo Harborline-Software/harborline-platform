@@ -217,7 +217,7 @@ jobs:
           retention-days: 90
 
   phase-4:
-    needs: [plan, ledger-data, gallery-shard, main-sbom]
+    needs: [policy-reader, plan, ledger-data, gallery-shard, main-sbom]
     if: >-
       always() && needs.plan.result == 'success' && needs.ledger-data.result == 'success' &&
       needs.gallery-shard.result == 'success' &&
@@ -228,6 +228,11 @@ jobs:
     permissions:
       contents: read
       actions: read
+    outputs:
+      release-artifact-id: ${{ steps.release-inputs.outputs.artifact-id }}
+      release-inventory-sha256: ${{ steps.release-seal.outputs.inventory-sha256 }}
+      release-receipt-sha256: ${{ steps.release-seal.outputs.receipt-sha256 }}
+      release-companion-sha256: ${{ steps.release-seal.outputs.companion-sha256 }}
     steps:
       - id: test-syft
         uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
@@ -309,6 +314,30 @@ jobs:
           else
             node tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
           fi
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: needs.plan.outputs.release-eligible == 'true'
+        with:
+          artifact-ids: ${{ needs.main-sbom.outputs.artifact-id }}
+          path: ${{ runner.temp }}/gallery-receipt/sbom
+      - id: release-seal
+        if: needs.plan.outputs.release-eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_POLICY_ENVELOPE: ${{ needs.policy-reader.outputs.envelope }}
+          RELEASE_POLICY_SHA256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+          RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
+          RELEASE_TESTED_COMMIT: ${{ needs.plan.outputs.head }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: node .trusted-orchestration/tooling/gates/scan-evidence-provenance.mjs --release-evidence seal "$RUNNER_TEMP/gallery-receipt" "$RELEASE_TESTED_COMMIT"
+      - id: release-inputs
+        if: needs.plan.outputs.release-eligible == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-gate-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gallery-receipt
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -318,7 +347,7 @@ jobs:
           retention-days: 90
 
   sign:
-    needs: [plan, ledger-data, gallery-shard, phase-4]
+    needs: [policy-reader, plan, ledger-data, gallery-shard, phase-4, main-sbom]
     if: >-
       always() && github.event_name == 'workflow_run' && github.event.workflow_run.event == 'merge_group' &&
       github.event.workflow_run.repository.full_name == github.repository
@@ -328,6 +357,17 @@ jobs:
       id-token: write
       attestations: write
     uses: ./.github/workflows/sign-gallery-receipt.yml
+    with:
+      policy-envelope: ${{ needs.policy-reader.outputs.envelope }}
+      policy-sha256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+      release-artifact-id: ${{ needs.phase-4.outputs.release-artifact-id }}
+      release-inventory-sha256: ${{ needs.phase-4.outputs.release-inventory-sha256 }}
+      release-receipt-sha256: ${{ needs.phase-4.outputs.release-receipt-sha256 }}
+      release-companion-sha256: ${{ needs.phase-4.outputs.release-companion-sha256 }}
+      release-sbom-artifact-id: ${{ needs.main-sbom.outputs.artifact-id }}
+      release-sbom-sha256: ${{ needs.main-sbom.outputs.sbom-sha256 }}
+      release-sbom-policy-sha256: ${{ needs.main-sbom.outputs.policy-sha256 }}
+      release-sbom-tested-tree: ${{ needs.main-sbom.outputs.tested-tree }}
 
   post:
     needs: sign

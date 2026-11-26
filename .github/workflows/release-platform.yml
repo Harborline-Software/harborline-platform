@@ -69,12 +69,6 @@ jobs:
       APPROVED_COMMIT: ${{ inputs.commit }}
       REPOSITORY: Harborline-Software/harborline-platform
     steps:
-      - id: test-syft
-        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
-        with:
-          syft-version: v1.57.2
-      - name: Export required scanner to the gate and its child
-        run: echo "HARBORLINE_TEST_SYFT=${{ steps.test-syft.outputs.cmd }}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
@@ -90,6 +84,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Bootstrap current external release verifier
         id: release-policy
         env:
@@ -114,41 +109,37 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
           test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
           node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      - name: Locate independently signed gate evidence
+        id: release-locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence locate "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          global-json-file: global.json
-      - name: Install browser dependencies
-        working-directory: gallery/tests
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          npx playwright install --with-deps chromium
-      - name: Mirror existing gate dependencies
+          github-token: ${{ github.token }}
+          artifact-ids: ${{ steps.release-locate.outputs.artifact-id }}
+          run-id: ${{ steps.release-locate.outputs.producer-run }}
+          path: ${{ runner.temp }}/gate-evidence
+      - name: Verify trusted gate attestation before consuming any receipt
         env:
-          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
-        run: |
-          git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
-          git clone --quiet "https://x-access-token:${PINS_TOKEN}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
-          git -C "$RUNNER_TEMP/harborline-control" remote set-url origin https://github.com/Harborline-Software/harborline-control.git
-      - name: Full exact-tree receipt (including gallery and design reviews)
-        run: node tooling/run-phase4-receipt.mjs
-        env:
-          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
-          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-          HARBORLINE_CI_GALLERY: '1'
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SELECTED_ARTIFACT_ID: ${{ steps.release-locate.outputs.artifact-id }}
+          RELEASE_SELECTED_RUN_ID: ${{ steps.release-locate.outputs.producer-run }}
+          RELEASE_SELECTED_ATTEMPT: ${{ steps.release-locate.outputs.producer-attempt }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence verify "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
       - name: Stage and strictly check seed, receipt and checksums
         run: node tooling/platform-release.mjs stage "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
       - name: Keep same-run staging and gate corroboration
         run: |
           mkdir "$RUNNER_TEMP/staging"
           mv "$RUNNER_TEMP/release" "$RUNNER_TEMP/staging/release"
-          cp "$(git rev-parse --git-dir)/harborline-phase4-receipt.json" "$RUNNER_TEMP/staging/phase4-receipt.json"
+          cp -R "$RUNNER_TEMP/gate-evidence" "$RUNNER_TEMP/staging/gate-evidence"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/staging/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
 
   policy-publish:
     needs: stage
@@ -211,6 +202,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+          package-manager-cache: false
       - name: Bootstrap current external release verifier
         id: release-policy
         env:
@@ -235,6 +227,24 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
           test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
           node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
+      - name: Locate independently signed gate evidence
+        id: release-locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence locate "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ github.token }}
+          artifact-ids: ${{ steps.release-locate.outputs.artifact-id }}
+          run-id: ${{ steps.release-locate.outputs.producer-run }}
+          path: ${{ runner.temp }}/gate-evidence
+      - name: Verify trusted gate attestation before consuming any receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SELECTED_ARTIFACT_ID: ${{ steps.release-locate.outputs.artifact-id }}
+          RELEASE_SELECTED_RUN_ID: ${{ steps.release-locate.outputs.producer-run }}
+          RELEASE_SELECTED_ATTEMPT: ${{ steps.release-locate.outputs.producer-attempt }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence verify "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
@@ -246,7 +256,6 @@ jobs:
           test "$APPROVED_COMMIT" = "$GITHUB_SHA"
           git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
           mv "$RUNNER_TEMP/staging/release" "$RUNNER_TEMP/release"
-          cp "$RUNNER_TEMP/staging/phase4-receipt.json" "$(git rev-parse --git-dir)/harborline-phase4-receipt.json"
           node tooling/platform-release.mjs check "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
       - name: Require immutable releases and no existing version
         env:
