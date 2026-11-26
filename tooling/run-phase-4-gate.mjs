@@ -191,12 +191,48 @@ export function createTrustedStepExecutor({repositoryRoot, inventory, execute}) 
   }
 }
 
+// Production and bounded integration drivers share this dispatch boundary. The injected
+// commands change the workload, never the integrity wrapper or report evaluation.
+export function createPhase4StepDispatcher({repositoryRoot, sourceRoot = controllerRoot,
+  revision = process.env.HARBORLINE_ORCHESTRATION_REVISION, results, reports,
+  failureEvidenceDirectory = resolve(repositoryRoot, '.claude/gate-evidence'), env = process.env}) {
+  const executeTrustedStep = revision
+    ? createTrustedStepExecutor({repositoryRoot,
+        inventory: trustedOrchestrationInventory({repositoryRoot, sourceRoot, revision}), execute: callback => callback()})
+    : callback => callback()
+  // stepEnvironment is deliberately NOT recorded in the step entry: it carries absolute machine
+  // paths, and the entry is hashed into reportSha256, which the pre-commit receipt check compares.
+  return function run(id, executable, args, cwd = repositoryRoot, json = false, stepEnvironment = {}) {
+    const report = runPhase4Step({
+      results,
+      id,
+      executable,
+      args,
+      cwd,
+      json,
+      env: { ...env, ...runnerEnvironment, ...stepEnvironment },
+      failureEvidence: {
+        filePath: resolve(failureEvidenceDirectory, `${id}.log`),
+        reportPath: `.claude/gate-evidence/${id}.log`,
+      },
+      execute: () => executeTrustedStep(() => {
+        const resolved = resolveCommand(executable, args)
+        const result = spawnSync(resolved.executable, resolved.args, {
+          cwd,
+          encoding: 'utf8',
+          maxBuffer: 128 * 1024 * 1024,
+          env: { ...env, ...runnerEnvironment, ...stepEnvironment },
+        })
+        if (result.error) return {result}
+        return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
+      }),
+    })
+    reports.set(id, report)
+    return report
+  }
+}
+
 async function launchGate(inputAttempt) {
-    const executeTrustedStep = process.env.HARBORLINE_ORCHESTRATION_REVISION
-      ? createTrustedStepExecutor({repositoryRoot: root,
-          inventory: trustedOrchestrationInventory({repositoryRoot: root, sourceRoot: controllerRoot,
-            revision: process.env.HARBORLINE_ORCHESTRATION_REVISION}), execute: callback => callback()})
-      : callback => callback()
     const actualSubject = {
       head: execFileSync('git', ['rev-parse', 'HEAD'], {cwd: root, encoding: 'utf8'}).trim(),
       testedTree: execFileSync('git', ['write-tree'], {cwd: root, encoding: 'utf8'}).trim(),
@@ -236,36 +272,7 @@ async function launchGate(inputAttempt) {
       return total + (perCaseReact ? fixture.cases.length * 2 : fixture.cases.length + 1)
     }, 0)
 
-    // stepEnvironment is deliberately NOT recorded in the step entry: it carries absolute machine
-    // paths, and the entry is hashed into reportSha256, which the pre-commit receipt check compares.
-    function run(id, executable, args, cwd = root, json = false, stepEnvironment = {}) {
-      const report = runPhase4Step({
-        results,
-        id,
-        executable,
-        args,
-        cwd,
-        json,
-        env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
-        failureEvidence: {
-          filePath: resolve(failureEvidenceDirectory, `${id}.log`),
-          reportPath: `.claude/gate-evidence/${id}.log`,
-        },
-        execute: () => executeTrustedStep(() => {
-          const resolved = resolveCommand(executable, args)
-          const result = spawnSync(resolved.executable, resolved.args, {
-            cwd,
-            encoding: 'utf8',
-            maxBuffer: 128 * 1024 * 1024,
-            env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
-          })
-          if (result.error) return {result}
-          return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
-        }),
-      })
-      reports.set(id, report)
-      return report
-    }
+    const run = createPhase4StepDispatcher({repositoryRoot: root, results, reports, failureEvidenceDirectory})
 
     const runReusable = createReusableStepRunner({env: process.env, repositoryRoot: root,
       testedTree, previousPass, results, reports, run})

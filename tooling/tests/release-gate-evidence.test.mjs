@@ -154,30 +154,24 @@ function orchestrationFixture(t) {
   copyProductionClosure(root, 'tooling/run-phase-4-gate.mjs')
   put('tooling/main-gate-logic.mjs', readFileSync(join(root, 'tooling/run-phase-4-gate.mjs')))
   put('tooling/run-phase-4-gate.mjs', `
-    import {appendFileSync, readFileSync} from 'node:fs'; import {resolve} from 'node:path';
-    import {spawnSync} from 'node:child_process'; import * as mainLogic from './main-gate-logic.mjs';
+    import {appendFileSync, readFileSync, writeFileSync} from 'node:fs'; import {resolve} from 'node:path';
+    import * as mainLogic from './main-gate-logic.mjs';
     import {createReusableStepRunner} from './main-gate-logic.mjs';
     import {loadPreviousPassEvidence} from './gate-step-evidence.mjs';
     const requiredStepIds = ${JSON.stringify(EXPECTED_RELEASE_STEPS)};
     export {trustedOrchestrationInventory, applyTrustedOrchestration, createTrustedStepExecutor} from './main-gate-logic.mjs';
     if (import.meta.main) process.once('message', () => {
       const root = resolve(process.env.HARBORLINE_GATE_ROOT ?? resolve(import.meta.dirname, '..')), results = [], reports = new Map();
-      const perform = id => { appendFileSync(process.env.ORCHESTRATION_LOG, id + '\\n');
-        if (id === 'dotnet-restore' && process.env.RESTORE_CANARY === '1') {
-          const restore = spawnSync('dotnet', ['msbuild', 'projections/restore.proj', '-t:Restore', '-m:1', '-nr:false', '-v:quiet'], {cwd: root, encoding: 'utf8'});
-          if (restore.status !== 0) throw new Error('fixture restore failed: ' + restore.stdout + restore.stderr);
-        }
-        const passed = id !== 'native-tests' || (process.env.RESTORE_CANARY === '1'
-          ? spawnSync(process.execPath, ['tooling/later-helper.mjs'], {cwd: root, env: process.env}).status === 0
-          : process.env.MAIN_SHOULD_FAIL !== '1');
-        const report = {tests: 1, pass: passed ? 1 : 0, fail: passed ? 0 : 1};
-        results.push({id, passed, exitCode: passed ? 0 : 1, report});
-        if (!passed) throw new Error('actual main native step failed'); return report; };
-      const execute = mainLogic.createTrustedStepExecutor && process.env.HARBORLINE_ORCHESTRATION_REVISION
-        ? mainLogic.createTrustedStepExecutor({repositoryRoot: root,
-            inventory: mainLogic.trustedOrchestrationInventory({repositoryRoot: root,
-              sourceRoot: resolve(import.meta.dirname, '..'), revision: process.env.HARBORLINE_ORCHESTRATION_REVISION}), execute: perform}) : perform;
-      const run = id => execute(id);
+      const dispatch = mainLogic.createPhase4StepDispatcher({repositoryRoot: root,
+        sourceRoot: resolve(import.meta.dirname, '..'), revision: process.env.HARBORLINE_ORCHESTRATION_REVISION,
+        results, reports, failureEvidenceDirectory: resolve(root, '.claude/gate-evidence')});
+      const run = id => {
+        appendFileSync(process.env.ORCHESTRATION_LOG, id + '\\n');
+        if (id === 'dotnet-restore' && process.env.RESTORE_CANARY === '1')
+          return dispatch(id, 'dotnet', ['msbuild', 'projections/restore.proj', '-t:Restore', '-m:1', '-nr:false', '-v:quiet']);
+        if (id === 'native-tests') return dispatch(id, process.execPath, ['tooling/later-helper.mjs']);
+        return dispatch(id, process.execPath, ['-e', 'process.exit(0)']);
+      };
       const reuse = createReusableStepRunner({env: process.env, repositoryRoot: root,
         testedTree: process.env.HARBORLINE_TESTED_TREE,
         previousPass: loadPreviousPassEvidence(resolve(root, 'docs/evidence/phase-4/gate.json')),
@@ -185,6 +179,10 @@ function orchestrationFixture(t) {
       let status = 'PASS';
       try { for (const id of requiredStepIds) id === 'native-tests' ? reuse(id, 'fixture', [], root, true) : run(id); }
       catch { status = 'FAIL'; }
+      // A child can return a well-shaped PASS after its final dispatch. Only the parent's
+      // independently measured acceptance check can reject these changed bytes.
+      if (process.env.MAIN_REPORT_MUTATION === 'parent')
+        writeFileSync(resolve(root, 'tooling/later-helper.mjs'), 'process.exit(0)');
       if (process.env.MAIN_REPORT_MUTATION === 'omit') results.pop();
       if (process.env.MAIN_REPORT_MUTATION === 'reused') results[0].reusedFrom = {source: 'cached-pass'};
       console.log(JSON.stringify({schemaVersion: 3, phase: 4, status, requiredStepIds, results,
@@ -286,8 +284,9 @@ test('release.main-orchestration-inputs: a dirty main executable checkout refuse
 
 for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive passes', false, ''],
   ['incomplete inventory refuses', false, 'omit'], ['reused result refuses', false, 'reused'],
-  ['wrong API refuses', false, 'api'], ['restore overwrite refuses', false, 'overwrite'], ['underlying failure refuses', true, 'underlying']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
+  ['wrong API refuses', false, 'api'], ['restore overwrite refuses', false, 'overwrite'], ['underlying failure refuses', true, 'underlying'], ['parent integrity refuses', false, 'parent']]) test(`release.main-orchestration-inputs: actual receipt internal checkout runs main fresh steps (${label})`, t => {
   assert.equal(typeof mainGate.trustedOrchestrationInventory, 'function')
+  assert.equal(typeof mainGate.createPhase4StepDispatcher, 'function', 'production dispatch seam required')
   const f = orchestrationFixture(t)
   const inventory = mainGate.trustedOrchestrationInventory({repositoryRoot: f.root, sourceRoot: f.source, revision: f.A})
   mainGate.applyTrustedOrchestration({repositoryRoot: f.root, sourceRoot: f.source, inventory})
@@ -314,10 +313,11 @@ for (const [label, fail, mutation] of [['failure refuses', true, ''], ['positive
   const refused = fail || !!mutation
   assert.equal(result.status, refused ? 1 : 0, result.stdout + result.stderr)
   const calls = readFileSync(log, 'utf8').split('\n')
-  assert.equal(calls.filter(id => id === 'native-tests').length, ['api', 'overwrite'].includes(mutation) ? 0 : 1, 'cached PASS cannot skip the actual main native step')
+  assert.equal(calls.filter(id => id === 'native-tests').length, ['api', 'overwrite'].includes(mutation) ? 0 : 1, mutation === 'overwrite' ? 'restore overwrite must stop production dispatch before native-tests' : 'cached PASS cannot skip the actual main native step')
   assert.equal(calls.filter(id => id === 'candidate-gate').length, 0, 'fresh internal Git checkout cannot execute candidate orchestration')
   assert.equal(existsSync(join(f.root, '.git/harborline-phase4-receipt.json')), !refused)
   assert.equal(existsSync(join(f.root, '.git/harborline-release-receipt.json')), !refused)
+  if (mutation === 'parent') assert.match(result.stderr, /trusted orchestration: runtime input changed: tooling\/later-helper.mjs/)
   if (mutation === 'overwrite') {
     assert.equal(calls.filter(id => id === 'dotnet-restore').length, 1, 'actual MSBuild restore target must execute')
     assert.match(result.stderr, /trusted orchestration: runtime input changed: tooling\/later-helper.mjs/)
