@@ -62,7 +62,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandRestartTests.cs": "0088a2e594346091ae81e36ce94bef9469b431b357a8c086f93729af566b1ee8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormStoreReentrancy.cs": "4e5de9722c7c0904a9dd2ce923671afb6483ba26f990974e9c7a2bd546692dfc",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandGuardTests.cs": "388db64811253ab045fb4c5092a675a03d59ec8733db8b0ae48a6a135da2021e",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandFenceHandoffTests.cs": "2cffb4b721115741b3e9024e90dae8a7dbeedeca7aa6bf5939ed49f839a068f2"
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandFenceHandoffTests.cs": "c5100f02aec546993bf37087d44f7a9f89625d5a9a7b9aa9bed69df9ebfeaa64"
   },
   "nextGate": "Prove the first authenticated inspection vertical: active-tenant list/detail, tenant-authored form, idempotent submit and calculation, durable inspection-review work item, approve/rework transition, and indistinguishable unknown/cross-tenant failures."
 }
