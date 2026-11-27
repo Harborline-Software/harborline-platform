@@ -5,10 +5,11 @@ import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, chmodSync} from 'node:fs'
 import {tmpdir} from 'node:os'
-import {join} from 'node:path'
+import {delimiter, join} from 'node:path'
 import {spawnSync} from 'node:child_process'
+import {fileURLToPath} from 'node:url'
 
-const script = new URL('./review-gate.sh', import.meta.url).pathname
+const script = fileURLToPath(new URL('./review-gate.sh', import.meta.url))
 
 // Serves repos/... reads from $FIX, one file per endpoint; a missing file reads as an empty listing. A path that
 // matches $FAIL fails, like a GitHub API error. A POST is logged to $FIX/posts. The statuses listing is served from
@@ -89,6 +90,10 @@ function runGate({user = 'ctwoodwa', files, commits, commitCount = commits?.leng
   try {
     const bin = join(dir, 'bin'); const fix = join(dir, 'fix'); mkdirSync(bin); mkdirSync(fix)
     writeFileSync(join(bin, 'gh'), stub); chmodSync(join(bin, 'gh'), 0o755)
+    if (process.platform === 'win32') {
+      writeFileSync(join(bin, 'jq'), '#!/usr/bin/env bash\nexec jq.exe --binary "$@"\n')
+      chmodSync(join(bin, 'jq'), 0o755)
+    }
     const pr = {state: 'open', draft: false, head: {sha: 'h1', repo: {full_name: 'o/r'}},
                 base: {ref: base, sha: 'b1', repo: {default_branch: 'main'}},
                 user: {login: user}, changed_files: files.length, commits: commitCount, auto_merge: autoMerge}
@@ -117,7 +122,7 @@ function runGate({user = 'ctwoodwa', files, commits, commitCount = commits?.leng
     writeFileSync(join(dir, 'risky'), 'Directory.Packages.props\npackage.json\nscripts/release/\n')
     writeFileSync(join(dir, 'exempt'), '# docs that nothing builds or gates on\nSUPPORT.md\ndocs/guide/\n!docs/guide/evidence.md\n')
     const r = spawnSync('bash', [script, '1'], {encoding: 'utf8', env: {
-      ...process.env, PATH: `${bin}:${process.env.PATH}`, FIX: fix, FAIL: fail ?? '', AFTER: String(afterRead), POST_FAIL: String(postFail),
+      ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, FIX: fix, FAIL: fail ?? '', AFTER: String(afterRead), POST_FAIL: String(postFail),
       GITHUB_REPOSITORY: 'o/r', DRY_RUN: post ? '' : '1', NO_GRAPHQL: '1',
       RISKY_LIST: join(dir, 'risky'), EXEMPT_LIST: join(dir, 'exempt')}})
     const m = /^PR 1 head h1: (\w+): (.*) \(claude=/m.exec(r.stdout)

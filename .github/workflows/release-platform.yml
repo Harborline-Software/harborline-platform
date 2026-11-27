@@ -19,13 +19,53 @@ concurrency:
   group: release-platform-v0.1.0
   cancel-in-progress: false
 jobs:
+  policy-stage:
+    if: github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    environment: release-policy-reader
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      envelope: ${{ steps.read.outputs.envelope }}
+      policy-sha256: ${{ steps.read.outputs.policy-sha256 }}
+    steps:
+      # Owner setup: repository-scoped Variables read only, in a main-only protected environment.
+      # No checkout, candidate execution, signer, write token or credential-bearing output.
+      - id: read
+        env:
+          POLICY_READ_TOKEN: ${{ secrets.RELEASE_POLICY_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$POLICY_READ_TOKEN"
+          export POLICY_RESPONSE
+          POLICY_RESPONSE=$(GH_TOKEN="$POLICY_READ_TOKEN" gh api --method GET --hostname github.com "repos/Harborline-Software/harborline-platform/actions/variables/RELEASE_GATE_POLICY")
+          python3 - <<'PY'
+          import os, json, base64, hashlib
+          response = json.loads(os.environ['POLICY_RESPONSE'])
+          assert response.get('name') == 'RELEASE_GATE_POLICY' and isinstance(response.get('value'), str)
+          assert isinstance(json.loads(response['value']), dict)
+          snapshot = dict(schemaVersion=1, repository=os.environ['GITHUB_REPOSITORY'],
+                          runId=os.environ['GITHUB_RUN_ID'], attempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                          revision=os.environ['GITHUB_SHA'], response=response)
+          envelope = base64.b64encode(json.dumps(snapshot).encode()).decode()
+          digest = hashlib.sha256(response['value'].encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf8') as output:
+              output.write('envelope=' + envelope + '\npolicy-sha256=' + digest + '\n')
+          PY
+
   stage:
+    needs: policy-stage
     if: vars.ACTIONS_ENABLED == 'true' && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
       contents: read
+      actions: read
     env:
+      RELEASE_POLICY_ENVELOPE: ${{ needs.policy-stage.outputs.envelope }}
+      RELEASE_POLICY_SHA256: ${{ needs.policy-stage.outputs.policy-sha256 }}
       APPROVED_COMMIT: ${{ inputs.commit }}
       REPOSITORY: Harborline-Software/harborline-platform
     steps:
@@ -41,55 +81,116 @@ jobs:
           # Dispatch provenance names GITHUB_SHA; refuse a different checkout source.
           test "$APPROVED_COMMIT" = "$GITHUB_SHA"
           git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+          package-manager-cache: false
+      - name: Bootstrap current external release verifier
+        id: release-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          import os, json, base64
+          value = json.loads(base64.b64decode(os.environ['RELEASE_POLICY_ENVELOPE']))
+          with open(os.environ['RUNNER_TEMP'] + '/release-policy-variable.json', 'w', encoding='utf8') as output:
+              json.dump(value['response'], output)
+          PY
+          verifier_sha=$(jq -er 'select(.name == "RELEASE_GATE_POLICY") | .value | fromjson | .verifierRevision | select(type == "string" and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/release-policy-variable.json")
+          git fetch --no-tags origin "$verifier_sha"
+          test "$verifier_sha" != "$APPROVED_COMMIT"
+          git merge-base --is-ancestor "$verifier_sha" "$APPROVED_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
+          test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
+          node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
+      - name: Locate independently signed gate evidence
+        id: release-locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence locate "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          global-json-file: global.json
-      - name: Install browser dependencies
-        working-directory: gallery/tests
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          npx playwright install --with-deps chromium
-      - name: Mirror existing gate dependencies
+          github-token: ${{ github.token }}
+          artifact-ids: ${{ steps.release-locate.outputs.artifact-id }}
+          run-id: ${{ steps.release-locate.outputs.producer-run }}
+          path: ${{ runner.temp }}/gate-evidence
+      - name: Verify trusted gate attestation before consuming any receipt
         env:
-          PINS_TOKEN: ${{ secrets.HARBORLINE_PINS_TOKEN }}
-        run: |
-          git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
-          git clone --quiet "https://x-access-token:${PINS_TOKEN}@github.com/Harborline-Software/harborline-control.git" "$RUNNER_TEMP/harborline-control"
-          git -C "$RUNNER_TEMP/harborline-control" remote set-url origin https://github.com/Harborline-Software/harborline-control.git
-      - name: Full exact-tree receipt (including gallery and design reviews)
-        run: node tooling/run-phase4-receipt.mjs
-        env:
-          HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
-          HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/harborline-control
-          HARBORLINE_CI_GALLERY: '1'
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SELECTED_ARTIFACT_ID: ${{ steps.release-locate.outputs.artifact-id }}
+          RELEASE_SELECTED_RUN_ID: ${{ steps.release-locate.outputs.producer-run }}
+          RELEASE_SELECTED_ATTEMPT: ${{ steps.release-locate.outputs.producer-attempt }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence verify "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
       - name: Stage and strictly check seed, receipt and checksums
         run: node tooling/platform-release.mjs stage "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
       - name: Keep same-run staging and gate corroboration
         run: |
           mkdir "$RUNNER_TEMP/staging"
           mv "$RUNNER_TEMP/release" "$RUNNER_TEMP/staging/release"
-          cp "$(git rev-parse --git-dir)/harborline-phase4-receipt.json" "$RUNNER_TEMP/staging/phase4-receipt.json"
+          cp -R "$RUNNER_TEMP/gate-evidence" "$RUNNER_TEMP/staging/gate-evidence"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/staging/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
+
+  policy-publish:
+    needs: stage
+    if: inputs.publish == true && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    environment: release-policy-reader
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      envelope: ${{ steps.read.outputs.envelope }}
+      policy-sha256: ${{ steps.read.outputs.policy-sha256 }}
+    steps:
+      # Owner setup: repository-scoped Variables read only, in a main-only protected environment.
+      # No checkout, candidate execution, signer, write token or credential-bearing output.
+      - id: read
+        env:
+          POLICY_READ_TOKEN: ${{ secrets.RELEASE_POLICY_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$POLICY_READ_TOKEN"
+          export POLICY_RESPONSE
+          POLICY_RESPONSE=$(GH_TOKEN="$POLICY_READ_TOKEN" gh api --method GET --hostname github.com "repos/Harborline-Software/harborline-platform/actions/variables/RELEASE_GATE_POLICY")
+          python3 - <<'PY'
+          import os, json, base64, hashlib
+          response = json.loads(os.environ['POLICY_RESPONSE'])
+          assert response.get('name') == 'RELEASE_GATE_POLICY' and isinstance(response.get('value'), str)
+          assert isinstance(json.loads(response['value']), dict)
+          snapshot = dict(schemaVersion=1, repository=os.environ['GITHUB_REPOSITORY'],
+                          runId=os.environ['GITHUB_RUN_ID'], attempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                          revision=os.environ['GITHUB_SHA'], response=response)
+          envelope = base64.b64encode(json.dumps(snapshot).encode()).decode()
+          digest = hashlib.sha256(response['value'].encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf8') as output:
+              output.write('envelope=' + envelope + '\npolicy-sha256=' + digest + '\n')
+          PY
 
   publish:
-    needs: stage
+    needs: [stage, policy-publish]
     if: inputs.publish == true && github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
       id-token: write
       attestations: write
     env:
+      RELEASE_POLICY_ENVELOPE: ${{ needs.policy-publish.outputs.envelope }}
+      RELEASE_POLICY_SHA256: ${{ needs.policy-publish.outputs.policy-sha256 }}
       APPROVED_COMMIT: ${{ inputs.commit }}
       REPOSITORY: Harborline-Software/harborline-platform
     steps:
@@ -101,6 +202,49 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+          package-manager-cache: false
+      - name: Bootstrap current external release verifier
+        id: release-policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          set -euo pipefail
+          [[ "$APPROVED_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$APPROVED_COMMIT"
+          test "$APPROVED_COMMIT" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          import os, json, base64
+          value = json.loads(base64.b64decode(os.environ['RELEASE_POLICY_ENVELOPE']))
+          with open(os.environ['RUNNER_TEMP'] + '/release-policy-variable.json', 'w', encoding='utf8') as output:
+              json.dump(value['response'], output)
+          PY
+          verifier_sha=$(jq -er 'select(.name == "RELEASE_GATE_POLICY") | .value | fromjson | .verifierRevision | select(type == "string" and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/release-policy-variable.json")
+          git fetch --no-tags origin "$verifier_sha"
+          test "$verifier_sha" != "$APPROVED_COMMIT"
+          git merge-base --is-ancestor "$verifier_sha" "$APPROVED_COMMIT"
+          git worktree add --detach "$RUNNER_TEMP/release-verifier" "$verifier_sha"
+          test "$(git -C "$RUNNER_TEMP/release-verifier" rev-parse HEAD)" = "$verifier_sha"
+          node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-policy "$GITHUB_WORKSPACE" "$APPROVED_COMMIT" "$RUNNER_TEMP/release-policy.json"
+      - name: Locate independently signed gate evidence
+        id: release-locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence locate "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ github.token }}
+          artifact-ids: ${{ steps.release-locate.outputs.artifact-id }}
+          run-id: ${{ steps.release-locate.outputs.producer-run }}
+          path: ${{ runner.temp }}/gate-evidence
+      - name: Verify trusted gate attestation before consuming any receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SELECTED_ARTIFACT_ID: ${{ steps.release-locate.outputs.artifact-id }}
+          RELEASE_SELECTED_RUN_ID: ${{ steps.release-locate.outputs.producer-run }}
+          RELEASE_SELECTED_ATTEMPT: ${{ steps.release-locate.outputs.producer-attempt }}
+        run: node "$RUNNER_TEMP/release-verifier/tooling/gates/scan-evidence-provenance.mjs" --release-evidence verify "$RUNNER_TEMP/gate-evidence" "$APPROVED_COMMIT"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: platform-release-staging-${{ github.run_id }}-${{ github.run_attempt }}
@@ -112,7 +256,6 @@ jobs:
           test "$APPROVED_COMMIT" = "$GITHUB_SHA"
           git merge-base --is-ancestor "$APPROVED_COMMIT" origin/main
           mv "$RUNNER_TEMP/staging/release" "$RUNNER_TEMP/release"
-          cp "$RUNNER_TEMP/staging/phase4-receipt.json" "$(git rev-parse --git-dir)/harborline-phase4-receipt.json"
           node tooling/platform-release.mjs check "$RUNNER_TEMP/release" "$APPROVED_COMMIT"
       - name: Require immutable releases and no existing version
         env:
@@ -122,6 +265,12 @@ jobs:
           # A lookup failure blocks, rather than treating authentication/network failure as absence.
           gh api "repos/$REPOSITORY/git/matching-refs/tags/v0.1.0" | jq -e 'length == 0'
           gh api "repos/$REPOSITORY/releases" --paginate --slurp | jq -e 'all(.[][]; .tag_name != "v0.1.0")'
+      - name: Refuse assets without a proved isolated final live read
+        run: |
+          # Earlier policy-reader outputs are bootstrap data, not a publication-time live read.
+          # Activation awaits the trusted first-asset boundary and owner environment/source proof.
+          echo 'release activation refused: unproved first-asset live-read boundary' >&2
+          exit 1
       - name: Attest all payloads, including checksums, on the hosted producer
         id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4

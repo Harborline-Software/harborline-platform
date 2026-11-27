@@ -631,6 +631,8 @@ function refusalEnvironment(parent) {
   const env = {...parent, GITHUB_ACTIONS: 'false', GIT_ALLOW_PROTOCOL: 'file'}
   delete env.HARBORLINE_BASE_HEAD
   delete env.HARBORLINE_TESTED_TREE
+  delete env.HARBORLINE_ORCHESTRATION_REVISION
+  delete env.HARBORLINE_GATE_ROOT
   delete env.HARBORLINE_PHASE4_GATE_LOCK_TEST_PAUSE
   delete env.HARBORLINE_PHASE4_GATE_LOCK_TEST_MKDIR_EPERM
   return env
@@ -665,7 +667,9 @@ test('real gate refusal environment isolates receipt and lock inputs without cha
   })
 })
 
-test('real gate preflight refusal keeps observations off the receipt report channel', t => {
+for (const inheritedOrchestration of [false, true]) test(inheritedOrchestration
+  ? 'real gate preflight refusal isolates inherited orchestration overrides and observes its own fixture root'
+  : 'real gate preflight refusal keeps observations off the receipt report channel', t => {
   const f = graph(t)
   const remote = path.join(f.root, '.git/local-forge.git')
   git(f.root, 'clone', '--bare', '--no-hardlinks', f.root, remote)
@@ -682,9 +686,16 @@ test('real gate preflight refusal keeps observations off the receipt report chan
     copyFileSync(path.resolve(import.meta.dirname, '..', name), target)
   }
   writeFileSync(f.record, '{broken review JSON\n')
+  const parent = {...process.env}
+  if (inheritedOrchestration) {
+    const outer = mkdtempSync(path.join(tmpdir(), 'phase4-outer-candidate-'))
+    t.after(() => rmSync(outer, {recursive: true, force: true}))
+    parent.HARBORLINE_ORCHESTRATION_REVISION = 'a'.repeat(40)
+    parent.HARBORLINE_GATE_ROOT = outer
+  }
   const result = spawnSync(process.execPath, [path.join(f.root, 'tooling/run-phase-4-gate.mjs')], {
     cwd: f.root, encoding: 'utf8', timeout: 10000,
-    env: refusalEnvironment(process.env),
+    env: refusalEnvironment(parent),
   })
   assert.equal(result.status, 1)
   assert.equal(result.signal, null)

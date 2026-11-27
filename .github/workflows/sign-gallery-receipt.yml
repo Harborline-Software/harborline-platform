@@ -2,17 +2,67 @@
 name: sign-gallery-receipt
 on:
   workflow_call:
+    inputs:
+      policy-envelope:
+        description: Non-secret current-attempt policy reader output
+        type: string
+        required: true
+      policy-sha256:
+        description: SHA-256 of the exact policy value bytes
+        type: string
+        required: true
+      release-artifact-id:
+        type: string
+        required: false
+        default: ''
+      release-inventory-sha256:
+        type: string
+        required: false
+        default: ''
+      release-receipt-sha256:
+        type: string
+        required: false
+        default: ''
+      release-companion-sha256:
+        type: string
+        required: false
+        default: ''
+      release-sbom-artifact-id:
+        type: string
+        required: false
+        default: ''
+      release-sbom-sha256:
+        type: string
+        required: false
+        default: ''
+      release-sbom-policy-sha256:
+        type: string
+        required: false
+        default: ''
+      release-sbom-tested-tree:
+        type: string
+        required: false
+        default: ''
+    outputs:
+      artifact-id:
+        description: Verified gallery evidence artifact from this producer attempt
+        value: ${{ jobs.sign.outputs.artifact-id }}
 permissions: {}
 jobs:
-  sign-and-post:
+  sign:
     if: github.event_name == 'workflow_run' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: gallery-receipt
     permissions:
       contents: read
       actions: read
       id-token: write
       attestations: write
+    env:
+      RELEASE_POLICY_ENVELOPE: ${{ inputs.policy-envelope }}
+      RELEASE_POLICY_SHA256: ${{ inputs.policy-sha256 }}
+      RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
+    outputs:
+      artifact-id: ${{ steps.evidence.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -29,6 +79,8 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_POLICY_ENVELOPE: ${{ inputs.policy-envelope }}
+          RELEASE_POLICY_SHA256: ${{ inputs.policy-sha256 }}
         run: node tooling/gates/scan-evidence-provenance.mjs --receipt plan
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         if: steps.plan.outputs.changed == 'true'
@@ -66,20 +118,68 @@ jobs:
           path: receipt
           if-no-files-found: error
           retention-days: 90
-      - id: app
-        if: always()
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+      - name: Require exact producer output IDs and byte digests
+        if: steps.plan.outputs.release-eligible == 'true'
+        env:
+          RELEASE_INPUT_ARTIFACT_ID: ${{ inputs.release-artifact-id }}
+          RELEASE_INPUT_INVENTORY_SHA256: ${{ inputs.release-inventory-sha256 }}
+          RELEASE_INPUT_RECEIPT_SHA256: ${{ inputs.release-receipt-sha256 }}
+          RELEASE_INPUT_COMPANION_SHA256: ${{ inputs.release-companion-sha256 }}
+          RELEASE_SBOM_ARTIFACT_ID: ${{ inputs.release-sbom-artifact-id }}
+          RELEASE_SBOM_SHA256: ${{ inputs.release-sbom-sha256 }}
+          RELEASE_SBOM_POLICY_SHA256: ${{ inputs.release-sbom-policy-sha256 }}
+          RELEASE_SBOM_TESTED_TREE: ${{ inputs.release-sbom-tested-tree }}
+        run: |
+          [[ "$RELEASE_INPUT_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RELEASE_INPUT_INVENTORY_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_INPUT_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_INPUT_COMPANION_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_SBOM_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$RELEASE_SBOM_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_SBOM_POLICY_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RELEASE_SBOM_TESTED_TREE" =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: steps.plan.outputs.release-eligible == 'true'
         with:
-          client-id: ${{ vars.GALLERY_RECEIPT_APP_CLIENT_ID }}
-          private-key: ${{ secrets.GALLERY_RECEIPT_APP_KEY }}
-          repositories: harborline-platform
-          permission-checks: write
-          permission-statuses: write
-      - name: Post on the authenticated queue head, after verification
-        if: always() && steps.app.outcome == 'success'
+          artifact-ids: ${{ inputs.release-artifact-id }}
+          path: release-evidence
+      - id: release-predicate
+        if: steps.plan.outputs.release-eligible == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          RECEIPT_CHECK_TOKEN: ${{ steps.app.outputs.token }}
-          RECEIPT_VERIFIED: ${{ steps.verify.outcome == 'success' && steps.evidence.outcome == 'success' }}
-          RECEIPT_ARTIFACT_ID: ${{ steps.evidence.outputs.artifact-id }}
-        run: node tooling/gates/scan-evidence-provenance.mjs --receipt post
+          RELEASE_TESTED_COMMIT: ${{ steps.plan.outputs.head }}
+          RELEASE_INPUT_ARTIFACT_ID: ${{ inputs.release-artifact-id }}
+          RELEASE_INPUT_INVENTORY_SHA256: ${{ inputs.release-inventory-sha256 }}
+          RELEASE_INPUT_RECEIPT_SHA256: ${{ inputs.release-receipt-sha256 }}
+          RELEASE_INPUT_COMPANION_SHA256: ${{ inputs.release-companion-sha256 }}
+          RELEASE_SBOM_ARTIFACT_ID: ${{ inputs.release-sbom-artifact-id }}
+          RELEASE_SBOM_SHA256: ${{ inputs.release-sbom-sha256 }}
+          RELEASE_SBOM_POLICY_SHA256: ${{ inputs.release-sbom-policy-sha256 }}
+          RELEASE_SBOM_TESTED_TREE: ${{ inputs.release-sbom-tested-tree }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --release-evidence build release-evidence "$RELEASE_TESTED_COMMIT"
+      - id: release-attest
+        if: steps.plan.outputs.release-eligible == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: phase4-receipt
+          subject-digest: ${{ steps.release-predicate.outputs.digest }}
+          predicate-type: https://harborline.software/attestations/release-gate/v1
+          predicate-path: release-evidence/release-predicate.json
+      - name: Keep release gate bundle without changing receipt bytes
+        if: steps.plan.outputs.release-eligible == 'true'
+        env:
+          BUNDLE: ${{ steps.release-attest.outputs.bundle-path }}
+        run: cp "$BUNDLE" release-evidence/release.sigstore.json
+      - name: Independently verify the produced release statement
+        if: steps.plan.outputs.release-eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TESTED_COMMIT: ${{ steps.plan.outputs.head }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --release-evidence verify-produced release-evidence "$RELEASE_TESTED_COMMIT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: steps.plan.outputs.release-eligible == 'true'
+        with:
+          name: release-gate-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-evidence
+          if-no-files-found: error
+          retention-days: 90

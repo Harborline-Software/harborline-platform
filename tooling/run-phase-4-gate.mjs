@@ -2,9 +2,10 @@
 
 import {assertPhase4SubjectUnchanged, projectPhase4InputEvidence, runPhase4InputAttempt} from './phase4-input-preflight.mjs'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import {existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs'
+import {createHash} from 'node:crypto'
 import { cpus } from 'node:os'
-import { dirname, resolve } from 'node:path'
+import {dirname, isAbsolute, relative, resolve, sep} from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {decideStepReuse, evaluateStepStdout, hashStepInputs, loadPreviousPassEvidence} from './gate-step-evidence.mjs'
@@ -16,9 +17,35 @@ import {acquirePhase4GateLock} from './phase4-gate-lock.mjs'
 import {boundedReport, gateErrorDetails, interruptionDetails, reportWasTruncated, runPhase4Step} from './phase4-step-runner.mjs'
 import {loadModuleCatalog} from './module-catalog.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const controllerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const root = process.env.HARBORLINE_ORCHESTRATION_REVISION && process.env.HARBORLINE_GATE_ROOT
+  ? resolve(process.env.HARBORLINE_GATE_ROOT) : controllerRoot
 // Importing the step runner must not acquire the gate lock or launch phase 4.
-if (import.meta.main) {
+const orchestrationRoots = ['.config', 'scripts', 'tooling']
+const orchestrationNames = new Set(['package.json', 'pnpm-lock.yaml', 'package-lock.json', 'npm-shrinkwrap.json',
+  'pnpm-workspace.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb', '.npmrc', '.pnpmfile.cjs', '.yarnrc', '.yarnrc.yml',
+  '.pnp.cjs', '.pnp.loader.mjs', 'global.json', '.node-version', '.nvmrc', '.globalconfig', '.editorconfig',
+  'directory.build.props', 'directory.build.targets', 'directory.packages.props', 'nuget.config'])
+const isOrchestrationPath = name => orchestrationRoots.some(root => name === root || name.startsWith(`${root}/`))
+  || orchestrationNames.has(name.split('/').at(-1).toLowerCase())
+  || /(?:\.runsettings|\.slnx|\.rsp)$/i.test(name)
+  || /(?:^|\/)tsconfig(?:\.[\w-]+)?\.json$/i.test(name)
+  || /(?:^|\/)(?:vite|vitest|playwright|eslint|postcss|tailwind)\.config\.(?:[cm]?[jt]s)$/i.test(name)
+const orchestrationDigest = bytes => createHash('sha256').update(bytes).digest('hex')
+const orchestrationGit = (root, args, options = {}) => execFileSync('git', args, {
+  cwd: root, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'], ...options,
+})
+const orchestrationAssert = (condition, reason) => {
+  if (!condition) throw new Error(`trusted orchestration: ${reason}`)
+}
+
+if (import.meta.main && process.argv.includes('--prepare-trusted-orchestration')) {
+  const offset = process.argv.indexOf('--prepare-trusted-orchestration')
+  const repositoryRoot = resolve(process.argv[offset + 1]), revision = process.argv[offset + 2]
+  const inventory = trustedOrchestrationInventory({repositoryRoot, sourceRoot: root, revision})
+  applyTrustedOrchestration({repositoryRoot, sourceRoot: root, inventory})
+  process.stdout.write(`${JSON.stringify(inventory)}\n`)
+} else if (import.meta.main) {
   if (process.argv.includes('--only')) throw new Error('phase-4 gate refuses --only; package evidence must cover every fixture')
   const reentryGrant = await receiveLockReentryGrant()
   await acquirePhase4GateLock({repositoryRoot: root, reentryGrant})
@@ -40,6 +67,188 @@ if (import.meta.main) {
     process.stderr.write(`${JSON.stringify(inputOutcome.observation, null, 2)}\n`)
   }
   process.exitCode = inputOutcome.exitCode
+}
+
+function orchestrationTree(root, revision) {
+  return orchestrationGit(root, ['ls-tree', '-r', '-z', '--full-tree', revision]).split('\0').filter(Boolean).map(line => {
+    const match = /^(\d{6}) (blob|commit) ([0-9a-f]{40})\t([\s\S]+)$/.exec(line)
+    orchestrationAssert(match, 'unreadable Git inventory')
+    const [, mode, type, blob, path] = match
+    orchestrationAssert(!path.startsWith('/') && !path.includes('\\') && !path.split('/').includes('..'), 'unsafe Git path')
+    return {path, mode, type, blob}
+  }).sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path)))
+}
+
+// A pure inventory can also be recomputed by the data-only signer. It names the original tested
+// tree separately from main's overlay; copying files never stages or relabels that Git tree.
+export function trustedOrchestrationInventory({repositoryRoot, sourceRoot = root, revision}) {
+  orchestrationAssert(/^[0-9a-f]{40}$/.test(revision ?? ''), 'full main revision required')
+  orchestrationAssert(orchestrationGit(sourceRoot, ['rev-parse', 'HEAD']).trim() === revision, 'main checkout revision differs')
+  orchestrationAssert(orchestrationGit(sourceRoot, ['status', '--porcelain', '--untracked-files=all']).trim() === '', 'main checkout is dirty')
+  const testedCommit = orchestrationGit(repositoryRoot, ['rev-parse', 'HEAD']).trim()
+  const testedTree = orchestrationGit(repositoryRoot, ['write-tree']).trim()
+  const source = orchestrationTree(sourceRoot, revision), candidate = orchestrationTree(repositoryRoot, testedTree)
+  const files = source.filter(entry => isOrchestrationPath(entry.path)).map(({path, mode, type, blob}) => {
+    orchestrationAssert(type === 'blob' && ['100644', '100755'].includes(mode), 'main footprint requires regular files')
+    return {path, mode, blob, sha256: orchestrationDigest(orchestrationGit(sourceRoot, ['cat-file', 'blob', blob], {encoding: 'buffer'}))}
+  })
+  const names = new Set(files.map(file => file.path))
+  const deletedPaths = candidate.filter(entry => isOrchestrationPath(entry.path) && !names.has(entry.path)).map(entry => entry.path)
+  const subjectInputs = candidate.filter(entry => !isOrchestrationPath(entry.path))
+  const data = name => JSON.parse(orchestrationGit(sourceRoot, ['show', `${revision}:${name}`]))
+  const packageManager = data('package.json').packageManager, dotnetSdk = data('global.json').sdk?.version
+  orchestrationAssert(typeof packageManager === 'string' && /^pnpm@\d+\.\d+\.\d+(?:\+\S+)?$/.test(packageManager), 'main pnpm pin required')
+  orchestrationAssert(typeof dotnetSdk === 'string' && /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(dotnetSdk), 'main SDK pin required')
+  const workflowSources = source.filter(entry => entry.path.startsWith('.github/workflows/')).map(({path, mode, type, blob}) => {
+    orchestrationAssert(type === 'blob' && ['100644', '100755'].includes(mode), 'workflow source requires regular files')
+    return {path, mode, blob, sha256: orchestrationDigest(orchestrationGit(sourceRoot, ['cat-file', 'blob', blob], {encoding: 'buffer'}))}
+  })
+  const inventory = {schemaVersion: 1, revision, testedCommit, testedTree, files, deletedPaths, subjectInputs, workflowSources,
+    toolchain: {packageManager, dotnetSdk}}
+  return {...inventory, sha256: orchestrationDigest(JSON.stringify(inventory))}
+}
+
+export function applyTrustedOrchestration({repositoryRoot, sourceRoot = root, inventory}) {
+  const destination = realpathSync(repositoryRoot)
+  const expected = trustedOrchestrationInventory({repositoryRoot, sourceRoot, revision: inventory?.revision})
+  orchestrationAssert(JSON.stringify(expected) === JSON.stringify(inventory), 'inventory differs from main or tested Git inputs')
+  orchestrationAssert(realpathSync(sourceRoot) !== destination, 'trusted source must be separate from tested checkout')
+  const target = name => {
+    const result = resolve(destination, ...name.split('/')), within = relative(destination, result)
+    orchestrationAssert(within && !within.startsWith(`..${sep}`) && within !== '..' && !isAbsolute(within), 'target escaped tested checkout')
+    return result
+  }
+  const parents = (name, create) => {
+    const components = name.split('/').slice(0, -1)
+    for (let i = 1; i <= components.length; i++) {
+      const directory = target(components.slice(0, i).join('/'))
+      if (existsSync(directory)) {
+        const stat = lstatSync(directory)
+        orchestrationAssert(stat.isDirectory() && !stat.isSymbolicLink(), 'candidate parent redirects trusted inputs')
+      } else if (create) mkdirSync(directory)
+    }
+  }
+  const paths = [...inventory.files.map(file => file.path), ...inventory.deletedPaths]
+  const remove = name => {
+    const path = target(name)
+    let stat
+    try { stat = lstatSync(path) } catch (error) { if (error.code === 'ENOENT') return; throw error }
+    if (stat.isSymbolicLink()) unlinkSync(path)
+    else rmSync(path, {recursive: true, force: true})
+  }
+  for (const name of paths) {
+    if (!orchestrationRoots.some(root => name === root || name.startsWith(`${root}/`))) parents(name, false)
+  }
+  // Remove complete controlled directories, including tests, newly added helpers and symlinks.
+  // rm removes a symlink itself; no candidate directory or parent link is followed for copying.
+  for (const directory of orchestrationRoots) remove(directory)
+  for (const name of paths) {
+    if (!orchestrationRoots.some(root => name === root || name.startsWith(`${root}/`)))
+      remove(name)
+  }
+  for (const file of inventory.files) {
+    parents(file.path, true)
+    const bytes = orchestrationGit(sourceRoot, ['cat-file', 'blob', file.blob], {encoding: 'buffer'})
+    orchestrationAssert(orchestrationDigest(bytes) === file.sha256, 'main blob digest differs')
+    writeFileSync(target(file.path), bytes, {mode: file.mode === '100755' ? 0o755 : 0o644})
+  }
+  orchestrationAssert(orchestrationGit(repositoryRoot, ['rev-parse', 'HEAD']).trim() === inventory.testedCommit
+    && orchestrationGit(repositoryRoot, ['write-tree']).trim() === inventory.testedTree, 'tested Git identity changed during preparation')
+}
+
+// These checks are diagnostics in the candidate-executing job. Authoritative inventory and
+// receipt fields are recomputed on a separate runner that never executes candidate code.
+export function assertOriginalSubjectInputs({repositoryRoot, inventory}) {
+  // This is a fail-closed observation in the untrusted execution job, not proof of test honesty.
+  // Checked subject identity in the separate data job must still come from Git objects.
+  for (const file of inventory.subjectInputs) {
+    // Explicit generated reports: recordPhase4Gate and run-ui-gate-model.mjs:124-126.
+    if (['docs/evidence/phase-4/gate.json', 'docs/evidence/gate-model/ui-gate-model.json'].includes(file.path)) continue
+    if (file.type !== 'blob') throw new Error('subject input is not a regular blob')
+    const parts = file.path.split('/')
+    for (let i = 1; i <= parts.length; i++) {
+      const stat = lstatSync(resolve(repositoryRoot, ...parts.slice(0, i)))
+      orchestrationAssert(!stat.isSymbolicLink() && (i === parts.length ? stat.isFile() : stat.isDirectory()),
+        `subject input redirected: ${file.path}`)
+    }
+    const expected = orchestrationGit(repositoryRoot, ['cat-file', 'blob', file.blob], {encoding: 'buffer'})
+    orchestrationAssert(readFileSync(resolve(repositoryRoot, file.path)).equals(expected),
+      `subject input changed: ${file.path}`)
+  }
+}
+
+export function createTrustedStepExecutor({repositoryRoot, inventory, execute}) {
+  const files = inventory.files.map(file => ({...file}))
+  const deletedPaths = [...inventory.deletedPaths]
+  const check = () => {
+    const names = []
+    const walk = name => {
+      const path = resolve(repositoryRoot, name), stat = lstatSync(path)
+      orchestrationAssert(!stat.isSymbolicLink(), `runtime link: ${name}`)
+      if (stat.isDirectory()) for (const child of readdirSync(path)) walk(`${name}/${child}`)
+      else { orchestrationAssert(stat.isFile(), `runtime non-file: ${name}`); names.push(name) }
+    }
+    for (const directory of orchestrationRoots) if (existsSync(resolve(repositoryRoot, directory))) walk(directory)
+    orchestrationAssert(JSON.stringify(names.sort()) === JSON.stringify(files.map(file => file.path)
+      .filter(name => orchestrationRoots.some(directory => name.startsWith(`${directory}/`))).sort()), 'runtime closure paths changed')
+    for (const name of deletedPaths) orchestrationAssert(!existsSync(resolve(repositoryRoot, name)), `runtime deleted input returned: ${name}`)
+    for (const file of files) {
+      const parts = file.path.split('/')
+      for (let i = 1; i <= parts.length; i++) {
+        const stat = lstatSync(resolve(repositoryRoot, ...parts.slice(0, i)))
+        orchestrationAssert(!stat.isSymbolicLink() && (i === parts.length ? stat.isFile() : stat.isDirectory()), `runtime input redirected: ${file.path}`)
+      }
+      orchestrationAssert(orchestrationDigest(readFileSync(resolve(repositoryRoot, file.path))) === file.sha256,
+        `runtime input changed: ${file.path}`)
+    }
+  }
+  return (...args) => {
+    check() // Immediately before each helper/config consumer executes, including restore.
+    const result = execute(...args)
+    check() // A mutating step cannot supply a PASS or hand off to the next helper.
+    return result
+  }
+}
+
+// Production and bounded integration drivers share this dispatch boundary. The injected
+// commands change the workload, never the integrity wrapper or report evaluation.
+export function createPhase4StepDispatcher({repositoryRoot, sourceRoot = controllerRoot,
+  revision = process.env.HARBORLINE_ORCHESTRATION_REVISION, results, reports,
+  failureEvidenceDirectory = resolve(repositoryRoot, '.claude/gate-evidence'), env = process.env}) {
+  const executeTrustedStep = revision
+    ? createTrustedStepExecutor({repositoryRoot,
+        inventory: trustedOrchestrationInventory({repositoryRoot, sourceRoot, revision}), execute: callback => callback()})
+    : callback => callback()
+  // stepEnvironment is deliberately NOT recorded in the step entry: it carries absolute machine
+  // paths, and the entry is hashed into reportSha256, which the pre-commit receipt check compares.
+  return function run(id, executable, args, cwd = repositoryRoot, json = false, stepEnvironment = {}) {
+    const report = runPhase4Step({
+      results,
+      id,
+      executable,
+      args,
+      cwd,
+      json,
+      env: { ...env, ...runnerEnvironment, ...stepEnvironment },
+      failureEvidence: {
+        filePath: resolve(failureEvidenceDirectory, `${id}.log`),
+        reportPath: `.claude/gate-evidence/${id}.log`,
+      },
+      execute: () => executeTrustedStep(() => {
+        const resolved = resolveCommand(executable, args)
+        const result = spawnSync(resolved.executable, resolved.args, {
+          cwd,
+          encoding: 'utf8',
+          maxBuffer: 128 * 1024 * 1024,
+          env: { ...env, ...runnerEnvironment, ...stepEnvironment },
+        })
+        if (result.error) return {result}
+        return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
+      }),
+    })
+    reports.set(id, report)
+    return report
+  }
 }
 
 async function launchGate(inputAttempt) {
@@ -82,36 +291,7 @@ async function launchGate(inputAttempt) {
       return total + (perCaseReact ? fixture.cases.length * 2 : fixture.cases.length + 1)
     }, 0)
 
-    // stepEnvironment is deliberately NOT recorded in the step entry: it carries absolute machine
-    // paths, and the entry is hashed into reportSha256, which the pre-commit receipt check compares.
-    function run(id, executable, args, cwd = root, json = false, stepEnvironment = {}) {
-      const report = runPhase4Step({
-        results,
-        id,
-        executable,
-        args,
-        cwd,
-        json,
-        env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
-        failureEvidence: {
-          filePath: resolve(failureEvidenceDirectory, `${id}.log`),
-          reportPath: `.claude/gate-evidence/${id}.log`,
-        },
-        execute: () => {
-          const resolved = resolveCommand(executable, args)
-          const result = spawnSync(resolved.executable, resolved.args, {
-            cwd,
-            encoding: 'utf8',
-            maxBuffer: 128 * 1024 * 1024,
-            env: { ...process.env, ...runnerEnvironment, ...stepEnvironment },
-          })
-          if (result.error) return {result}
-          return {result, outcome: evaluateStepStdout({stepId: id, json, status: result.status, stdout: result.stdout})}
-        },
-      })
-      reports.set(id, report)
-      return report
-    }
+    const run = createPhase4StepDispatcher({repositoryRoot: root, results, reports, failureEvidenceDirectory})
 
     const runReusable = createReusableStepRunner({env: process.env, repositoryRoot: root,
       testedTree, previousPass, results, reports, run})

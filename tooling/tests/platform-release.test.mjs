@@ -131,9 +131,13 @@ test('release workflow constrains producer/ref, defaults to dry-run, and verifie
   assert.match(workflow, /cmp "\$RUNNER_TEMP\/release\/\$asset"/)
   const staging = workflow.split('\n  stage:\n')[1].split('\n  publish:\n')[0]
   const publication = workflow.split('\n  publish:\n')[1]
-  assert.doesNotMatch(staging, /(?:id-token|attestations|contents): write|gh release|gh attestation|uses: actions\/attest@|GH_TOKEN:/)
+  assert.doesNotMatch(staging, /(?:id-token|attestations|contents): write|gh release|gh attestation|uses: actions\/attest@/)
   assert.match(staging, /permissions:\n      contents: read/)
-  assert.match(publication, /needs: stage/)
+  assert.match(staging, /actions: read/)
+  const readTokens = [...staging.matchAll(/GH_TOKEN:\s*(.+)/g)].map(match => match[1])
+  assert.ok(readTokens.length > 0)
+  for (const token of readTokens) assert.equal(token, '${{ github.token }}')
+  assert.match(publication, /needs: \[stage, policy-publish\]/)
   assert.match(publication, /if: inputs.publish == true && github.ref == 'refs\/heads\/main'/)
   assert.match(publication, /platform-release-staging-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/)
   assert.ok(publication.indexOf('platform-release.mjs check') < publication.indexOf('uses: actions/attest@'))
@@ -205,7 +209,7 @@ test('downloaded inventory must include a nonempty bundle and unchanged receipt'
 
 test('release preflight fails closed for API errors, disabled immutability and existing versions (mock gh only)', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/release-platform.yml', import.meta.url), 'utf8')
-  const block = workflow.split('      - name: Require immutable releases and no existing version\n')[1].split('      - name: Attest')[0]
+  const block = workflow.split('      - name: Require immutable releases and no existing version\n')[1].split('      - name: Refuse assets')[0]
   const script = block.split('        run: |\n')[1].split('\n').map(line => line.replace(/^          /, '')).join('\n')
   // Keep this tooling test independent of a host-installed jq. This fixture-only JSON
   // oracle implements the three stated preconditions; workflow expressions are pinned above.

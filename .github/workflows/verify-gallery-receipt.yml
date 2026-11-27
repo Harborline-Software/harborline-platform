@@ -14,7 +14,44 @@ concurrency:
   group: gallery-receipt-${{ github.event_name }}-${{ github.event_name == 'push' && 'main' || github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt || 1 }}
   cancel-in-progress: false
 jobs:
+  policy-reader:
+    if: github.ref == 'refs/heads/main' && github.repository == 'Harborline-Software/harborline-platform'
+    runs-on: ubuntu-latest
+    environment: release-policy-reader
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    outputs:
+      envelope: ${{ steps.read.outputs.envelope }}
+      policy-sha256: ${{ steps.read.outputs.policy-sha256 }}
+    steps:
+      # Owner setup: repository-scoped Variables read only, in a main-only protected environment.
+      # No checkout, candidate execution, signer, write token or credential-bearing output.
+      - id: read
+        env:
+          POLICY_READ_TOKEN: ${{ secrets.RELEASE_POLICY_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$POLICY_READ_TOKEN"
+          export POLICY_RESPONSE
+          POLICY_RESPONSE=$(GH_TOKEN="$POLICY_READ_TOKEN" gh api --method GET --hostname github.com "repos/Harborline-Software/harborline-platform/actions/variables/RELEASE_GATE_POLICY")
+          python3 - <<'PY'
+          import os, json, base64, hashlib
+          response = json.loads(os.environ['POLICY_RESPONSE'])
+          assert response.get('name') == 'RELEASE_GATE_POLICY' and isinstance(response.get('value'), str)
+          assert isinstance(json.loads(response['value']), dict)
+          snapshot = dict(schemaVersion=1, repository=os.environ['GITHUB_REPOSITORY'],
+                          runId=os.environ['GITHUB_RUN_ID'], attempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                          revision=os.environ['GITHUB_SHA'], response=response)
+          envelope = base64.b64encode(json.dumps(snapshot).encode()).decode()
+          digest = hashlib.sha256(response['value'].encode()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf8') as output:
+              output.write('envelope=' + envelope + '\npolicy-sha256=' + digest + '\n')
+          PY
+
   plan:
+    needs: policy-reader
     if: >-
       github.event_name == 'push' ||
       (github.event.workflow_run.event == 'merge_group' &&
@@ -24,6 +61,9 @@ jobs:
       changed: ${{ steps.plan.outputs.changed }}
       head: ${{ steps.plan.outputs.head }}
       revision: ${{ steps.plan.outputs.revision }}
+      release-eligible: ${{ steps.plan.outputs.release-eligible }}
+      api-revision: ${{ steps.plan.outputs.api-revision }}
+      policy-sha256: ${{ steps.plan.outputs.policy-sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -41,6 +81,9 @@ jobs:
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_POLICY_ENVELOPE: ${{ needs.policy-reader.outputs.envelope }}
+          RELEASE_POLICY_SHA256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+          RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = push ]; then
             node tooling/gates/scan-evidence-provenance.mjs --receipt plan-refresh
@@ -50,7 +93,7 @@ jobs:
 
   ledger-data:
     needs: plan
-    if: needs.plan.outputs.changed == 'true'
+    if: needs.plan.outputs.changed == 'true' || needs.plan.outputs.release-eligible == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -77,9 +120,18 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  main-sbom:
+    needs: plan
+    if: needs.plan.outputs.release-eligible == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/license-sbom.yml
+    with:
+      tested-commit: ${{ needs.plan.outputs.head }}
+
   gallery-shard:
     needs: [plan, ledger-data]
-    if: needs.plan.outputs.changed == 'true'
+    if: needs.plan.outputs.changed == 'true' || needs.plan.outputs.release-eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -90,6 +142,12 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     steps:
+      - id: test-syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          syft-version: v1.57.2
+      - name: Export required scanner to the gate and its child
+        run: echo "HARBORLINE_TEST_SYFT=${{ steps.test-syft.outputs.cmd }}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.plan.outputs.head }}
@@ -100,23 +158,22 @@ jobs:
           ref: ${{ needs.plan.outputs.revision }}
           path: .trusted-orchestration
           persist-credentials: false
-      - name: Use main orchestration, preserving candidate tests
-        run: |
-          python3 - <<'PY'
-          import os, shutil
-          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
-              children[:] = [name for name in children if name != 'tests']
-              target = directory.replace('.trusted-orchestration/', '', 1)
-              os.makedirs(target, exist_ok=True)
-              for name in files:
-                  if name.endswith(('.mjs', '.json')):
-                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
-          shutil.rmtree('.trusted-orchestration')
-          PY
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
+          package-manager-cache: false
+      - name: Prepare the complete main orchestration footprint
+        env:
+          ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          subprocess.run(['node', '.trusted-orchestration/tooling/run-phase-4-gate.mjs',
+                          '--prepare-trusted-orchestration', '.', os.environ['ORCHESTRATION_REVISION']], check=True)
+          PY
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           global-json-file: global.json
@@ -125,8 +182,16 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
           cd gallery/tests && npx playwright install --with-deps chromium
-      - name: Mirror public API feed inputs
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Mirror the immutable public API feed input
+        env:
+          API_REVISION: ${{ needs.plan.outputs.api-revision }}
+        run: |
+          [[ "$API_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git clone --no-checkout https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+          cd "$RUNNER_TEMP/harborline-api"
+          git fetch --no-tags origin "$API_REVISION"
+          git checkout --detach "$API_REVISION"
+          test "$(git rev-parse HEAD)" = "$API_REVISION"
       - name: Build the candidate projections
         run: |
           for project in projections/react/ui/hlp.ui.button projections/typescript/contracts/hlp.contracts.forms projections/typescript/foundation/hlp.foundation.rule-runtime projections/typescript/foundation/hlp.foundation.rule-authoring projections/typescript/application/hlp.copilot.contracts; do
@@ -134,6 +199,7 @@ jobs:
           done
           dotnet restore Harborline.Platform.slnx -v:minimal
           node tooling/run-native.mjs --build
+      # Run-reported observations; checked inventory and reconciliation run on another runner.
       - name: Report raw gallery shard
         env:
           SHARD: ${{ matrix.shard }}
@@ -151,15 +217,25 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  phase-4:
-    needs: [plan, ledger-data, gallery-shard]
-    if: needs.plan.outputs.changed == 'true'
+  candidate-phase-4:
+    needs: [policy-reader, plan, ledger-data, gallery-shard, main-sbom]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.ledger-data.result == 'success' &&
+      needs.gallery-shard.result == 'success' &&
+      ((needs.plan.outputs.release-eligible == 'true' && needs.main-sbom.result == 'success') ||
+       (needs.plan.outputs.release-eligible != 'true' && needs.plan.outputs.changed == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
       contents: read
       actions: read
     steps:
+      - id: test-syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          syft-version: v1.57.2
+      - name: Export required scanner to the gate and its child
+        run: echo "HARBORLINE_TEST_SYFT=${{ steps.test-syft.outputs.cmd }}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.plan.outputs.head }}
@@ -170,18 +246,20 @@ jobs:
           ref: ${{ needs.plan.outputs.revision }}
           path: .trusted-orchestration
           persist-credentials: false
-      - name: Use main orchestration, preserving candidate tests
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Prepare the complete main orchestration footprint
+        env:
+          ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
         run: |
           python3 - <<'PY'
-          import os, shutil
-          for directory, children, files in os.walk('.trusted-orchestration/tooling'):
-              children[:] = [name for name in children if name != 'tests']
-              target = directory.replace('.trusted-orchestration/', '', 1)
-              os.makedirs(target, exist_ok=True)
-              for name in files:
-                  if name.endswith(('.mjs', '.json')):
-                      shutil.copyfile(os.path.join(directory, name), os.path.join(target, name))
-          shutil.rmtree('.trusted-orchestration')
+          import os, subprocess
+          subprocess.run(['node', '.trusted-orchestration/tooling/run-phase-4-gate.mjs',
+                          '--prepare-trusted-orchestration', '.', os.environ['ORCHESTRATION_REVISION']], check=True)
           PY
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -193,9 +271,6 @@ jobs:
           path: ${{ runner.temp }}/gallery-receipt
           merge-multiple: true
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: 24
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           global-json-file: global.json
@@ -203,16 +278,111 @@ jobs:
         run: |
           pnpm --dir gallery/tests install --frozen-lockfile --ignore-scripts
           cd gallery/tests && npx playwright install --with-deps chromium
-      - name: Mirror public API feed inputs
-        run: git clone --quiet https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+      - name: Mirror the immutable public API feed input
+        env:
+          API_REVISION: ${{ needs.plan.outputs.api-revision }}
+        run: |
+          [[ "$API_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          git clone --no-checkout https://github.com/Harborline-Software/harborline-api.git "$RUNNER_TEMP/harborline-api"
+          cd "$RUNNER_TEMP/harborline-api"
+          git fetch --no-tags origin "$API_REVISION"
+          git checkout --detach "$API_REVISION"
+          test "$(git rev-parse HEAD)" = "$API_REVISION"
       - name: Full fresh phase-4 under main orchestration
         env:
           HARBORLINE_API_REPO: ${{ runner.temp }}/harborline-api
           HARBORLINE_CONTROL_REPO: ${{ runner.temp }}/control-ledger
           HARBORLINE_RECEIPT_RUN: '1'
+          HARBORLINE_SUBJECT_ROOT: ${{ github.workspace }}
+          HARBORLINE_GATE_ROOT: ${{ github.workspace }}
+          HARBORLINE_ORCHESTRATION_REVISION: ${{ needs.plan.outputs.revision }}
+          HARBORLINE_API_REVISION: ${{ needs.plan.outputs.api-revision }}
+          RELEASE_ELIGIBLE: ${{ needs.plan.outputs.release-eligible }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
           HARBORLINE_CI_GALLERY: '1'
           HARBORLINE_GALLERY_SHARD_REPORTS: ${{ runner.temp }}/gallery-receipt
-        run: node tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
+        run: |
+          if [ "$RELEASE_ELIGIBLE" = true ]; then
+            node .trusted-orchestration/tooling/run-phase4-receipt.mjs
+            cp "$(git rev-parse --git-path harborline-phase4-receipt.json)" "$RUNNER_TEMP/gallery-receipt/release-phase4-receipt.json"
+            cp "$(git rev-parse --git-path harborline-release-receipt.json)" "$RUNNER_TEMP/gallery-receipt/release-receipt.json"
+            node -e 'const fs = require("node:fs"); const p = process.env.RUNNER_TEMP + "/gallery-receipt/"; fs.writeFileSync(p + "phase4.json", JSON.stringify(JSON.parse(fs.readFileSync(p + "release-phase4-receipt.json")).gate));'
+          else
+            node .trusted-orchestration/tooling/run-phase-4-gate.mjs > "$RUNNER_TEMP/gallery-receipt/phase4.json"
+          fi
+      # Run-reported observations only; this job cannot author checked receipt fields.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: candidate-phase4-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gallery-receipt/phase4.json
+          if-no-files-found: error
+          retention-days: 90
+
+  phase-4:
+    needs: [policy-reader, plan, ledger-data, gallery-shard, candidate-phase-4, main-sbom]
+    if: >-
+      always() && needs.plan.result == 'success' && needs.ledger-data.result == 'success' &&
+      needs.gallery-shard.result == 'success' && needs.candidate-phase-4.result == 'success' &&
+      ((needs.plan.outputs.release-eligible == 'true' && needs.main-sbom.result == 'success') ||
+       (needs.plan.outputs.release-eligible != 'true' && needs.plan.outputs.changed == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      release-artifact-id: ${{ steps.release-inputs.outputs.artifact-id }}
+      release-inventory-sha256: ${{ steps.release-seal.outputs.inventory-sha256 }}
+      release-receipt-sha256: ${{ steps.release-seal.outputs.receipt-sha256 }}
+      release-companion-sha256: ${{ steps.release-seal.outputs.companion-sha256 }}
+    steps:
+      # Fresh runner, main checkout only. Candidate source enters only as authenticated Git data.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Fetch candidate only as data
+        env:
+          QUEUE_HEAD: ${{ needs.plan.outputs.head }}
+        run: git fetch --no-tags origin "$QUEUE_HEAD"
+      - name: Independently collect and write receipt data
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_DIRECTORY: ${{ runner.temp }}/gallery-receipt
+          RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
+          RELEASE_POLICY_ENVELOPE: ${{ needs.policy-reader.outputs.envelope }}
+          RELEASE_POLICY_SHA256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt collect
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: needs.plan.outputs.release-eligible == 'true'
+        with:
+          artifact-ids: ${{ needs.main-sbom.outputs.artifact-id }}
+          path: ${{ runner.temp }}/gallery-receipt/sbom
+      - id: release-seal
+        if: needs.plan.outputs.release-eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_POLICY_ENVELOPE: ${{ needs.policy-reader.outputs.envelope }}
+          RELEASE_POLICY_SHA256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+          RELEASE_APPROVED_COMMIT: ${{ vars.RELEASE_APPROVED_COMMIT }}
+          RELEASE_TESTED_COMMIT: ${{ needs.plan.outputs.head }}
+          NODE_OPTIONS: ''
+          NODE_PATH: ''
+        run: node tooling/gates/scan-evidence-provenance.mjs --release-evidence seal "$RUNNER_TEMP/gallery-receipt" "$RELEASE_TESTED_COMMIT"
+      - id: release-inputs
+        if: needs.plan.outputs.release-eligible == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-gate-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gallery-receipt
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
@@ -222,7 +392,7 @@ jobs:
           retention-days: 90
 
   sign:
-    needs: [plan, ledger-data, gallery-shard, phase-4]
+    needs: [policy-reader, plan, ledger-data, gallery-shard, phase-4, main-sbom]
     if: >-
       always() && github.event_name == 'workflow_run' && github.event.workflow_run.event == 'merge_group' &&
       github.event.workflow_run.repository.full_name == github.repository
@@ -232,6 +402,64 @@ jobs:
       id-token: write
       attestations: write
     uses: ./.github/workflows/sign-gallery-receipt.yml
+    with:
+      policy-envelope: ${{ needs.policy-reader.outputs.envelope }}
+      policy-sha256: ${{ needs.policy-reader.outputs.policy-sha256 }}
+      release-artifact-id: ${{ needs.phase-4.outputs.release-artifact-id }}
+      release-inventory-sha256: ${{ needs.phase-4.outputs.release-inventory-sha256 }}
+      release-receipt-sha256: ${{ needs.phase-4.outputs.release-receipt-sha256 }}
+      release-companion-sha256: ${{ needs.phase-4.outputs.release-companion-sha256 }}
+      release-sbom-artifact-id: ${{ needs.main-sbom.outputs.artifact-id }}
+      release-sbom-sha256: ${{ needs.main-sbom.outputs.sbom-sha256 }}
+      release-sbom-policy-sha256: ${{ needs.main-sbom.outputs.policy-sha256 }}
+      release-sbom-tested-tree: ${{ needs.main-sbom.outputs.tested-tree }}
+
+  post:
+    needs: sign
+    if: >-
+      always() && github.event_name == 'workflow_run' && github.ref == 'refs/heads/main' &&
+      github.event.workflow_run.event == 'merge_group' &&
+      github.event.workflow_run.repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: gallery-receipt
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+      - name: Fetch candidate only as Git data
+        env:
+          QUEUE_HEAD: ${{ github.event.workflow_run.head_sha }}
+        run: git fetch --no-tags origin "$QUEUE_HEAD"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        if: needs.sign.outputs.artifact-id != ''
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact-id }}
+          path: receipt
+      - id: app
+        if: always()
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        with:
+          client-id: ${{ vars.GALLERY_RECEIPT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GALLERY_RECEIPT_APP_KEY }}
+          repositories: harborline-platform
+          permission-checks: write
+          permission-statuses: write
+      - name: Post on the authenticated queue head, after independent verification
+        if: always() && steps.app.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_CHECK_TOKEN: ${{ steps.app.outputs.token }}
+          RECEIPT_VERIFIED: ${{ needs.sign.result == 'success' && needs.sign.outputs.artifact-id != '' }}
+          RECEIPT_ARTIFACT_ID: ${{ needs.sign.outputs.artifact-id }}
+        run: node tooling/gates/scan-evidence-provenance.mjs --receipt post
 
   refresh:
     needs: [plan, gallery-shard, phase-4]
