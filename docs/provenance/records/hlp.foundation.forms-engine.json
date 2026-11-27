@@ -42,7 +42,7 @@
     "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineExceptions.cs": "e09b2ea1c4ab63bf9a0f140baf69c9f7583a2c577aa23c55e0d37ebfebf4a0da",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/FormEngineOptions.cs": "369a579511bc4d2a567c63ddb7d8dfed44bd9164ab682ad27611d5d16b56140e",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FileJournalFormSubmissionStore.cs": "65671b26ec9e19f3fd90bed28424ed5df367c06008bf802f243f7a369cd7cfad",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormSubmissionPersistence.cs": "12512a27bce8801f011360d94c06ac29b85fad4cb0c3e2798037b36eff9fb537",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormSubmissionPersistence.cs": "21ac89ffa760567c4812184d01017ba46ebb9357022a52cd5809e9d7870b1e0f",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormSubmissionStoreModel.cs": "630071669c344c830489dad32bab51656135f28ef3cd10589fdea0a337f0d9ac",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/InMemoryFormSubmissionStore.cs": "80b909b286da480e274ad1d41329257a696a98eacb51af588a80d5ca9a182295",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Projection/FormProjectionDelivery.cs": "1ce6a4536e71bc399ea6dfc6eba3d4be978d3b4080a83f2d71e22df74091558f",
@@ -50,18 +50,19 @@
     "projections/dotnet/foundation/hlp.foundation.forms-engine/RuleCompileAdmission.cs": "879a18aee2fa3f93d5cb0f0c5167a59aa3a76908a9fc872bef98b76775a02306",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/FormFieldSecurity.cs": "860fc994962ad1e60a2afdfe4cc66626caedd51f34ce6348741a12c274c2374b",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Security/TenantBoundAesGcmFormFieldSecurity.cs": "6a1a5ed3d404690cc8e8bbeda7fd77bd5f229c80456c85de677b263f7bb739d0",
-    "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "f9e855301f10e1ba267c4ef057205b92b594e4e2660b591846979ec03af89ff1",
+    "specs/modules/foundation/hlp.foundation.forms-engine/interface.yaml": "2d8cd4398d6213a5232a6ed193c9e9d95caf09eeed9a92e00c5d7cb0ad17fbc3",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/FormSubmitGateEvidence.cs": "eaa38403113500325958c9935f24d7609dbe87459bbae16bb6340c5c3a4875de",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmitGateEvidenceTests.cs": "bd33878a0e650989bd62f62bfe3bfc00af45f2cfb46bfc6a91d53c3f756e4058",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormSubmissionBindingPersistenceTests.cs": "531c99734667be0500c238d817a4a06c8959d920a2f7a85b581e18a5c5d1efd8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormRecordCreationSubmitTests.cs": "376192533f28749bedc37c5b382bb7f2da8cd661d86ddd88b4605007d12d77e0",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormRecordCreationCompositionTests.cs": "1c683bac93ce655c64f9082558c388c3fa65eb95f5a225d8ab60fed062e14b1c",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine/AcceptedRecordCommands.cs": "885bbfc1b544a67e1e13d28b53727a0765307611695bfb934f85d061909d2ad7",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedRecordCommandTests.cs": "5e0bce9b584333b16e7a1429929cb18dd2923af9225d12adb4209cd8278fef2e",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine/AcceptedRecordCommands.cs": "0a6aab9c75e8c272aa92c417b5fe144edb37cd1502fd0a834ee50c5a318cbaa7",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedRecordCommandTests.cs": "8ae472f8961da5769941f12233968d81802ab18ec6fb65feabbb9b65b7dca7e9",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandCancellationTests.cs": "9f7357d6b41bc4f58737849bbef651c457321920f461d7102df52b9d17a3e1ce",
     "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandRestartTests.cs": "0088a2e594346091ae81e36ce94bef9469b431b357a8c086f93729af566b1ee8",
     "projections/dotnet/foundation/hlp.foundation.forms-engine/Persistence/FormStoreReentrancy.cs": "4e5de9722c7c0904a9dd2ce923671afb6483ba26f990974e9c7a2bd546692dfc",
-    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandGuardTests.cs": "388db64811253ab045fb4c5092a675a03d59ec8733db8b0ae48a6a135da2021e"
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandGuardTests.cs": "388db64811253ab045fb4c5092a675a03d59ec8733db8b0ae48a6a135da2021e",
+    "projections/dotnet/foundation/hlp.foundation.forms-engine.tests/FormAcceptedCommandFenceHandoffTests.cs": "adacc124f32dda18ca3f3a66fcf72036d4eceead04ab638077899122fb2dd744"
   },
   "nextGate": "Prove the first authenticated inspection vertical: active-tenant list/detail, tenant-authored form, idempotent submit and calculation, durable inspection-review work item, approve/rework transition, and indistinguishable unknown/cross-tenant failures."
 }
