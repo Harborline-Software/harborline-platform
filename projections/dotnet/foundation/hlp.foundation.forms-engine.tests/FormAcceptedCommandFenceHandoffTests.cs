@@ -10,11 +10,14 @@ using Harness = Harborline.Foundation.Forms.Engine.Tests.FormEngineOrchestration
 namespace Harborline.Foundation.Forms.Engine.Tests;
 
 /// <summary>
-/// T-616 handoff acceptance 1-2, ADR-0110 open items 2/6: a serial host fixture commits revocation and claim
-/// in both orders, retains applicability independently of the two audit clocks, then reopens before recovery.
-/// Literal decisions, lifecycle states, authority bytes and effect counts are the oracles. The built-in stores
-/// retain lifecycle evidence; the fixture journal retains the host decision. This models the public handoff,
-/// not the API's single-database transaction or crash atomicity, which remain T-619's qualification.
+/// T-616 fence-handoff acceptance lines 2 and 4: the built-in producer stores, as contract fixtures, retain
+/// lifecycle decisions and evidence across restart; the public consumer honours those decisions with either audit-clock
+/// offset, and a refusal returned during claim is terminal with no effect. Oracles: literal lifecycle states, audit
+/// payload/authority bytes, worker identity and effect/interaction counts, with identity binding from the accepted receipt.
+/// The empty lookup for a valid claim is a supplied host-contract input from the revision-22 invariant, not a tested
+/// production lookup. These cases do not exercise the legacy timestamp filter or qualify host retention conformance.
+/// That conformance belongs to T-619/acceptance-revocation-fence: the T-616 Scope assigns the API adapter there, and
+/// T-619's recorded footprint has no API implementation yet. PR 591 does not qualify that missing host implementation.
 /// </summary>
 public sealed class FormAcceptedCommandFenceHandoffTests
 {
@@ -29,7 +32,7 @@ public sealed class FormAcceptedCommandFenceHandoffTests
     [InlineData(true, true, 60)]
     [InlineData(true, false, -60)]
     [InlineData(true, false, 60)]
-    public async Task FencedHostRetainsApplicabilityAcrossCommitOrdersClockSkewsAndRestart(bool journal, bool revocationFirst, int auditSkewMinutes)
+    public async Task ProducerDecisionAndConsumerOutcomeSurviveAuditClockOffsetsAndRestart(bool journal, bool revocationFirst, int auditSkewMinutes)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"forms-fence-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
@@ -47,8 +50,8 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             var commandId = leased.AcceptedCommand!.CommandId;
             await store.ReleaseProjectionLeaseAsync(leased.OutboxId);
             var commands = (IFormAcceptedCommandStore)store;
-            var revocationAt = Now.AddMinutes(auditSkewMinutes);
-            var audit = new KernelAuditEvidence("fence-refusal", "sys.forms-worker", Now,
+            var refusalAuditAt = Now.AddMinutes(auditSkewMinutes);
+            var audit = new KernelAuditEvidence("fence-refusal", "sys.forms-worker", refusalAuditAt,
                 JsonSerializer.SerializeToUtf8Bytes(new
                 {
                     op = "accepted-command-refused",
@@ -59,41 +62,36 @@ public sealed class FormAcceptedCommandFenceHandoffTests
                     after_claim = false,
                 }))
                 { AuthoritySnapshot = "host-fence-refusal"u8.ToArray() };
-            var hostPath = Path.Combine(directory, "host-fence.jsonl");
-            var host = new FencedHostStore(store, hostPath, audit);
-            if (revocationFirst) host.CommitRevocation(commandId, revocationAt);
-            // Interrupt before any Records effect; the claim decision must already be retained.
-            var firstSink = new ContractSink(host) { DenyWorker = true };
-            var firstWorker = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(new Decider()),
-                recordTypePolicies: new FormOnlyReader(), projectionSink: firstSink, storeDecorator: _ => host,
-                options: new FormEngineOptions { AcceptedCommandWorkerId = Worker }, actorId: "sys.forms-recovery");
-            await firstWorker.Engine.RecoverProjectionsAsync(10);
-            if (!revocationFirst) host.CommitRevocation(commandId, revocationAt);
-            Assert.Equal(1, host.ClaimCalls);
-            Assert.Empty(firstSink.Records.Executions);
-            Assert.Equal(revocationFirst ? 0 : 1, firstSink.WorkerAttempts.Count);
-            Assert.Equal(revocationFirst ? 0 : 1, firstSink.Lookups);
-            AssertFenceDecision(host, commandId, revocationFirst, auditSkewMinutes);
-
+            if (!revocationFirst)
+            {
+                // Oracle: ADR-0110 items 2/6 and the store contract: claim wins, a Pending-only refusal loses.
+                Assert.True((await commands.ClaimAcceptedCommandAsync(commandId, Worker, Now))!.Changed);
+                Assert.False((await commands.RefuseAcceptedCommandAsync(commandId, FormAcceptedCommandState.Pending,
+                    "records.command.revoked_compromise", audit))!.Changed);
+            }
             (store as IDisposable)?.Dispose();
             store = Open();
             commands = (IFormAcceptedCommandStore)store;
-            host = new FencedHostStore(store, hostPath, audit);
-            AssertFenceDecision(host, commandId, revocationFirst, auditSkewMinutes);
             var retained = (await commands.GetAcceptedCommandAsync(Tenant, commandId))!;
-            Assert.Equal(revocationFirst ? FormAcceptedCommandState.Refused : FormAcceptedCommandState.Claimed, retained.State);
-            if (!revocationFirst) AssertClaimEvidence(retained);
+            Assert.Equal(revocationFirst ? FormAcceptedCommandState.Pending : FormAcceptedCommandState.Claimed, retained.State);
+            if (!revocationFirst)
+            {
+                AssertClaimEvidence(retained);
+            }
             Assert.Equal(ExpectedAcceptanceSnapshot(), retained.AcceptanceSnapshot.ToArray());
 
-            var sink = new ContractSink(host);
+            // Revision-22 host-contract INPUT: a valid claim has an empty revocation lookup. This stub does not
+            // prove that a production host persisted or looked up its decision. Both audit offsets are inputs only.
+            var sink = new ContractEmptyLookupSink();
+            // Keep the row pending until the consumer claims it. The fixture then returns the host's audited refusal.
+            var refusingStore = new RefusingClaimStore(store, audit);
             var worker = await Harness.CreateAsync(definitionFactory: Targeted, submitGates: Port(new Decider()),
-                recordTypePolicies: new FormOnlyReader(), projectionSink: sink, storeDecorator: _ => host,
+                recordTypePolicies: new FormOnlyReader(), projectionSink: sink, storeDecorator: _ => revocationFirst ? refusingStore : store,
                 options: new FormEngineOptions { AcceptedCommandWorkerId = Worker }, actorId: "sys.forms-recovery");
             await worker.Engine.RecoverProjectionsAsync(10);
             await worker.Engine.RecoverProjectionsAsync(10);
             // Consumer oracle: literal claim/execution counts; T-616 acceptance 1 requires honouring terminal refusal.
-            Assert.Equal(revocationFirst ? 0 : 1, host.ClaimCalls);
-            AssertFenceDecision(host, commandId, revocationFirst, auditSkewMinutes);
+            Assert.Equal(revocationFirst ? 1 : 0, refusingStore.ClaimCalls);
             Assert.Equal(revocationFirst ? 0 : 1, sink.Records.Executions.Count);
             (store as IDisposable)?.Dispose();
             store = Open();
@@ -106,7 +104,7 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             {
                 var refusalAudit = Assert.Single(audits, entry => entry.AuditId == "fence-refusal");
                 Assert.Equal("sys.forms-worker", refusalAudit.ActorId);
-                Assert.Equal(Now, refusalAudit.RecordedAt);
+                Assert.Equal(Now.AddMinutes(auditSkewMinutes), refusalAudit.RecordedAt);
                 // Frozen interface revision 16, M1: all six lifecycle-audit members, including false after_claim.
                 // Literal member names/values come from the contract; identity binding uses the accepted receipt/outbox.
                 using var refusalPayload = JsonDocument.Parse(refusalAudit.Payload);
@@ -120,12 +118,12 @@ public sealed class FormAcceptedCommandFenceHandoffTests
                 Assert.False(payload.GetProperty("after_claim").GetBoolean());
                 Assert.Equal("host-fence-refusal"u8.ToArray(), refusalAudit.AuthoritySnapshot.ToArray());
                 Assert.Equal("sys.forms-worker", settled.StateActorId);
-                Assert.Equal(Now, settled.StateChangedAt);
+                Assert.Equal(Now.AddMinutes(auditSkewMinutes), settled.StateChangedAt);
             }
             else
             {
                 AssertClaimEvidence(settled);
-                // ADR-0110 items 2/6: a retained valid claim completes despite the later revocation.
+                // Consumer oracle: literal Completed, null refusal and one effect, given the empty-lookup input.
                 Assert.Equal(FormAcceptedCommandState.Completed, settled.State);
                 Assert.Null(settled.RefusalCode); // No revocation quarantine, irrespective of either audit clock.
                 Assert.Single(sink.Records.Records);
@@ -133,7 +131,7 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             }
             Assert.Equal(ExpectedAcceptanceSnapshot(), settled.AcceptanceSnapshot.ToArray());
             // Consumer oracles: literal terminal states, zero/one effects and lookup counts, worker id/refusal code.
-            // ADR-0110 open item 2: commit order decides; either audit clock direction gives the same result.
+            // The records require the same semantic outcome for either audit timestamp, not a two-clock ordering proof.
             Assert.Equal(revocationFirst ? FormAcceptedCommandState.Refused : FormAcceptedCommandState.Completed, settled.State);
             Assert.Equal(revocationFirst ? 0 : 1, sink.Records.Records.Count);
             Assert.Equal(revocationFirst ? 0 : 1, sink.Lookups);
@@ -156,7 +154,7 @@ public sealed class FormAcceptedCommandFenceHandoffTests
         var submitter = await AcceptingAsync(state: state);
         using var body = JsonDocument.Parse("""{"name":"Ada"}""");
         await submitter.Engine.SubmitAsync(new(submitter.Definition.Id, body, "worker-gate-op"));
-        var sink = new ContractSink();
+        var sink = new ContractEmptyLookupSink();
         sink.DenyWorker = true;
         var worker = await Harness.CreateAsync(state: state, definitionFactory: Targeted, submitGates: Port(new Decider()),
             recordTypePolicies: new FormOnlyReader(), projectionSink: sink,
@@ -186,43 +184,10 @@ public sealed class FormAcceptedCommandFenceHandoffTests
         Assert.Empty(state.Pending);
     }
 
-    private static void AssertFenceDecision(FencedHostStore host, string commandId, bool revocationFirst, int skewMinutes)
+    // Lifecycle fixture only: the API must prove the actual single-database revocation/check transaction.
+    private sealed class RefusingClaimStore(IFormSubmissionTransactionStore inner, KernelAuditEvidence audit)
+        : IFormSubmissionTransactionStore, IFormAcceptedCommandStore
     {
-        // Independent scenario oracle: ADR-0110 open items 2/6 and T-616 handoff acceptance 1-2.
-        Assert.Equal(revocationFirst ? ["revocation", "claim"] : new[] { "claim", "revocation" },
-            host.Events.Select(entry => entry.Kind).ToArray());
-        Assert.All(host.Events, entry => Assert.Equal(commandId, entry.CommandId));
-        Assert.Equal(Now.AddMinutes(skewMinutes), Assert.Single(host.Events, entry => entry.Kind == "revocation").AuditAt);
-        var decision = Assert.Single(host.Events, entry => entry.Kind == "claim");
-        Assert.Equal(Now, decision.AuditAt);
-        Assert.Equal(revocationFirst, decision.RevocationApplies);
-        Assert.Equal(revocationFirst ? "host-fence-refusal"u8.ToArray() : ExpectedAcceptanceSnapshot(), decision.Evidence);
-    }
-
-    private sealed record FenceEvent(string Kind, string CommandId, DateTimeOffset AuditAt, bool? RevocationApplies, byte[] Evidence);
-
-    // Serial commits model one host fence; no concurrent writers or multi-store crash atomicity are claimed here.
-    private sealed class FencedHostStore(IFormSubmissionTransactionStore inner, string path, KernelAuditEvidence audit)
-        : IFormSubmissionTransactionStore, IFormAcceptedCommandStore, IFormAcceptedCommandRevocations
-    {
-        internal List<FenceEvent> Events { get; } = File.Exists(path)
-            ? File.ReadAllLines(path).Select(line => JsonSerializer.Deserialize<FenceEvent>(line)!).ToList()
-            : [];
-        private void Commit(FenceEvent entry)
-        {
-            File.AppendAllText(path, JsonSerializer.Serialize(entry) + "\n");
-            Events.Add(entry);
-        }
-        internal void CommitRevocation(string commandId, DateTimeOffset at) =>
-            Commit(new("revocation", commandId, at, null, []));
-        public ValueTask<IReadOnlyList<FormAcceptedCommandRevocation>> FindAsync(FormAcceptedCommandRevocationQuery query, CancellationToken cancellationToken = default)
-        {
-            var decision = Events.Single(entry => entry.Kind == "claim" && entry.CommandId == query.Command.CommandId);
-            return ValueTask.FromResult<IReadOnlyList<FormAcceptedCommandRevocation>>(decision.RevocationApplies == true
-                ? [new(FormAcceptedCommandRevocationReason.Compromise,
-                    Events.Single(entry => entry.Kind == "revocation" && entry.CommandId == query.Command.CommandId).AuditAt)]
-                : []);
-        }
         private IFormAcceptedCommandStore Commands => (IFormAcceptedCommandStore)inner;
         internal int ClaimCalls { get; private set; }
         public ValueTask<IFormSubmissionTransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default) => inner.BeginTransactionAsync(cancellationToken);
@@ -238,17 +203,8 @@ public sealed class FormAcceptedCommandFenceHandoffTests
         {
             ClaimCalls++;
             Assert.Equal("sys.forms-worker", workerId);
-            if (Events.Any(entry => entry.Kind == "claim" && entry.CommandId == commandId))
-                return await Commands.ClaimAcceptedCommandAsync(commandId, workerId, at, cancellationToken);
-            var applies = Events.Any(entry => entry.Kind == "revocation" && entry.CommandId == commandId);
-            var result = applies
-                ? await Commands.RefuseAcceptedCommandAsync(commandId, FormAcceptedCommandState.Pending,
-                    "records.command.revoked_compromise", audit, cancellationToken)
-                : await Commands.ClaimAcceptedCommandAsync(commandId, workerId, at, cancellationToken);
-            var command = result!.Command;
-            Commit(new("claim", commandId, at, applies,
-                applies ? audit.AuthoritySnapshot.ToArray() : command.AcceptanceSnapshot.ToArray()));
-            return result;
+            return await Commands.RefuseAcceptedCommandAsync(commandId, FormAcceptedCommandState.Pending,
+                "records.command.revoked_compromise", audit, cancellationToken);
         }
         public ValueTask<FormAcceptedCommandTransition?> CancelAcceptedCommandAsync(TenantId tenant, string commandId, Harborline.Kernel.Core.KernelAuditEvidence audit, CancellationToken cancellationToken = default) => Commands.CancelAcceptedCommandAsync(tenant, commandId, audit, cancellationToken);
         public ValueTask<FormAcceptedCommandTransition?> RefuseAcceptedCommandAsync(string commandId, FormAcceptedCommandState expectedState, string refusalCode, Harborline.Kernel.Core.KernelAuditEvidence audit, CancellationToken cancellationToken = default) => Commands.RefuseAcceptedCommandAsync(commandId, expectedState, refusalCode, audit, cancellationToken);
@@ -272,7 +228,8 @@ public sealed class FormAcceptedCommandFenceHandoffTests
     private static byte[] ExpectedAcceptanceSnapshot() =>
         """{"tenant":"tenant-engine","principal":"alice","version":2,"steps":[{"ordinal":1,"stage":"act","facts":["kind:Gate","act:forms:submit-gate","target:form/inspection@1.0.0","principal:alice","tenant:tenant-engine","at:2026-08-08T12:00:00.0000000\u002B00:00"]},{"ordinal":2,"stage":"effective-roles","facts":["roles:none","deciding:grant:fixture@1"]},{"ordinal":3,"stage":"standings","facts":["standings:none"]},{"ordinal":4,"stage":"verdict","facts":["verdict:allowed","refusal:None","version:2"]}]}"""u8.ToArray();
 
-    private sealed class ContractSink(FencedHostStore? host = null) : IFormProjectionSink, IFormAcceptedRecordBodies, IFormAcceptedCommandRevocations
+    // Host-contract input, not a production retention adapter or a lookup-conformance oracle.
+    private sealed class ContractEmptyLookupSink : IFormProjectionSink, IFormAcceptedRecordBodies, IFormAcceptedCommandRevocations
     {
         internal RecordsSink Records { get; } = new();
         internal int Lookups { get; private set; }
@@ -294,9 +251,8 @@ public sealed class FormAcceptedCommandFenceHandoffTests
             Lookups++;
             // Consumer callback oracle: the query contract requires the literal Claimed lifecycle state.
             Assert.Equal(FormAcceptedCommandState.Claimed, query.Command.State);
-            // The fence test reads the reopened host decision; the worker-gate-only test supplies an empty lookup.
-            return host?.FindAsync(query, cancellationToken)
-                ?? ValueTask.FromResult<IReadOnlyList<FormAcceptedCommandRevocation>>([]);
+            // Supplied revision-22 input only; never assert this fixture's output as proof of host retention.
+            return ValueTask.FromResult<IReadOnlyList<FormAcceptedCommandRevocation>>([]);
         }
     }
 }
