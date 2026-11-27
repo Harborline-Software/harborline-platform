@@ -1017,6 +1017,23 @@ public sealed class FormAcceptedRecordCommandTests
         AssertTerminalAudit(state, "accepted-command-refused", Worker, code, afterClaim: true);
     }
 
+    [Fact]
+    public async Task EarliestNonOrdinaryRevocationDeterminesRefusalCode()
+    {
+        var state = await AcceptedAsync();
+        var sink = new RevokingSink();
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.Compromise, Now.AddMinutes(-2)));
+        sink.Revocations.Add(new(FormAcceptedCommandRevocationReason.TenantSuspension, Now.AddMinutes(-1)));
+        var worker = await RevokingWorkerAsync(state, sink);
+
+        await worker.Engine.RecoverProjectionsAsync(10);
+
+        Assert.Empty(sink.Records.Executions);
+        Assert.Empty(sink.Records.Records);
+        var refused = Assert.Single(state.Commands.Values).Command;
+        Assert.Equal(FormAcceptedCommandState.Refused, refused.State);
+        Assert.Equal("records.command.revoked_compromise", refused.RefusalCode);
+    }
     [Fact(DisplayName = "Open item 6: an earlier ordinary revocation does not mask a later compromise before the claim; the command is refused")]
     public async Task EarlierOrdinaryRevocationDoesNotMaskACompromise()
     {
